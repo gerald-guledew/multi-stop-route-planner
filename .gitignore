@@ -16,6 +16,9 @@ out/
 
 # Local notes and drafts, not part of the project
 .drafts/
+.sot/
+AGENTS.md
+CLAUDE.md
 
 # Secrets and local config
 .env
