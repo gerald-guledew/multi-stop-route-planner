@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: route-planner
+  mvc:
+    problemdetails:
+      enabled: true
