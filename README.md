@@ -39,9 +39,9 @@ Runs on free, open data, so anyone can host their own copy without paying for an
 
 ## Roadmap
 
-- [ ] 1. REST API that returns the efficient stop order, using straight-line distances
+- [x] 1. REST API that returns the efficient stop order, using straight-line distances
 - [ ] 2. Saved places in PostgreSQL, with database migrations
-- [ ] 3. Real driving distances from GraphHopper
+- [x] 3. Real driving distances from GraphHopper
 - [ ] 4. Map screen, first release
 - [ ] 5. Vehicle information: engine, size and load
 - [ ] 6. Fuel-efficient route option, using that vehicle information

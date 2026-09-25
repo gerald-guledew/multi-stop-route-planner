@@ -11,12 +11,12 @@ flowchart TD
     Service --> Provider["TravelMatrixProvider (interface)"]
     Service --> Solver["RouteSolver (interface)"]
     Provider --> Haversine["Haversine, straight line"]
-    Provider -.-> GraphHopper["GraphHopper, real roads, step 3"]
+    Provider --> GraphHopper["GraphHopper, real roads"]
     Solver --> Brute["Brute force, every order"]
     Solver -.-> Heuristic["Nearest neighbour and 2-opt, later"]
 ```
 
-Dotted lines are not built yet.
+Dotted lines are not built yet. Exactly one distance provider is active, chosen by `routeplanner.routing.provider` in `application.yaml`.
 
 1. The controller takes JSON, validates it, and turns it into domain objects.
 2. The service asks a matrix provider for travel figures between every pair of places.
@@ -52,6 +52,12 @@ The interface hands back a whole matrix rather than one pair at a time, because 
 | Stops per request | 10 at most. Checking every order grows by factorial, so 10 stops is already 3.6 million |
 | Start | Required. Returning to it is optional |
 
+## Two things real roads brought with them
+
+**Distances stopped being symmetric.** A straight line from A to B equals the line back. A drive does not, because of one-way streets and motorway ramps, so every ordered pair is calculated separately rather than mirroring half the table.
+
+**Some places cannot be reached at all.** A coordinate away from any street, on an airfield or inside a park, has nothing to snap to. That is not a broken request and not a broken server, so it answers 422 naming the place, rather than failing with a 500.
+
 ## Deliberately absent
 
 Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication, because there is nothing private to protect yet. Turn by turn navigation, which is handed to Google Maps or Waze.
@@ -61,7 +67,7 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | Step | Change to this picture |
 | --- | --- |
 | 2 | A `places` table in PostgreSQL and a repository behind a new endpoint. The flow above is untouched |
-| 3 | A second `TravelMatrixProvider` backed by GraphHopper. Choose it with configuration |
+| 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for |
 | 4 | A React app calling the same endpoint. No backend change |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |
 | 6 | A second way to fill the cost matrix, using fuel instead of distance |

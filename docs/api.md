@@ -2,7 +2,28 @@
 
 Base path `/api/v1`. JSON in, JSON out.
 
-**Status: specification.** The endpoint is being built, so nothing answers on this path yet. If a field gets a different name while building, change it here in the same pull request.
+**Status: working.** If a field gets a different name while building, change it here in the same pull request.
+
+### Straight lines or real roads
+
+The same request answers differently depending on which distance source is switched on in `application.yaml`:
+
+```yaml
+routeplanner:
+  routing:
+    provider: haversine     # straight lines, no setup
+    # provider: graphhopper # real driving distances, needs the map extract
+```
+
+`graphhopper` needs the New Zealand extract, 385 MB, at `backend/data/new-zealand-latest.osm.pbf`:
+
+```bash
+curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
+```
+
+The first start builds a routing graph and takes minutes. Later starts load it in seconds. The map file and the graph stay out of git.
+
+The difference is not cosmetic. For the five Auckland stops below, straight lines give a 51.57 km trip and real roads give 76.91 km, **in a different order**, because the harbour is only short if you can swim.
 
 ## POST /api/v1/routes/optimize
 
@@ -92,4 +113,20 @@ Validation failures return **400** as RFC 9457 Problem Details, with the media t
 | Status | When |
 | --- | --- |
 | 400 | A field is missing, a coordinate is out of range, there are no stops, or there are more than 10 |
+| 422 | A place has no road near it, so no car can reach it. Only possible on the `graphhopper` provider |
 | 500 | Anything unexpected. The response carries no internal details |
+
+A 422 names the place that cannot be reached, so the caller knows which pin to move:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Unroutable place",
+  "status": 422,
+  "detail": "Cannot route to Airport. No road was found near those coordinates. Move the point closer to a street.",
+  "instance": "/api/v1/routes/optimize",
+  "place": "Airport"
+}
+```
+
+This is easy to hit in practice. A pin dropped on an airfield, inside a shopping centre or in the middle of a park has no street beside it. Moving it to the nearest road fixes it: the Auckland Airport pin at `-37.0082, 174.7850` fails, while the terminal forecourt at `-37.0070, 174.7830` works.
