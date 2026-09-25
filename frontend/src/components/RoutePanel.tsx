@@ -36,8 +36,13 @@ export default function RoutePanel(props: Props) {
       <header>
         <h1>Multi-Stop Route Planner</h1>
         <p className="lede">
-          Click the map to drop your start, then each place you need to visit. Click a road,
-          not a field: a pin with no street near it cannot be driven to.
+          Click the map to drop your start, then each place you visit. The position comes from
+          where you click. The boxes below are labels for your own reading, not an address
+          search, so typing in them does not move a pin.
+        </p>
+        <p className="lede">
+          Click the street outside a place rather than the building itself. A pin inside a mall
+          or a park has no road beside it and cannot be driven to.
         </p>
       </header>
 
@@ -51,7 +56,9 @@ export default function RoutePanel(props: Props) {
             </span>
             <input
               value={place.name}
-              aria-label={`Name of place ${index + 1}`}
+              placeholder="Label for this pin"
+              title="A label only. The position comes from where you clicked the map."
+              aria-label={`Label for place ${index + 1}`}
               onChange={(event) => props.onRename(index, event.target.value)}
             />
             <button className="link" onClick={() => props.onRemove(index)} aria-label="Remove">
