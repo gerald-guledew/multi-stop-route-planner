@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
+import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -123,6 +124,22 @@ class RouteControllerTest {
                         .content(namelessStop))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("stops[0].name"));
+    }
+
+    @Test
+    void reportsAPlaceWithNoRoadNearItAsUnprocessable() throws Exception {
+        given(routePlanningService.plan(any(), any(), anyBoolean()))
+                .willThrow(new UnroutablePlaceException("Takapuna", "No road was found near those coordinates."));
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Unroutable place"))
+                .andExpect(jsonPath("$.place").value("Takapuna"))
+                .andExpect(jsonPath("$.detail").value(
+                        "Cannot route to Takapuna. No road was found near those coordinates."));
     }
 
     private static RoutePlan aPlan() {
