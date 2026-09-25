@@ -22,6 +22,7 @@ With five stops there are 120 possible orders. With ten stops there are more tha
 Develop an application that can accept a starting point and a list of places. It works out the order that makes the trip efficient, then hands each leg to Google Maps or Waze for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
 
 - Efficient stop order for a list of addresses
+- Type an address and have it found, instead of hunting for it on the map
 - Real driving distances from OpenStreetMap, not straight lines
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
@@ -68,7 +69,7 @@ The first start builds a routing graph and takes a few minutes, then loads in un
 ## Roadmap
 
 - [x] 1. REST API that returns the efficient stop order, using straight-line distances
-- [ ] 2. Saved places in PostgreSQL, with database migrations
+- [ ] 2. Address search and saved places, in PostgreSQL
 - [x] 3. Real driving distances from GraphHopper
 - [x] 4. Map screen, first release
 - [ ] 5. Vehicle information: engine, size and load
