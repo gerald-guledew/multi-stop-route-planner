@@ -37,12 +37,40 @@ Develop an application that can accept a starting point and a list of places. It
 
 Runs on free, open data, so anyone can host their own copy without paying for an API key.
 
+## Running it
+
+Two halves. The API:
+
+```bash
+cd backend && ./mvnw spring-boot:run
+```
+
+The map screen, in a second terminal:
+
+```bash
+cd frontend && pnpm install && pnpm dev
+```
+
+Open http://localhost:5173, click your start and then each stop, and plan the route.
+
+That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
+
+```bash
+curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
+```
+
+```bash
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments=--routeplanner.routing.provider=graphhopper
+```
+
+The first start builds a routing graph and takes a few minutes, then loads in under a second after that. Neither the map file nor the graph goes into git.
+
 ## Roadmap
 
 - [x] 1. REST API that returns the efficient stop order, using straight-line distances
 - [ ] 2. Saved places in PostgreSQL, with database migrations
 - [x] 3. Real driving distances from GraphHopper
-- [ ] 4. Map screen, first release
+- [x] 4. Map screen, first release
 - [ ] 5. Vehicle information: engine, size and load
 - [ ] 6. Fuel-efficient route option, using that vehicle information
 
