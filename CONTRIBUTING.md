@@ -10,7 +10,19 @@ Contributions are welcome. Open an issue before starting anything large, so two 
 
 ## Setup
 
-Java 25 and Git. The build uses Maven through the `./mvnw` wrapper, so Maven itself does not need to be installed. PostgreSQL arrives at step 2 of the roadmap. Build and run instructions come with the first release.
+Java 25 and Git. The build uses Maven through the `./mvnw` wrapper, so Maven itself does not need to be installed. PostgreSQL arrives at step 2 of the roadmap.
+
+```bash
+cd backend && ./mvnw verify
+```
+
+That runs on straight-line distances and needs nothing else. For real driving distances, download the 385 MB map extract, which stays out of git, and switch the provider in `application.yaml`:
+
+```bash
+curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
+```
+
+The road tests skip themselves when that file is absent, so a clean checkout stays green.
 
 ## Pull requests
 

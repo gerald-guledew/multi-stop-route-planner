@@ -4,6 +4,7 @@ import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,6 +15,10 @@ import org.springframework.stereotype.Component;
  * Step 3 replaces this with GraphHopper.
  */
 @Component
+@ConditionalOnProperty(
+        name = "routeplanner.routing.provider",
+        havingValue = RoutingProperties.HAVERSINE,
+        matchIfMissing = true)
 public class HaversineTravelMatrixProvider implements TravelMatrixProvider {
 
     @Override

@@ -4,3 +4,11 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+
+routeplanner:
+  routing:
+    # haversine: straight lines, no setup. graphhopper: real driving distances, needs the map extract.
+    provider: haversine
+    osm-file: data/new-zealand-latest.osm.pbf
+    graph-cache: data/graph-cache
+    profile: car
