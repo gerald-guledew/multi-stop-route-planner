@@ -1,0 +1,42 @@
+# Build output
+target/
+build/
+.gradle/
+out/
+
+# IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# macOS
+.DS_Store
+
+# Local notes and drafts, not part of the project
+.drafts/
+
+# Secrets and local config
+.env
+.env.*
+*.pem
+*.p12
+application-local.properties
+application-local.yml
+application-local.yaml
+
+# Map data and routing caches: large, and rebuilt locally
+data/
+*.osm.pbf
+*.osm.bz2
+graph-cache/
+
+# Frontend, from step 4 onwards
+node_modules/
+dist/
+.pnpm-store/
+
+# Logs
+*.log
+logs/
