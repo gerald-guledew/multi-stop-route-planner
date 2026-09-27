@@ -1,6 +1,17 @@
 spring:
   application:
     name: route-planner
+  datasource:
+    # Defaults suit Postgres.app on a Mac, where the login role is your own username and
+    # there is no password. Override with DB_NAME, DB_USERNAME and DB_PASSWORD anywhere else.
+    url: jdbc:postgresql://localhost:5432/${DB_NAME:routeplanner}
+    username: ${DB_USERNAME:${USER:postgres}}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema. Hibernate only checks that the mapping matches it.
+      ddl-auto: validate
   mvc:
     problemdetails:
       enabled: true
@@ -12,3 +23,7 @@ routeplanner:
     osm-file: data/new-zealand-latest.osm.pbf
     graph-cache: data/graph-cache
     profile: car
+  addresses:
+    # Set to true once, with the LINZ export in place, to load the address table.
+    import-enabled: false
+    csv: data/lds-nz-addresses-CSV/nz-addresses.csv

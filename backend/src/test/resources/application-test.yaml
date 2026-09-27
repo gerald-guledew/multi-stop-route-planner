@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    # A separate database, so running the tests never touches the 2.4 million imported rows.
+    url: jdbc:postgresql://localhost:5432/${DB_NAME:routeplanner_test}
+
+routeplanner:
+  addresses:
+    import-enabled: false
