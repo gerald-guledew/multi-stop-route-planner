@@ -31,6 +31,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | `api` | HTTP only. Controller, request and response records, validation, error handling |
 | `planning` | The domain. Cost matrices, solvers, the resulting plan. Plain Java, no Spring annotations |
 | `distance` | Where travel figures come from. The provider interface and its implementations |
+| `address` | Address search: the LINZ table, the repository and the `AddressSearch` interface |
 
 Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances are calculated.
 
@@ -66,7 +67,7 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 
 | Step | Change to this picture |
 | --- | --- |
-| 2 | Address search and saved places in PostgreSQL, behind an `AddressSearch` interface, mirroring how distances work. A new endpoint the map screen calls, so the planning flow above is untouched |
+| 2 | **Address search done.** LINZ addresses in PostgreSQL behind an `AddressSearch` interface, mirroring how distances work, with a new endpoint the map screen calls. The planning flow above was untouched. Saved places still to come |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |

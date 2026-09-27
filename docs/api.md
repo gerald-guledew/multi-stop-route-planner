@@ -25,6 +25,31 @@ The first start builds a routing graph and takes minutes. Later starts load it i
 
 The difference is not cosmetic. For the five Auckland stops below, straight lines give a 51.57 km trip and real roads give 76.91 km, **in a different order**, because the harbour is only short if you can swim.
 
+## GET /api/v1/places/search
+
+Finds addresses by what you type, so a stop can be typed rather than hunted for on the map.
+
+| Parameter | Rules |
+| --- | --- |
+| `q` | Required. Searches of fewer than three characters return an empty list rather than half the country |
+| `limit` | Optional, 1 to 25, default 8 |
+
+```
+GET /api/v1/places/search?q=90a%20bassett%20road&limit=3
+```
+
+```json
+[
+  { "name": "90A Bassett Road, Remuera, Auckland", "latitude": -36.87124, "longitude": 174.78663 }
+]
+```
+
+Each space becomes a wildcard, so "bassett road remuera" matches "20A Bassett Road, Remuera, Auckland" despite the comma. Words have to be typed in the order they appear.
+
+**It searches addresses, not businesses.** "New World Remuera" returns nothing, because the LINZ dataset holds addresses. Use the street address, or click the map.
+
+Results are empty until the address data is imported. See the README.
+
 ## POST /api/v1/routes/optimize
 
 Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg.

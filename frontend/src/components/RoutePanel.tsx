@@ -1,3 +1,4 @@
+import AddressSearchBox from './AddressSearchBox'
 import type { Place, RoutePlan } from '../types'
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
   onReturnToStartChange: (returnToStart: boolean) => void
   onPlan: () => void
   onClear: () => void
+  onPickAddress: (place: Place) => void
 }
 
 const MAX_STOPS = 10
@@ -36,9 +38,9 @@ export default function RoutePanel(props: Props) {
       <header>
         <h1>Multi-Stop Route Planner</h1>
         <p className="lede">
-          Click the map to drop your start, then each place you visit. The position comes from
-          where you click. The boxes below are labels for your own reading, not an address
-          search, so typing in them does not move a pin.
+          Search an address to drop a pin on the street outside it, or click the map for
+          somewhere with no address. The boxes beside each pin are labels you can rename; they
+          do not move anything.
         </p>
         <p className="lede">
           Click the street outside a place rather than the building itself. A pin inside a mall
@@ -46,7 +48,11 @@ export default function RoutePanel(props: Props) {
         </p>
       </header>
 
-      {places.length === 0 && <p className="empty">Nothing yet. Your first click is the start.</p>}
+      <AddressSearchBox onPick={props.onPickAddress} />
+
+      {places.length === 0 && (
+        <p className="empty">Nothing yet. The first address or click is your start.</p>
+      )}
 
       <ol className="places">
         {places.map((place, index) => (

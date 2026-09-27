@@ -23,6 +23,13 @@ export default function App() {
     setUnroutablePlace(undefined)
   }
 
+  function addSearchedPlace(place: Place) {
+    setPlaces((current) => [...current, place])
+    setPlan(null)
+    setError(null)
+    setUnroutablePlace(undefined)
+  }
+
   function renamePlace(index: number, name: string) {
     setPlaces((current) => current.map((place, at) => (at === index ? { ...place, name } : place)))
   }
@@ -73,6 +80,7 @@ export default function App() {
         onReturnToStartChange={setReturnToStart}
         onPlan={planRoute}
         onClear={clearAll}
+        onPickAddress={addSearchedPlace}
       />
       <RouteMap
         places={places}

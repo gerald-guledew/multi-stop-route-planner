@@ -8,6 +8,29 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+
+    services:
+      # PostGIS rather than plain Postgres: the migration enables the postgis extension,
+      # and pg_trgm is what makes address search work at all.
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_DB: routeplanner_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_NAME: routeplanner_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
     steps:
       - uses: actions/checkout@v7
 

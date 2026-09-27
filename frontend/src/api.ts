@@ -16,6 +16,26 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Address lookup for the type-ahead.
+ *
+ * <p>Takes an AbortSignal because keystrokes outrun the network: without cancelling the
+ * previous request, a slow answer for "bass" can arrive after the answer for "bassett road"
+ * and overwrite it.
+ */
+export async function searchPlaces(query: string, signal: AbortSignal): Promise<Place[]> {
+  const response = await fetch(`/api/v1/places/search?q=${encodeURIComponent(query)}&limit=8`, {
+    signal,
+  })
+
+  if (!response.ok) {
+    const problem = (await response.json().catch(() => ({}))) as ProblemDetail
+    throw new ApiError(problem, response.status)
+  }
+
+  return (await response.json()) as Place[]
+}
+
 export async function optimizeRoute(
   start: Place,
   stops: Place[],

@@ -40,7 +40,13 @@ Runs on free, open data, so anyone can host their own copy without paying for an
 
 ## Running it
 
-Two halves. The API:
+You need Java 25, pnpm and PostgreSQL with PostGIS. On a Mac, [Postgres.app](https://postgresapp.com) includes PostGIS:
+
+```bash
+createdb routeplanner
+```
+
+Two halves. The API, which applies its own database migrations on start:
 
 ```bash
 cd backend && ./mvnw spring-boot:run
@@ -65,6 +71,16 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments=--routeplanner.
 ```
 
 The first start builds a routing graph and takes a few minutes, then loads in under a second after that. Neither the map file nor the graph goes into git.
+
+### Address search
+
+Typing an address needs the LINZ address data, which is free but not redistributable in this repository. Download **NZ Addresses** from [the LINZ Data Service](https://data.linz.govt.nz/layer/123113-nz-addresses/) as CSV in WGS84, unzip it into `backend/data/`, then load it once:
+
+```bash
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner.addresses.import-enabled=true"
+```
+
+That imports about 2.4 million addresses in a few seconds using PostgreSQL `COPY`. Without it everything still works, you just click the map instead of typing.
 
 ## Roadmap
 
