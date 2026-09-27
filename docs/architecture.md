@@ -66,8 +66,8 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 
 | Step | Change to this picture |
 | --- | --- |
-| 2 | A `places` table in PostgreSQL and a repository behind a new endpoint. The flow above is untouched |
+| 2 | Address search and saved places in PostgreSQL, behind an `AddressSearch` interface, mirroring how distances work. A new endpoint the map screen calls, so the planning flow above is untouched |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for |
-| 4 | A React app calling the same endpoint. No backend change |
+| 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |
 | 6 | A second way to fill the cost matrix, using fuel instead of distance |
