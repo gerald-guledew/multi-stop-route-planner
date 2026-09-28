@@ -10,6 +10,8 @@ export interface Leg {
   from: string
   to: string
   distanceKm: number
+  /** The road this leg follows, as [latitude, longitude] pairs. Empty on straight-line distances. */
+  path: [number, number][]
 }
 
 export interface RoutePlan {

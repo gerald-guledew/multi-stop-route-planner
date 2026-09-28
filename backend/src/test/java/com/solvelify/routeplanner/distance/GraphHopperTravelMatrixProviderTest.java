@@ -2,12 +2,14 @@ package com.solvelify.routeplanner.distance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.graphhopper.GraphHopper;
 import com.graphhopper.config.CHProfile;
 import com.graphhopper.config.Profile;
 import com.graphhopper.util.GHUtility;
+import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
@@ -106,6 +108,28 @@ class GraphHopperTravelMatrixProviderTest {
     @Test
     void buildsOneRowAndColumnPerPlace() {
         assertThat(provider.matrixFor(List.of(SKY_TOWER, DEVONPORT, SYLVIA_PARK)).size()).isEqualTo(3);
+    }
+
+    @Test
+    void tracesTheRoadBetweenTwoPlaces() {
+        List<GeoPoint> shape = provider.pathBetween(DEVONPORT, SYLVIA_PARK);
+
+        // A straight line needs two points. A drive round the harbour needs a great many more.
+        assertThat(shape).hasSizeGreaterThan(50);
+        assertThat(shape.getFirst().latitude()).isCloseTo(DEVONPORT.latitude(), within(0.01));
+        assertThat(shape.getFirst().longitude()).isCloseTo(DEVONPORT.longitude(), within(0.01));
+        assertThat(shape.getLast().latitude()).isCloseTo(SYLVIA_PARK.latitude(), within(0.01));
+        assertThat(shape.getLast().longitude()).isCloseTo(SYLVIA_PARK.longitude(), within(0.01));
+    }
+
+    @Test
+    void drawsTheDriveNorthOfTheHarbourBeforeCrossingIt() {
+        List<GeoPoint> shape = provider.pathBetween(DEVONPORT, SYLVIA_PARK);
+
+        // The bridge is the only road crossing, so the drive reaches well west of both ends.
+        double westernmost = shape.stream().mapToDouble(GeoPoint::longitude).min().orElseThrow();
+
+        assertThat(westernmost).isLessThan(Math.min(DEVONPORT.longitude(), SYLVIA_PARK.longitude()));
     }
 
     @Test

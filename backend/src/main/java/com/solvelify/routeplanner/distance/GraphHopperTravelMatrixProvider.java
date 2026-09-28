@@ -3,11 +3,15 @@ package com.solvelify.routeplanner.distance;
 import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
 import com.graphhopper.GraphHopper;
+import com.graphhopper.ResponsePath;
+import com.graphhopper.util.PointList;
 import com.graphhopper.util.exceptions.PointNotFoundException;
+import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -54,7 +58,23 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
         return new TravelMatrix(distances);
     }
 
+    @Override
+    public List<GeoPoint> pathBetween(Location from, Location to) {
+        ResponsePath path = bestPath(from, to);
+
+        PointList points = path.getPoints();
+        List<GeoPoint> shape = new ArrayList<>(points.size());
+        for (int index = 0; index < points.size(); index++) {
+            shape.add(new GeoPoint(points.getLat(index), points.getLon(index)));
+        }
+        return shape;
+    }
+
     private double drivingDistanceKm(Location from, Location to) {
+        return bestPath(from, to).getDistance() / METRES_PER_KM;
+    }
+
+    private ResponsePath bestPath(Location from, Location to) {
         GHRequest request = new GHRequest(
                 from.latitude(), from.longitude(),
                 to.latitude(), to.longitude())
@@ -65,7 +85,7 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
             throw asUnroutable(response.getErrors().get(0), from, to);
         }
 
-        return response.getBest().getDistance() / METRES_PER_KM;
+        return response.getBest();
     }
 
     /**

@@ -16,4 +16,18 @@ import java.util.List;
 public interface TravelMatrixProvider {
 
     TravelMatrix matrixFor(List<Location> places);
+
+    /**
+     * The shape of the drive between two places, for drawing on a map.
+     *
+     * <p>Optional because it is meaningless for straight lines: two points already describe
+     * them. A provider that knows roads returns the points the road actually follows, and the
+     * map can then show the drive instead of a line through the harbour.
+     *
+     * <p>Asked for only on the legs that end up in the answer, rather than for every pair in
+     * the matrix, because a plan of n stops uses n legs out of n squared possibilities.
+     */
+    default List<GeoPoint> pathBetween(Location from, Location to) {
+        return List.of();
+    }
 }

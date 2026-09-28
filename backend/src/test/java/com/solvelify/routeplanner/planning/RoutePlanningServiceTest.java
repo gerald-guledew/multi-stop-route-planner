@@ -81,6 +81,14 @@ class RoutePlanningServiceTest {
         assertThat(sumOfLegs).isCloseTo(plan.totalDistanceKm(), within(0.000001));
     }
 
+    @Test
+    void drawsNoRoadsWhenDistancesAreStraightLines() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, true);
+
+        // Two points already describe a straight line, so the map draws it without help.
+        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).isEmpty());
+    }
+
     private static List<String> names(RoutePlan plan) {
         return plan.route().stream().map(Location::name).toList();
     }

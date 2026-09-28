@@ -1,5 +1,6 @@
 package com.solvelify.routeplanner.api;
 
+import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import java.util.List;
 
@@ -20,7 +21,12 @@ public record OptimizeRouteResponse(
     public record Place(String name, double latitude, double longitude) {
     }
 
-    public record Leg(String from, String to, double distanceKm) {
+    /**
+     * @param path the road this leg follows, as [latitude, longitude] pairs, empty when the
+     *             distances are straight lines. Pairs rather than objects because a single leg
+     *             can carry hundreds of points, and field names would triple the payload.
+     */
+    public record Leg(String from, String to, double distanceKm, double[][] path) {
     }
 
     public static OptimizeRouteResponse from(RoutePlan plan) {
@@ -29,7 +35,11 @@ public record OptimizeRouteResponse(
                         .map(place -> new Place(place.name(), place.latitude(), place.longitude()))
                         .toList(),
                 plan.legs().stream()
-                        .map(leg -> new Leg(leg.from(), leg.to(), roundToTwoDecimals(leg.distanceKm())))
+                        .map(leg -> new Leg(
+                                leg.from(),
+                                leg.to(),
+                                roundToTwoDecimals(leg.distanceKm()),
+                                asPairs(leg.path())))
                         .toList(),
                 roundToTwoDecimals(plan.totalDistanceKm()),
                 roundToTwoDecimals(plan.enteredOrderDistanceKm()),
@@ -38,5 +48,21 @@ public record OptimizeRouteResponse(
 
     private static double roundToTwoDecimals(double value) {
         return Math.round(value * 100) / 100.0;
+    }
+
+    /**
+     * Five decimal places is about a metre, which is far finer than a line drawn on a map needs
+     * and noticeably smaller to send than GraphHopper's full precision.
+     */
+    private static double[][] asPairs(List<GeoPoint> path) {
+        return path.stream()
+                .map(point -> new double[] {
+                        roundToFiveDecimals(point.latitude()),
+                        roundToFiveDecimals(point.longitude())})
+                .toArray(double[][]::new);
+    }
+
+    private static double roundToFiveDecimals(double value) {
+        return Math.round(value * 100_000) / 100_000.0;
     }
 }

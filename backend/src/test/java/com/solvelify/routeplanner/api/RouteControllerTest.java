@@ -149,8 +149,8 @@ class RouteControllerTest {
         return new RoutePlan(
                 List.of(skyTower, takapuna, skyTower),
                 List.of(
-                        new RoutePlan.Leg("Sky Tower", "Takapuna", 6.918),
-                        new RoutePlan.Leg("Takapuna", "Sky Tower", 6.918)),
+                        new RoutePlan.Leg("Sky Tower", "Takapuna", 6.918, List.of()),
+                        new RoutePlan.Leg("Takapuna", "Sky Tower", 6.918, List.of())),
                 13.836,
                 13.836,
                 1);
