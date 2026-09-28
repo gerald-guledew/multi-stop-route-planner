@@ -15,6 +15,9 @@ public record RoutePlan(
         double enteredOrderDistanceKm,
         long ordersChecked) {
 
-    public record Leg(String from, String to, double distanceKm) {
+    /**
+     * @param path the road the drive follows, empty when distances are straight lines
+     */
+    public record Leg(String from, String to, double distanceKm, List<GeoPoint> path) {
     }
 }

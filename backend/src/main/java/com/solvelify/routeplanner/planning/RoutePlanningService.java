@@ -64,13 +64,18 @@ public class RoutePlanningService {
         return Arrays.stream(path).mapToObj(places::get).toList();
     }
 
-    private static List<RoutePlan.Leg> legsAlong(int[] path, List<Location> places, TravelMatrix matrix) {
+    private List<RoutePlan.Leg> legsAlong(int[] path, List<Location> places, TravelMatrix matrix) {
         List<RoutePlan.Leg> legs = new ArrayList<>(path.length - 1);
         for (int step = 0; step < path.length - 1; step++) {
+            Location from = places.get(path[step]);
+            Location to = places.get(path[step + 1]);
             legs.add(new RoutePlan.Leg(
-                    places.get(path[step]).name(),
-                    places.get(path[step + 1]).name(),
-                    matrix.distanceKm(path[step], path[step + 1])));
+                    from.name(),
+                    to.name(),
+                    matrix.distanceKm(path[step], path[step + 1]),
+                    // Only the legs that made it into the answer are drawn, so this costs one
+                    // lookup per leg rather than one per pair.
+                    travelMatrixProvider.pathBetween(from, to)));
         }
         return legs;
     }

@@ -71,15 +71,29 @@ export default function RouteMap({ places, plan, unroutablePlace, onMapClick }: 
         </Marker>
       ))}
 
-      {plan && (
-        // Dashed and straight on purpose: this shows the order to drive in, not the roads
-        // themselves. The distances come from real roads, the line does not follow them yet.
-        <Polyline
-          positions={plan.route.map((place) => [place.latitude, place.longitude])}
-          dashArray="6 10"
-          weight={3}
-        />
-      )}
+      {/*
+        One line per leg. When the API sends the road it follows, draw that. When distances are
+        straight lines there is no road to draw, so the leg is dashed to say so rather than
+        pretending a line through the harbour is a drive.
+      */}
+      {plan?.legs.map((leg, index) => {
+        const from = plan.route[index]
+        const to = plan.route[index + 1]
+
+        return leg.path.length > 0 ? (
+          <Polyline key={index} positions={leg.path} weight={5} opacity={0.8} />
+        ) : (
+          <Polyline
+            key={index}
+            positions={[
+              [from.latitude, from.longitude],
+              [to.latitude, to.longitude],
+            ]}
+            dashArray="6 10"
+            weight={3}
+          />
+        )
+      })}
     </MapContainer>
   )
 }
