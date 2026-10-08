@@ -67,7 +67,7 @@ Dotted lines happen at import time, not on a search.
 
 **Found on everything, ranked on what people call it.** A place matches if the typed words appear anywhere in its searchable text. It is then ranked by how close the words are to its address, for an address, or to its name, for a named place. Ranking a business on its street address as well puts "McDonalds Road" ahead of McDonald's.
 
-**Both sides are simplified before they are compared.** A database function, `searchable`, drops accents and apostrophes. Each table stores the simplified text in a generated column with a trigram index, and the search runs what was typed through the same function. One address in eight has a macron, and none of them could be found from an ordinary keyboard before this.
+**Both sides are simplified before they are compared.** A database function, `searchable`, drops accents and apostrophes. Each table stores the simplified text in a generated column with a trigram index, and the search runs what was typed through the same function. One address in eight has a macron, and a search that typed that word on an ordinary keyboard, without the macron, used to find nothing.
 
 **The work for one search is bounded.** Each table hands over at most 5,000 matches to be ranked. "road" matches 850,000 addresses, and scoring them all took over four seconds. A search specific enough to be useful matches far fewer rows than the cap.
 

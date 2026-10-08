@@ -22,7 +22,7 @@ With five stops there are 120 possible orders. With ten stops there are more tha
 Develop an application that can accept a starting point and a list of places. It works out the order that makes the trip efficient, then hands each leg to Google Maps or Waze for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
 
 - Efficient stop order for a list of addresses
-- Type an address and have it found, instead of hunting for it on the map
+- Type an address or a business name and have it found, instead of hunting for it on the map
 - Real driving distances from OpenStreetMap, not straight lines
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
@@ -58,7 +58,7 @@ The map screen, in a second terminal:
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173, click your start and then each stop, and plan the route.
+Open http://localhost:5173, click your start and then each stop, and plan the route. Once the data below is loaded you can type them instead.
 
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 
@@ -80,7 +80,7 @@ Typing an address needs the LINZ address data, which is free but not redistribut
 cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner.addresses.import-enabled=true"
 ```
 
-That imports about 2.4 million addresses in a few seconds using PostgreSQL `COPY`. Without it everything still works, you just click the map instead of typing.
+That imports about 2.4 million addresses in about a minute using PostgreSQL `COPY`. Without it everything still works, you just click the map instead of typing.
 
 ### Business names
 
