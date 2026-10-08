@@ -34,6 +34,8 @@ class LinzAddressSearchTest {
         insert(2, "3/90A Bassett Road, Remuera", "Remuera", "Auckland", -36.8714, 174.7869);
         insert(3, "12 Bassett Street, Invercargill", "Georgetown", "Invercargill", -46.4300, 168.3800);
         insert(4, "100 Broadway, Newmarket", "Newmarket", "Auckland", -36.8700, 174.7770);
+        insert(5, "12 Bank Street, Whangārei", "Whangārei Central", "Whangārei", -35.7251, 174.3237);
+        insert(6, "5 O'Neill Street, Ponsonby, Auckland", "Ponsonby", "Auckland", -36.8540, 174.7440);
     }
 
     @Test
@@ -57,6 +59,29 @@ class LinzAddressSearchTest {
 
         assertThat(found).extracting(Location::name)
                 .doesNotContain("12 Bassett Street, Invercargill");
+    }
+
+    @Test
+    void findsAMacronNameTypedWithoutTheMacron() {
+        // Most keyboards have no macron key, so this is how Whangārei gets typed.
+        List<Location> found = addressSearch.search("bank street whangarei", 8);
+
+        assertThat(found).extracting(Location::name).containsExactly("12 Bank Street, Whangārei");
+    }
+
+    @Test
+    void findsTheSameAddressTypedWithTheMacron() {
+        List<Location> found = addressSearch.search("bank street whangārei", 8);
+
+        assertThat(found).extracting(Location::name).containsExactly("12 Bank Street, Whangārei");
+    }
+
+    @Test
+    void findsAnApostropheNameTypedWithoutTheApostrophe() {
+        List<Location> found = addressSearch.search("oneill street", 8);
+
+        assertThat(found).extracting(Location::name)
+                .containsExactly("5 O'Neill Street, Ponsonby, Auckland");
     }
 
     @Test

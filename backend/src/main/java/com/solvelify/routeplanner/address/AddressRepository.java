@@ -18,6 +18,10 @@ public interface AddressRepository extends JpaRepository<AddressEntity, Long> {
      * `%bassett%road%remuera%`. A plain substring search fails here: the stored address reads
      * "20A Bassett Road, Remuera", and the comma alone is enough to stop it matching.
      *
+     * <p>Both sides go through `searchable`, which drops accents and apostrophes, so
+     * "whangarei" finds Whangārei and "oneill street" finds O'Neill Street. The address side
+     * is done once, in the generated `search_text` column, rather than on every search.
+     *
      * <p>The trade-off is that words must be typed in the order they appear, which is how
      * people type addresses. Shorter addresses win ties, so a street beats a long unit address
      * on the same street.
@@ -25,8 +29,8 @@ public interface AddressRepository extends JpaRepository<AddressEntity, Long> {
     @Query(value = """
             SELECT *
             FROM address
-            WHERE full_address ILIKE '%' || replace(:term, ' ', '%') || '%'
-            ORDER BY similarity(full_address, :term) DESC, length(full_address) ASC
+            WHERE search_text ILIKE searchable('%' || replace(:term, ' ', '%') || '%')
+            ORDER BY similarity(search_text, searchable(:term)) DESC, length(full_address) ASC
             LIMIT :limit
             """, nativeQuery = true)
     List<AddressEntity> search(@Param("term") String term, @Param("limit") int limit);
