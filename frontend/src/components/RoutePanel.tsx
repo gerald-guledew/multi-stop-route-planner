@@ -14,6 +14,7 @@ interface Props {
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
+  devicePosition: Position | null
   mapCentre: Position | null
   locating: boolean
   locationProblem: LocationProblem | null
@@ -58,7 +59,12 @@ export default function RoutePanel(props: Props) {
         </p>
       </header>
 
-      <PlaceSearchBox onPick={props.onPickPlace} start={places[0]} mapCentre={props.mapCentre} />
+      <PlaceSearchBox
+        onPick={props.onPickPlace}
+        devicePosition={props.devicePosition}
+        start={places[0]}
+        mapCentre={props.mapCentre}
+      />
 
       {places.length === 0 && (
         <div className="empty">
