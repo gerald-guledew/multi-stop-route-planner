@@ -6,6 +6,13 @@ export interface Place {
   longitude: number
 }
 
+/** One search result: a street address, or a named place such as a shop or a school. */
+export interface FoundPlace extends Place {
+  kind: 'address' | 'poi'
+  /** Where a named place is, to tell two with the same name apart. Null for an address. */
+  detail: string | null
+}
+
 export interface Leg {
   from: string
   to: string

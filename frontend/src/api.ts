@@ -1,4 +1,4 @@
-import type { Place, ProblemDetail, RoutePlan } from './types'
+import type { FoundPlace, Place, ProblemDetail, RoutePlan } from './types'
 
 /**
  * An error the API explained properly, rather than a bare status code.
@@ -17,13 +17,13 @@ export class ApiError extends Error {
 }
 
 /**
- * Address lookup for the type-ahead.
+ * Address and business lookup for the type-ahead.
  *
  * <p>Takes an AbortSignal because keystrokes outrun the network: without cancelling the
  * previous request, a slow answer for "bass" can arrive after the answer for "bassett road"
  * and overwrite it.
  */
-export async function searchPlaces(query: string, signal: AbortSignal): Promise<Place[]> {
+export async function searchPlaces(query: string, signal: AbortSignal): Promise<FoundPlace[]> {
   const response = await fetch(`/api/v1/places/search?q=${encodeURIComponent(query)}&limit=8`, {
     signal,
   })
@@ -33,7 +33,7 @@ export async function searchPlaces(query: string, signal: AbortSignal): Promise<
     throw new ApiError(problem, response.status)
   }
 
-  return (await response.json()) as Place[]
+  return (await response.json()) as FoundPlace[]
 }
 
 export async function optimizeRoute(
