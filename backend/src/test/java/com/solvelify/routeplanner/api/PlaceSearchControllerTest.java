@@ -7,8 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.solvelify.routeplanner.address.AddressSearch;
-import com.solvelify.routeplanner.planning.Location;
+import com.solvelify.routeplanner.search.FoundPlace;
+import com.solvelify.routeplanner.search.PlaceSearch;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,19 +23,34 @@ class PlaceSearchControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private AddressSearch addressSearch;
+    private PlaceSearch placeSearch;
 
     @Test
-    void returnsMatchesAsJson() throws Exception {
-        given(addressSearch.search(anyString(), anyInt()))
-                .willReturn(List.of(new Location("20A Bassett Road, Remuera", -36.8712, 174.7866)));
+    void returnsAnAddressAsJson() throws Exception {
+        given(placeSearch.search(anyString(), anyInt()))
+                .willReturn(List.of(FoundPlace.address("20A Bassett Road, Remuera", -36.8712, 174.7866)));
 
         mockMvc.perform(get("/api/v1/places/search").param("q", "bassett road"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].kind").value("address"))
                 .andExpect(jsonPath("$[0].name").value("20A Bassett Road, Remuera"))
+                .andExpect(jsonPath("$[0].detail").doesNotExist())
                 .andExpect(jsonPath("$[0].latitude").value(-36.8712))
                 .andExpect(jsonPath("$[0].longitude").value(174.7866));
+    }
+
+    @Test
+    void returnsANamedPlaceWithWhereItIs() throws Exception {
+        given(placeSearch.search(anyString(), anyInt()))
+                .willReturn(List.of(FoundPlace.poi(
+                        "New World Remuera", "10 Clonbern Rd", "Remuera", "Auckland", -36.8817, 174.7975)));
+
+        mockMvc.perform(get("/api/v1/places/search").param("q", "new world remuera"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].kind").value("poi"))
+                .andExpect(jsonPath("$[0].name").value("New World Remuera"))
+                .andExpect(jsonPath("$[0].detail").value("10 Clonbern Rd, Remuera, Auckland"));
     }
 
     @Test

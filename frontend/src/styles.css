@@ -291,7 +291,7 @@ button:disabled {
   width: 100%;
 }
 
-/* Address search */
+/* Place search */
 
 .search {
   margin-bottom: 16px;
@@ -346,4 +346,16 @@ button:disabled {
 
 .results button:hover {
   background: var(--page);
+}
+
+.result-name,
+.result-detail {
+  display: block;
+}
+
+/* Where a business is, under its name. Addresses have no second line. */
+.result-detail {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
 }

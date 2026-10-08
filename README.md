@@ -22,7 +22,7 @@ With five stops there are 120 possible orders. With ten stops there are more tha
 Develop an application that can accept a starting point and a list of places. It works out the order that makes the trip efficient, then hands each leg to Google Maps or Waze for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
 
 - Efficient stop order for a list of addresses
-- Type an address and have it found, instead of hunting for it on the map
+- Type an address or a business name and have it found, instead of hunting for it on the map
 - Real driving distances from OpenStreetMap, not straight lines
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
@@ -58,7 +58,7 @@ The map screen, in a second terminal:
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173, click your start and then each stop, and plan the route.
+Open http://localhost:5173, click your start and then each stop, and plan the route. Once the data below is loaded you can type them instead.
 
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 
@@ -80,7 +80,23 @@ Typing an address needs the LINZ address data, which is free but not redistribut
 cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner.addresses.import-enabled=true"
 ```
 
-That imports about 2.4 million addresses in a few seconds using PostgreSQL `COPY`. Without it everything still works, you just click the map instead of typing.
+That imports about 2.4 million addresses in about a minute using PostgreSQL `COPY`. Without it everything still works, you just click the map instead of typing.
+
+### Business names
+
+Addresses alone cannot find "New World Remuera", because LINZ records where addresses are, not what stands on them. Names come from [Overture Maps](https://overturemaps.org) places, which are free and need no account. Install [DuckDB](https://duckdb.org), then export New Zealand, about 200,000 places in a 28 MB file:
+
+```bash
+cd backend && mkdir -p data && duckdb -f scripts/export-overture-places.sql
+```
+
+Load it:
+
+```bash
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner.poi.import-enabled=true"
+```
+
+Import the addresses first, because each place takes its suburb from the nearest address. Overture publishes every month. Run both commands again to pick up a new release: places are updated, added and removed to match the file.
 
 ## Roadmap
 
@@ -112,3 +128,4 @@ Copyright 2026 Gerald Guledew. Apache License 2.0, see [LICENSE](LICENSE).
 
 - Map and roads: © OpenStreetMap contributors, Open Database License
 - NZ addresses: Toitū Te Whenua Land Information New Zealand, CC BY 4.0
+- Business names: Overture Maps Foundation, overturemaps.org. Places from Meta and Microsoft under CDLA Permissive 2.0, from Foursquare under Apache 2.0 (Copyright 2024 Foursquare Labs, Inc.) and from AllThePlaces under CC0

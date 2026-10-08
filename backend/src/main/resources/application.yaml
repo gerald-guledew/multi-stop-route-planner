@@ -27,3 +27,15 @@ routeplanner:
     # Set to true once, with the LINZ export in place, to load the address table.
     import-enabled: false
     csv: data/lds-nz-addresses-CSV/nz-addresses.csv
+  poi:
+    # Set to true with the Overture export in place to load named places. Safe to repeat
+    # after every new export: it updates, adds and removes to match the file.
+    import-enabled: false
+    csv: data/overture-nz-places.csv
+  search:
+    # Overture scores each place from 0 to 1 for how likely it is to exist. Places below this
+    # are left out of results. Raise it for fewer doubtful places, lower it for more small ones.
+    min-confidence: 0.3
+    # The most matches from each table that one search ranks. Keeps "road" from scoring
+    # 850,000 addresses on every keystroke.
+    candidate-limit: 5000

@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,8 +27,11 @@ import org.springframework.stereotype.Component;
  * <p>The file is read into a temporary table shaped exactly like the CSV, then filtered into the
  * real table. That keeps LINZ's 26 columns out of the application's schema, and means a bad file
  * fails before touching existing data.
+ *
+ * <p>Ordered first, because the places import borrows suburbs from this table.
  */
 @Component
+@Order(1)
 @ConditionalOnProperty(name = "routeplanner.addresses.import-enabled", havingValue = "true")
 class AddressImporter implements ApplicationRunner {
 

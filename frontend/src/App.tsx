@@ -80,7 +80,7 @@ export default function App() {
         onReturnToStartChange={setReturnToStart}
         onPlan={planRoute}
         onClear={clearAll}
-        onPickAddress={addSearchedPlace}
+        onPickPlace={addSearchedPlace}
       />
       <RouteMap
         places={places}
