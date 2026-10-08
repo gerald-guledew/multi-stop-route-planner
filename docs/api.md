@@ -32,6 +32,7 @@ Finds places by what you type, so a stop can be typed rather than hunted for on 
 | Parameter | Rules |
 | --- | --- |
 | `q` | Required. Searches of fewer than three characters return an empty list rather than half the country |
+| `near` | Optional. Where the search is looking from, as `latitude,longitude`. The nearest of several matches then comes first |
 | `limit` | Optional, 1 to 25, default 8 |
 
 ```
@@ -66,6 +67,33 @@ GET /api/v1/places/search?q=90a%20bassett%20road
 ]
 ```
 
+With `near`, the nearest of several matches comes first. Without it the same search lists branches from all over the country.
+
+```
+GET /api/v1/places/search?q=new%20world&near=-36.871,174.787&limit=2
+```
+
+```json
+[
+  {
+    "kind": "poi",
+    "name": "New World Newmarket",
+    "detail": "42 Nuffield St, Newmarket, Auckland",
+    "latitude": -36.87204269,
+    "longitude": 174.7780286
+  },
+  {
+    "kind": "poi",
+    "name": "New World Remuera",
+    "detail": "10 Clonbern Rd, Remuera, Auckland",
+    "latitude": -36.88169017,
+    "longitude": 174.79746689
+  }
+]
+```
+
+`near` is whatever point the caller wants results close to. The map screen sends the start of the trip, or the middle of the map while there is no start. It never asks where the device is just to search: that can be refused, a laptop only knows it roughly, and a trip is often planned for somewhere else. Three decimal places, about 100 metres, is plenty, because the ranking counts distance in half kilometres. A `near` that is not two numbers in range is a 400.
+
 | Field | Meaning |
 | --- | --- |
 | `kind` | `address`, or `poi` for a named place |
@@ -81,14 +109,21 @@ GET /api/v1/places/search?q=90a%20bassett%20road
 
 ### How results are ordered
 
-- An address is ranked by how close the typing is to the address. A named place is ranked by how close it is to the name, with or without its suburb. So "mcdonalds" lists the restaurants before the houses on McDonalds Road, and "277 broadway" lists that address before the shops inside it.
-- Between equal matches, the place the data is more sure of comes first.
+Each match gets a score, and the highest comes first. The score is three things multiplied together.
+
+- **How well the words appear in what the place is called.** That is the address, for an address, and the name with or without its suburb, for a named place. Words that appear together, as whole words, score in full wherever in the name they are. So "new world" matches "New World Remuera" as fully as it matches "New World". The last word may be unfinished: "mcdonald" finds McDonald's.
+- **Whether an address is the one typed.** An address that begins with the words keeps its whole score. One that only contains them keeps four fifths. So "12 queen street" lists number 12 before 112, "277 broadway" lists that address before the shops inside it, and "mcdonalds" lists the restaurants before the houses on McDonalds Road.
+- **How near it is, when `near` is given.** Next door keeps the whole score, 50 km away keeps three quarters, and nothing loses more than half. So distance chooses between equal matches, and a place whose name barely matches cannot jump ahead by being close. Distance counts in half kilometres, so the houses of one street stay in order.
+
+Between equal scores, the name the words account for most of comes first, then the place the data is more sure of. Without `near` most matches score the same, and this is what orders them.
 
 ### Known gaps
 
 - Abbreviations are not expanded. "12 bassett rd" does not find 12 Bassett Road, and "mt eden" does not find an address in Mount Eden.
-- Results are not ordered by distance. "mcdonalds" lists restaurants from anywhere in the country. Add the suburb.
 - A unit number LINZ does not hold finds nothing. "3/90A Bassett Road" fails where "90A Bassett Road" works.
+- Near means in a straight line, not by road. Across a harbour, the nearest branch to drive to can be a different one.
+- Words are matched as a run. "auckland hospital" lists "Auckland Hospital Foundation" before "Auckland City Hospital", because "City" interrupts the run. Typing the name in full finds it.
+- A word that matches more than 20,000 rows of a table, such as "road" or "auckland" alone, is ranked from the first 20,000 found, not the nearest. A second word fixes it.
 
 Named places come from Overture Maps, which scores each one from 0 to 1 for how likely it is to exist. Those under `routeplanner.search.min-confidence`, 0.3 by default, are left out.
 

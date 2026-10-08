@@ -11,5 +11,15 @@ import java.util.List;
  */
 public interface PlaceSearch {
 
-    List<FoundPlace> search(String typed, int limit);
+    /**
+     * @param near where the search is looking from, so that the nearest of several matches
+     *             comes first. Null when that is not known, and places are then ranked on the
+     *             words alone
+     */
+    List<FoundPlace> search(String typed, ReferencePoint near, int limit);
+
+    /** Ranks on the words alone, for a caller with no idea where the person is. */
+    default List<FoundPlace> search(String typed, int limit) {
+        return search(typed, null, limit);
+    }
 }

@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import { useEffect, useRef } from 'react'
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import type { Position } from '../location'
 import type { Place, RoutePlan } from '../types'
 
 // Auckland, because that is where this was built and tested.
@@ -11,6 +12,7 @@ interface Props {
   plan: RoutePlan | null
   unroutablePlace?: string
   onMapClick: (latitude: number, longitude: number) => void
+  onCentreChange: (centre: Position) => void
 }
 
 /**
@@ -31,6 +33,26 @@ function ClickToAddStop({ onMapClick }: { onMapClick: Props['onMapClick'] }) {
   useMapEvents({
     click: (event) => onMapClick(event.latlng.lat, event.latlng.lng),
   })
+  return null
+}
+
+/**
+ * Tells the page where the map is looking: once when it opens, then each time it comes to rest.
+ * Search uses it to put the nearest match first while the trip has no start yet.
+ */
+function ReportCentre({ onCentreChange }: { onCentreChange: Props['onCentreChange'] }) {
+  const map = useMapEvents({
+    moveend: () => report(),
+  })
+
+  function report() {
+    const centre = map.getCenter()
+    onCentreChange({ latitude: centre.lat, longitude: centre.lng })
+  }
+
+  // Opening the map is not a move, so nothing would be reported until the first drag.
+  useEffect(report, [map])
+
   return null
 }
 
@@ -70,7 +92,13 @@ function KeepNewPlacesInView({ places }: { places: Place[] }) {
   return null
 }
 
-export default function RouteMap({ places, plan, unroutablePlace, onMapClick }: Props) {
+export default function RouteMap({
+  places,
+  plan,
+  unroutablePlace,
+  onMapClick,
+  onCentreChange,
+}: Props) {
   // Once planned, pins are numbered by driving order instead of the order they were clicked.
   const plannedOrder = plan?.route.map((place) => place.name) ?? []
 
@@ -90,6 +118,7 @@ export default function RouteMap({ places, plan, unroutablePlace, onMapClick }: 
       />
 
       <ClickToAddStop onMapClick={onMapClick} />
+      <ReportCentre onCentreChange={onCentreChange} />
       <KeepNewPlacesInView places={places} />
 
       {places.map((place, index) => (
