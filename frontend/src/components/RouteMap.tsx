@@ -1,7 +1,17 @@
 import L from 'leaflet'
 import { useEffect, useRef } from 'react'
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import type { Position } from '../location'
+import {
+  Circle,
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet'
+import type { DevicePosition, Position } from '../location'
 import type { Place, RoutePlan } from '../types'
 
 // Auckland, because that is where this was built and tested.
@@ -11,7 +21,10 @@ interface Props {
   places: Place[]
   plan: RoutePlan | null
   unroutablePlace?: string
+  /** Where the browser says this device is. Null if it was not asked, or said no. */
+  devicePosition: DevicePosition | null
   onMapClick: (latitude: number, longitude: number) => void
+  onMovePlace: (index: number, latitude: number, longitude: number) => void
   onCentreChange: (centre: Position) => void
 }
 
@@ -33,6 +46,60 @@ function ClickToAddStop({ onMapClick }: { onMapClick: Props['onMapClick'] }) {
   useMapEvents({
     click: (event) => onMapClick(event.latlng.lat, event.latlng.lng),
   })
+  return null
+}
+
+/**
+ * Where the browser says this device is: a dot, and around it a circle as wide as the browser's
+ * own doubt. On a laptop that circle can cover several houses. Drawing it says so, where a pin
+ * alone would claim more than anybody knows.
+ *
+ * Neither takes clicks, so a click inside the circle still adds a place like anywhere else.
+ */
+function YouAreHere({ at }: { at: DevicePosition }) {
+  const centre: [number, number] = [at.latitude, at.longitude]
+
+  return (
+    <>
+      <Circle
+        center={centre}
+        radius={at.accuracyMetres}
+        interactive={false}
+        pathOptions={{ className: 'you-are-here-doubt' }}
+      />
+      <CircleMarker
+        center={centre}
+        radius={6}
+        interactive={false}
+        pathOptions={{ className: 'you-are-here' }}
+      />
+    </>
+  )
+}
+
+/**
+ * Shows the start the browser found, close enough to judge it.
+ *
+ * A start found for you usually falls inside what the map already shows, so nothing else moves
+ * the map, and at that distance the pin looks exact and the circle of doubt is two pixels wide.
+ * This frames the circle instead: a street for a rough fix, a suburb for a very rough one.
+ *
+ * It acts when a new position arrives, and only if that position became the start. If a start
+ * was picked while the browser was still working it out, the map stays where it was put.
+ */
+function ShowTheStartFoundForYou({ places, at }: { places: Place[]; at: DevicePosition | null }) {
+  const map = useMap()
+
+  useEffect(() => {
+    const start = places[0]
+    if (!at || !start || start.latitude !== at.latitude || start.longitude !== at.longitude) {
+      return
+    }
+    const doubt = L.latLng(at.latitude, at.longitude).toBounds(at.accuracyMetres * 2)
+    map.fitBounds(doubt, { padding: [60, 60], maxZoom: 17 })
+    // Only a new position should move the map. Adding or renaming a place later must not.
+  }, [at, map])
+
   return null
 }
 
@@ -96,7 +163,9 @@ export default function RouteMap({
   places,
   plan,
   unroutablePlace,
+  devicePosition,
   onMapClick,
+  onMovePlace,
   onCentreChange,
 }: Props) {
   // Once planned, pins are numbered by driving order instead of the order they were clicked.
@@ -121,6 +190,10 @@ export default function RouteMap({
       <ReportCentre onCentreChange={onCentreChange} />
       <KeepNewPlacesInView places={places} />
 
+      <ShowTheStartFoundForYou places={places} at={devicePosition} />
+
+      {devicePosition && <YouAreHere at={devicePosition} />}
+
       {places.map((place, index) => (
         <Marker
           key={`${place.name}-${place.latitude}-${place.longitude}`}
@@ -129,6 +202,17 @@ export default function RouteMap({
             labelFor(place, index),
             place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered',
           )}
+          // A pin can land in the wrong spot: a rough location, a click on a building rather
+          // than its street. Dragging puts it right without losing its name or its place in
+          // the list.
+          draggable
+          title="Drag to move"
+          eventHandlers={{
+            dragend: (event) => {
+              const droppedAt = (event.target as L.Marker).getLatLng()
+              onMovePlace(index, droppedAt.lat, droppedAt.lng)
+            },
+          }}
         >
           <Popup>
             <strong>{place.name}</strong>

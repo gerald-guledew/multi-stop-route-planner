@@ -1,5 +1,5 @@
 import PlaceSearchBox from './PlaceSearchBox'
-import type { LocationProblem, Position } from '../location'
+import type { DevicePosition, LocationProblem, Position } from '../location'
 import type { Place, RoutePlan } from '../types'
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
-  devicePosition: Position | null
+  devicePosition: DevicePosition | null
   mapCentre: Position | null
   locating: boolean
   locationProblem: LocationProblem | null
@@ -28,6 +28,14 @@ const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
 }
 
 const MAX_STOPS = 10
+
+/** A phone with GPS does better than this. Beyond it the pin is a guess worth owning up to. */
+const ROUGH_BEYOND_METRES = 20
+
+/** Said the way a person would: "80 m", not "83.4 m". Past a kilometre, in kilometres. */
+function roughly(metres: number): string {
+  return metres < 1000 ? `${Math.round(metres / 10) * 10} m` : `${Math.round(metres / 1000)} km`
+}
 
 /** Hands the finished order to Google Maps, which does the actual navigating. */
 function googleMapsLink(route: Place[]): string {
@@ -45,13 +53,25 @@ export default function RoutePanel(props: Props) {
   const tooManyStops = stopCount > MAX_STOPS
   const saving = plan ? plan.enteredOrderDistanceKm - plan.totalDistanceKm : 0
 
+  // The start is still exactly where the browser put it, and the browser was not sure. Once the
+  // pin is dragged or replaced, the doubt is no longer about the start, so the note goes.
+  const start = places[0]
+  const here = props.devicePosition
+  const startIsARoughGuess =
+    start !== undefined &&
+    here !== null &&
+    start.latitude === here.latitude &&
+    start.longitude === here.longitude &&
+    here.accuracyMetres > ROUGH_BEYOND_METRES
+
   return (
     <aside className="panel">
       <header>
         <h1>Multi-Stop Route Planner</h1>
         <p className="lede">
           Search an address or a business to drop a pin on it, or click the map for anywhere
-          else. The boxes beside each pin are labels you can rename; they do not move anything.
+          else. Drag a pin to move it. The boxes beside each pin are labels you can rename; they
+          do not move anything.
         </p>
         <p className="lede">
           Click the street outside a place rather than the building itself. A pin inside a mall
@@ -97,6 +117,13 @@ export default function RoutePanel(props: Props) {
           </li>
         ))}
       </ol>
+
+      {startIsARoughGuess && here && (
+        <p className="note">
+          Your browser can only place you to within about {roughly(here.accuracyMetres)}. That is
+          the circle on the map. If the pin is in the wrong spot, drag it.
+        </p>
+      )}
 
       {places.length > 0 && (
         <div className="controls">
