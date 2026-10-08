@@ -27,7 +27,7 @@ The difference is not cosmetic. For the five Auckland stops below, straight line
 
 ## GET /api/v1/places/search
 
-Finds addresses by what you type, so a stop can be typed rather than hunted for on the map.
+Finds places by what you type, so a stop can be typed rather than hunted for on the map. A place is either a street address or a named place: a shop, a school, a hospital.
 
 | Parameter | Rules |
 | --- | --- |
@@ -35,20 +35,64 @@ Finds addresses by what you type, so a stop can be typed rather than hunted for 
 | `limit` | Optional, 1 to 25, default 8 |
 
 ```
-GET /api/v1/places/search?q=90a%20bassett%20road&limit=3
+GET /api/v1/places/search?q=new%20world%20remuera
 ```
 
 ```json
 [
-  { "name": "90A Bassett Road, Remuera, Auckland", "latitude": -36.87124, "longitude": 174.78663 }
+  {
+    "kind": "poi",
+    "name": "New World Remuera",
+    "detail": "10 Clonbern Rd, Remuera, Auckland",
+    "latitude": -36.88169017,
+    "longitude": 174.79746689
+  }
 ]
 ```
 
-Each space becomes a wildcard, so "bassett road remuera" matches "20A Bassett Road, Remuera, Auckland" despite the comma. Words have to be typed in the order they appear.
+```
+GET /api/v1/places/search?q=90a%20bassett%20road
+```
 
-**It searches addresses, not businesses.** "New World Remuera" returns nothing, because the LINZ dataset holds addresses. Use the street address, or click the map.
+```json
+[
+  {
+    "kind": "address",
+    "name": "90A Bassett Road, Remuera, Auckland",
+    "detail": null,
+    "latitude": -36.8689416667,
+    "longitude": 174.7832303333
+  }
+]
+```
 
-Results are empty until the address data is imported. See the README.
+| Field | Meaning |
+| --- | --- |
+| `kind` | `address`, or `poi` for a named place |
+| `name` | The full address, or the name of the place |
+| `detail` | Where a named place is, to tell two with the same name apart. `null` for an address |
+| `latitude`, `longitude` | Where to drop the pin |
+
+### How typing is matched
+
+- Each space becomes a wildcard, so "bassett road remuera" matches "20A Bassett Road, Remuera, Auckland" despite the comma. Words have to be typed in the order they appear. A comma counts as a space.
+- Accents and apostrophes are ignored on both sides. "whangarei" finds Whangārei, and "mcdonalds" finds McDonald's.
+- A named place is found by its name, its address, its suburb or its city. "the warehouse newmarket" works although the name is only "The Warehouse".
+
+### How results are ordered
+
+- An address is ranked by how close the typing is to the address. A named place is ranked by how close it is to the name, with or without its suburb. So "mcdonalds" lists the restaurants before the houses on McDonalds Road, and "277 broadway" lists that address before the shops inside it.
+- Between equal matches, the place the data is more sure of comes first.
+
+### Known gaps
+
+- Abbreviations are not expanded. "12 bassett rd" does not find 12 Bassett Road, and "mt eden" does not find an address in Mount Eden.
+- Results are not ordered by distance. "mcdonalds" lists restaurants from anywhere in the country. Add the suburb.
+- A unit number LINZ does not hold finds nothing. "3/90A Bassett Road" fails where "90A Bassett Road" works.
+
+Named places come from Overture Maps, which scores each one from 0 to 1 for how likely it is to exist. Those under `routeplanner.search.min-confidence`, 0.3 by default, are left out.
+
+Results are empty until the data is imported: LINZ addresses for `address`, Overture places for `poi`. See the README.
 
 ## POST /api/v1/routes/optimize
 

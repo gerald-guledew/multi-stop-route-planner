@@ -1,18 +1,20 @@
 package com.solvelify.routeplanner.api;
 
-import com.solvelify.routeplanner.address.AddressSearch;
-import com.solvelify.routeplanner.planning.Location;
+import com.solvelify.routeplanner.search.FoundPlace;
+import com.solvelify.routeplanner.search.PlaceSearch;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Address lookup for the map screen, so a stop can be typed instead of hunted for.
+ * Place lookup for the map screen, so a stop can be typed instead of hunted for: a street
+ * address, or the name of a business.
  *
  * <p>A GET, unlike the optimize endpoint: the query is short, it changes nothing, and the
  * browser and any proxy in between are then free to cache repeated keystrokes.
@@ -26,10 +28,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/places")
 public class PlaceSearchController {
 
-    private final AddressSearch addressSearch;
+    private final PlaceSearch placeSearch;
 
-    public PlaceSearchController(AddressSearch addressSearch) {
-        this.addressSearch = addressSearch;
+    public PlaceSearchController(PlaceSearch placeSearch) {
+        this.placeSearch = placeSearch;
     }
 
     @GetMapping("/search")
@@ -37,15 +39,25 @@ public class PlaceSearchController {
             @RequestParam @NotBlank String q,
             @RequestParam(defaultValue = "8") @Min(1) @Max(25) int limit) {
 
-        return addressSearch.search(q, limit).stream()
+        return placeSearch.search(q, limit).stream()
                 .map(PlaceSearchResult::from)
                 .toList();
     }
 
-    public record PlaceSearchResult(String name, double latitude, double longitude) {
+    /**
+     * @param kind   "address" or "poi", a named place such as a shop, a school or a hospital
+     * @param detail where a named place is, to tell two with the same name apart. Null for
+     *               an address
+     */
+    public record PlaceSearchResult(String kind, String name, String detail, double latitude, double longitude) {
 
-        static PlaceSearchResult from(Location location) {
-            return new PlaceSearchResult(location.name(), location.latitude(), location.longitude());
+        static PlaceSearchResult from(FoundPlace place) {
+            return new PlaceSearchResult(
+                    place.kind().name().toLowerCase(Locale.ROOT),
+                    place.name(),
+                    place.detail(),
+                    place.latitude(),
+                    place.longitude());
         }
     }
 }
