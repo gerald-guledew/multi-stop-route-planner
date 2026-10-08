@@ -27,3 +27,8 @@ routeplanner:
     # Set to true once, with the LINZ export in place, to load the address table.
     import-enabled: false
     csv: data/lds-nz-addresses-CSV/nz-addresses.csv
+  poi:
+    # Set to true with the Overture export in place to load named places. Safe to repeat
+    # after every new export: it updates, adds and removes to match the file.
+    import-enabled: false
+    csv: data/overture-nz-places.csv

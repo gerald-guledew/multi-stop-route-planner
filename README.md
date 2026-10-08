@@ -82,6 +82,22 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner
 
 That imports about 2.4 million addresses in a few seconds using PostgreSQL `COPY`. Without it everything still works, you just click the map instead of typing.
 
+### Business names
+
+Addresses alone cannot find "New World Remuera", because LINZ records where addresses are, not what stands on them. Names come from [Overture Maps](https://overturemaps.org) places, which are free and need no account. Install [DuckDB](https://duckdb.org), then export New Zealand, about 200,000 places in a 28 MB file:
+
+```bash
+cd backend && mkdir -p data && duckdb -f scripts/export-overture-places.sql
+```
+
+Load it:
+
+```bash
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner.poi.import-enabled=true"
+```
+
+Import the addresses first, because each place takes its suburb from the nearest address. Overture publishes every month. Run both commands again to pick up a new release: places are updated, added and removed to match the file.
+
 ## Roadmap
 
 - [x] 1. REST API that returns the efficient stop order, using straight-line distances
@@ -112,3 +128,4 @@ Copyright 2026 Gerald Guledew. Apache License 2.0, see [LICENSE](LICENSE).
 
 - Map and roads: © OpenStreetMap contributors, Open Database License
 - NZ addresses: Toitū Te Whenua Land Information New Zealand, CC BY 4.0
+- Business names: Overture Maps Foundation, overturemaps.org. Places from Meta and Microsoft under CDLA Permissive 2.0, from Foursquare under Apache 2.0 (Copyright 2024 Foursquare Labs, Inc.) and from AllThePlaces under CC0
