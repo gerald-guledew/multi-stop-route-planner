@@ -1,4 +1,5 @@
 import PlaceSearchBox from './PlaceSearchBox'
+import type { LocationProblem } from '../location'
 import type { Place, RoutePlan } from '../types'
 
 interface Props {
@@ -13,6 +14,15 @@ interface Props {
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
+  locating: boolean
+  locationProblem: LocationProblem | null
+  onUseMyLocation: () => void
+}
+
+const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
+  refused:
+    'Your browser is not sharing its location with this page. Allow it beside the address bar, or pick your start on the map.',
+  unavailable: 'Could not work out where you are. Pick your start on the map instead.',
 }
 
 const MAX_STOPS = 10
@@ -50,7 +60,15 @@ export default function RoutePanel(props: Props) {
       <PlaceSearchBox onPick={props.onPickPlace} />
 
       {places.length === 0 && (
-        <p className="empty">Nothing yet. The first place you pick or click is your start.</p>
+        <div className="empty">
+          <p>Nothing yet. The first place you pick or click is your start.</p>
+          <button onClick={props.onUseMyLocation} disabled={props.locating}>
+            {props.locating ? 'Finding you…' : 'Start from where I am'}
+          </button>
+          {props.locationProblem && (
+            <p className="warning">{LOCATION_PROBLEMS[props.locationProblem]}</p>
+          )}
+        </div>
       )}
 
       <ol className="places">

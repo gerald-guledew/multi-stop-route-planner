@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ApiError, optimizeRoute } from './api'
+import { currentPosition, type LocationProblem } from './location'
 import RouteMap from './components/RouteMap'
 import RoutePanel from './components/RoutePanel'
 import type { Place, RoutePlan } from './types'
@@ -11,6 +12,36 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [unroutablePlace, setUnroutablePlace] = useState<string | undefined>()
   const [planning, setPlanning] = useState(false)
+  const [locating, setLocating] = useState(false)
+  const [locationProblem, setLocationProblem] = useState<LocationProblem | null>(null)
+  const askedOnLoad = useRef(false)
+
+  // Most trips start from where you are, so offer that before anything is clicked. The
+  // browser asks permission itself. Saying no is an answer, not an error, so nothing is shown.
+  useEffect(() => {
+    if (askedOnLoad.current) {
+      return
+    }
+    askedOnLoad.current = true
+    void startFromMyLocation(false)
+  }, [])
+
+  async function startFromMyLocation(askedByButton: boolean) {
+    setLocating(true)
+    setLocationProblem(null)
+    try {
+      const here = await currentPosition()
+      // The answer can take seconds. If a start was picked meanwhile, that choice stands.
+      setPlaces((current) => (current.length === 0 ? [{ name: 'My location', ...here }] : current))
+    } catch (problem) {
+      // Pressing the button is asking for an answer, so a failure then is worth explaining.
+      if (askedByButton) {
+        setLocationProblem(problem as LocationProblem)
+      }
+    } finally {
+      setLocating(false)
+    }
+  }
 
   function addPlace(latitude: number, longitude: number) {
     setPlaces((current) => [
@@ -44,6 +75,7 @@ export default function App() {
     setPlan(null)
     setError(null)
     setUnroutablePlace(undefined)
+    setLocationProblem(null)
   }
 
   async function planRoute() {
@@ -81,6 +113,9 @@ export default function App() {
         onPlan={planRoute}
         onClear={clearAll}
         onPickPlace={addSearchedPlace}
+        locating={locating}
+        locationProblem={locationProblem}
+        onUseMyLocation={() => startFromMyLocation(true)}
       />
       <RouteMap
         places={places}

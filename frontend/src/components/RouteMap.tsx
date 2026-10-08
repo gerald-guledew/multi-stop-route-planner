@@ -1,5 +1,6 @@
 import L from 'leaflet'
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMapEvents } from 'react-leaflet'
+import { useEffect, useRef } from 'react'
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { Place, RoutePlan } from '../types'
 
 // Auckland, because that is where this was built and tested.
@@ -33,6 +34,42 @@ function ClickToAddStop({ onMapClick }: { onMapClick: Props['onMapClick'] }) {
   return null
 }
 
+/**
+ * Moves the map when a place is added somewhere it is not showing.
+ *
+ * A click always lands inside the view, so this does nothing for clicks. A search result or
+ * your own location can be anywhere in the country, and a pin dropped off screen looks exactly
+ * like nothing happening.
+ *
+ * Only an added place moves the map. Renaming or removing one leaves the view where you put it.
+ */
+function KeepNewPlacesInView({ places }: { places: Place[] }) {
+  const map = useMap()
+  const countBefore = useRef(0)
+
+  useEffect(() => {
+    const added = places.length > countBefore.current
+    countBefore.current = places.length
+    if (!added) {
+      return
+    }
+
+    const pins = places.map((place) => L.latLng(place.latitude, place.longitude))
+    if (pins.every((pin) => map.getBounds().contains(pin))) {
+      return
+    }
+
+    if (pins.length === 1) {
+      // Close enough to recognise the street, without zooming out if already closer.
+      map.setView(pins[0], Math.max(map.getZoom(), 14))
+    } else {
+      map.fitBounds(L.latLngBounds(pins), { padding: [40, 40], maxZoom: 15 })
+    }
+  }, [places, map])
+
+  return null
+}
+
 export default function RouteMap({ places, plan, unroutablePlace, onMapClick }: Props) {
   // Once planned, pins are numbered by driving order instead of the order they were clicked.
   const plannedOrder = plan?.route.map((place) => place.name) ?? []
@@ -53,6 +90,7 @@ export default function RouteMap({ places, plan, unroutablePlace, onMapClick }: 
       />
 
       <ClickToAddStop onMapClick={onMapClick} />
+      <KeepNewPlacesInView places={places} />
 
       {places.map((place, index) => (
         <Marker
