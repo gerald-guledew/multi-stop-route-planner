@@ -22,6 +22,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class PostgresPlaceSearchTest {
 
+    private static final ReferencePoint REMUERA = new ReferencePoint(-36.8750, 174.7900);
+    private static final ReferencePoint EPSOM = new ReferencePoint(-36.8800, 174.7800);
+    private static final ReferencePoint HENDERSON = new ReferencePoint(-36.8700, 174.6300);
+    private static final ReferencePoint QUEEN_STREET = new ReferencePoint(-36.8460, 174.7660);
+    private static final ReferencePoint NORTHCOTE = new ReferencePoint(-36.7990, 174.7460);
+    private static final ReferencePoint PAPAKURA = new ReferencePoint(-37.0650, 174.9430);
+    private static final ReferencePoint REEFTON = new ReferencePoint(-42.1100, 171.8600);
+    private static final ReferencePoint INVERCARGILL = new ReferencePoint(-46.4130, 168.3540);
+
     @Autowired
     private PlaceSearch placeSearch;
 
@@ -192,10 +201,118 @@ class PostgresPlaceSearchTest {
 
     @Test
     void ranksNoMoreCandidatesFromEachTableThanItIsToldTo() {
-        PlaceSearch capped = new PostgresPlaceSearch(jdbc, new SearchProperties(0.3, 1));
+        PlaceSearch capped = new PostgresPlaceSearch(jdbc, new SearchProperties(0.3, 1, 1));
 
         // One address and one place get through to be ranked, however many matched.
         assertThat(capped.search("newmarket", 8)).hasSize(2);
+    }
+
+    // Nearest first, when the search says where it is looking from.
+
+    @Test
+    void putsTheNearerOfTwoBranchesFirst() {
+        // Without a reference point the Henderson branch leads, because the data is surer of it.
+        assertThat(placeSearch.search("kfc", EPSOM, 8)).extracting(FoundPlace::detail)
+                .containsExactly("1 Great South Rd, Epsom, Auckland", "9 Lincoln Rd, Henderson, Auckland");
+
+        assertThat(placeSearch.search("kfc", HENDERSON, 8)).extracting(FoundPlace::detail)
+                .containsExactly("9 Lincoln Rd, Henderson, Auckland", "1 Great South Rd, Epsom, Auckland");
+    }
+
+    @Test
+    void treatsABranchNamedAfterItsSuburbAsTheSameMatchAsOneNamedPlainly() {
+        insertPoi("nwp", "New World", "6 Averill St", "Papakura", "Auckland", 0.99, -37.0650, 174.9430);
+
+        // The words are all of one name and half of the other, and the two are about 25 km apart.
+        // If the shorter name counted for more, it would lead from Remuera as well.
+        assertThat(names(placeSearch.search("new world", REMUERA, 8)))
+                .containsExactly("New World Remuera", "New World");
+        assertThat(names(placeSearch.search("new world", PAPAKURA, 8)))
+                .containsExactly("New World", "New World Remuera");
+    }
+
+    @Test
+    void putsTheNameTheWordsAccountForMostOfFirstWhenNothingSaysWhereToLook() {
+        insertPoi("nwp", "New World", "6 Averill St", "Papakura", "Auckland", 0.99, -37.0650, 174.9430);
+
+        assertThat(names(placeSearch.search("new world", 8)))
+                .containsExactly("New World", "New World Remuera");
+    }
+
+    @Test
+    void findsANameFromALastWordThatIsNotFinishedYet() {
+        // Under two kilometres from the restaurant, and "McDonald" is a whole word of its name.
+        insertPoi("mm", "McDonald Metals", "5 Stanley St", "Parnell", "Auckland", 0.99, -36.8560, 174.7800);
+
+        assertThat(names(placeSearch.search("mcdonald", QUEEN_STREET, 8)))
+                .containsExactly("McDonald's", "McDonald Metals", "24 McDonalds Road, Inangahua, Reefton");
+    }
+
+    @Test
+    void putsABusinessAShortDriveAwayAheadOfTheStreetNextDoor() {
+        // The Warehouse is just under nine kilometres from The Warehouse Way.
+        assertThat(names(placeSearch.search("the warehouse", NORTHCOTE, 8)))
+                .containsExactly("The Warehouse", "1 The Warehouse Way, Northcote, Auckland");
+    }
+
+    @Test
+    void putsTheStreetNextDoorAheadOfABusinessAtTheOtherEndOfTheCountry() {
+        assertThat(names(placeSearch.search("mcdonalds", REEFTON, 8)))
+                .containsExactly("24 McDonalds Road, Inangahua, Reefton", "McDonald's");
+    }
+
+    @Test
+    void putsTheNumberTypedAheadOfANearerAddressThatOnlyContainsIt() {
+        // Number 12 is 29 km from number 112, far enough that distance alone would lose it the lead.
+        insertAddress(20, "12 Queen Street, Papakura", -37.0650, 174.9430);
+        insertAddress(21, "112 Queen Street, Auckland Central, Auckland", -36.8500, 174.7650);
+        ReferencePoint outsideNumber112 = new ReferencePoint(-36.8500, 174.7650);
+
+        assertThat(names(placeSearch.search("12 queen street", outsideNumber112, 8)))
+                .containsExactly(
+                        "12 Queen Street, Papakura",
+                        "112 Queen Street, Auckland Central, Auckland");
+    }
+
+    @Test
+    void keepsTheHousesOfOneStreetInOrderRatherThanSortingThemByAFewMetres() {
+        // 35 metres apart, and the search is looking from the gate of the second one.
+        ReferencePoint outside90A = new ReferencePoint(-36.8714, 174.7869);
+
+        assertThat(names(placeSearch.search("bassett road", outside90A, 8)))
+                .containsExactly("20A Bassett Road, Remuera", "3/90A Bassett Road, Remuera");
+    }
+
+    @Test
+    void doesNotLetAPlaceThatBarelyMatchesNearbyOvertakeAFullMatchFarAway() {
+        // Found because its address has both words in it. Its name has neither.
+        insertPoi("st", "Southland Travel", "2 Newcastle St, World Trade Centre", null, "Invercargill",
+                0.99, -46.4130, 168.3540);
+
+        assertThat(names(placeSearch.search("new world", INVERCARGILL, 8)))
+                .containsExactly("New World Remuera", "Southland Travel");
+    }
+
+    @Test
+    void ranksTheNearestCandidatesWhenThereAreTooManyToRankThemAll() {
+        PlaceSearch capped = new PostgresPlaceSearch(jdbc, new SearchProperties(0.3, 1, 100));
+
+        // Two addresses and three places mention Newmarket. One of each gets through.
+        ReferencePoint at277Broadway = new ReferencePoint(-36.8690, 174.7780);
+        assertThat(names(capped.search("newmarket", at277Broadway, 8)))
+                .containsExactlyInAnyOrder("277 Broadway, Newmarket, Auckland", "H&M");
+
+        ReferencePoint atTheWarehouse = new ReferencePoint(-36.8720, 174.7770);
+        assertThat(names(capped.search("newmarket", atTheWarehouse, 8)))
+                .containsExactlyInAnyOrder("100 Broadway, Newmarket", "The Warehouse");
+    }
+
+    @Test
+    void neverLooksAtFewerMatchesThanItRanks() {
+        // A scan limit under the candidate limit would otherwise quietly become the cap.
+        PlaceSearch misconfigured = new PostgresPlaceSearch(jdbc, new SearchProperties(0.3, 2, 1));
+
+        assertThat(misconfigured.search("newmarket", REMUERA, 8)).hasSize(4);
     }
 
     private static List<String> names(List<FoundPlace> found) {

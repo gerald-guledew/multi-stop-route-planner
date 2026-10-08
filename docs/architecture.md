@@ -51,7 +51,7 @@ A second, separate flow. It turns typing into a pin, and never touches the plann
 
 ```mermaid
 flowchart TD
-    Screen["Map screen, as you type"] -->|"GET /api/v1/places/search"| SearchController[PlaceSearchController]
+    Screen["Map screen, as you type"] -->|"GET /api/v1/places/search, with where it is looking from"| SearchController[PlaceSearchController]
     SearchController --> PlaceSearch["PlaceSearch (interface)"]
     PlaceSearch --> Postgres[PostgresPlaceSearch]
     Postgres --> Address[("address: 2.4 million LINZ addresses")]
@@ -65,11 +65,15 @@ Dotted lines happen at import time, not on a search.
 
 **Two datasets, each used for what it is the authority on.** LINZ publishes every New Zealand address but no names. Overture Maps publishes named places but is no address register. They meet in two places: one query searches both tables, and each place borrows its suburb from the nearest LINZ address, because Overture usually gives only the city.
 
-**Found on everything, ranked on what people call it.** A place matches if the typed words appear anywhere in its searchable text. It is then ranked by how close the words are to its address, for an address, or to its name, for a named place. Ranking a business on its street address as well puts "McDonalds Road" ahead of McDonald's.
+**Found on everything, ranked on what people call it.** A place matches if the typed words appear anywhere in its searchable text. It is then scored on how well the words appear in its address, for an address, or in its name, for a named place. Scoring a business on its street address as well puts "McDonalds Road" ahead of McDonald's.
+
+**A branch is as good a match as the brand.** 181 places have a name that starts with New World, and 27 of them are called just "New World". Measuring how alike the typing and the whole name are put those 27 first, from all over the country, and "New World Remuera" behind them for the word nobody typed. So the score asks a different question: do the words appear in the name together, as whole words? Every branch then scores the same, and something else is free to choose between them.
+
+**Nearest first.** That something is distance. A search can say where it is looking from, and the score then falls gently the farther away a place is: to three quarters at 50 km, and never below half. Gently, because distance is there to choose between equal matches, not to promote a poor match for being close. The map screen sends the start of the trip, or the middle of the map while there is no start. It never asks where the device is just to search. That can be refused, a laptop only knows it roughly, and a trip is often planned for somewhere else.
 
 **Both sides are simplified before they are compared.** A database function, `searchable`, drops accents and apostrophes. Each table stores the simplified text in a generated column with a trigram index, and the search runs what was typed through the same function. One address in eight has a macron, and a search that typed that word on an ordinary keyboard, without the macron, used to find nothing.
 
-**The work for one search is bounded.** Each table hands over at most 5,000 matches to be ranked. "road" matches 850,000 addresses, and scoring them all took over four seconds. A search specific enough to be useful matches far fewer rows than the cap.
+**The work for one search is bounded.** Each table hands over at most 5,000 matches to be ranked. "road" matches 850,000 addresses, and scoring them all took over four seconds. A search specific enough to be useful matches far fewer rows than the cap. When a search says where it is looking from, those 5,000 should be the nearest ones, so up to 20,000 matches are measured for distance first. Measuring is cheap. Scoring is what costs.
 
 ## Units and limits
 

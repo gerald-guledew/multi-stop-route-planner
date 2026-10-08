@@ -39,3 +39,6 @@ routeplanner:
     # The most matches from each table that one search ranks. Keeps "road" from scoring
     # 850,000 addresses on every keystroke.
     candidate-limit: 5000
+    # When a search says where it is looking from, the most matches from each table that are
+    # measured for distance. The nearest candidate-limit of them are the ones ranked.
+    scan-limit: 20000

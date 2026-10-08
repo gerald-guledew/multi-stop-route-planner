@@ -2,6 +2,7 @@ package com.solvelify.routeplanner.api;
 
 import com.solvelify.routeplanner.search.FoundPlace;
 import com.solvelify.routeplanner.search.PlaceSearch;
+import com.solvelify.routeplanner.search.ReferencePoint;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -34,12 +35,18 @@ public class PlaceSearchController {
         this.placeSearch = placeSearch;
     }
 
+    /**
+     * @param near where the search is looking from, as {@code latitude,longitude}, so that
+     *             the nearest of several matches comes first. Left out, places are ranked on
+     *             the words alone
+     */
     @GetMapping("/search")
     public List<PlaceSearchResult> search(
             @RequestParam @NotBlank String q,
+            @RequestParam(required = false) ReferencePoint near,
             @RequestParam(defaultValue = "8") @Min(1) @Max(25) int limit) {
 
-        return placeSearch.search(q, limit).stream()
+        return placeSearch.search(q, near, limit).stream()
                 .map(PlaceSearchResult::from)
                 .toList();
     }
