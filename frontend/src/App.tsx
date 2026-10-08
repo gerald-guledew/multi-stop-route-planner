@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, optimizeRoute } from './api'
-import { currentPosition, type LocationProblem } from './location'
+import { currentPosition, type LocationProblem, type Position } from './location'
 import RouteMap from './components/RouteMap'
 import RoutePanel from './components/RoutePanel'
 import type { Place, RoutePlan } from './types'
@@ -14,6 +14,7 @@ export default function App() {
   const [planning, setPlanning] = useState(false)
   const [locating, setLocating] = useState(false)
   const [locationProblem, setLocationProblem] = useState<LocationProblem | null>(null)
+  const [mapCentre, setMapCentre] = useState<Position | null>(null)
   const askedOnLoad = useRef(false)
 
   // Most trips start from where you are, so offer that before anything is clicked. The
@@ -113,6 +114,7 @@ export default function App() {
         onPlan={planRoute}
         onClear={clearAll}
         onPickPlace={addSearchedPlace}
+        mapCentre={mapCentre}
         locating={locating}
         locationProblem={locationProblem}
         onUseMyLocation={() => startFromMyLocation(true)}
@@ -122,6 +124,7 @@ export default function App() {
         plan={plan}
         unroutablePlace={unroutablePlace}
         onMapClick={addPlace}
+        onCentreChange={setMapCentre}
       />
     </main>
   )

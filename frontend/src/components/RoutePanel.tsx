@@ -1,5 +1,5 @@
 import PlaceSearchBox from './PlaceSearchBox'
-import type { LocationProblem } from '../location'
+import type { LocationProblem, Position } from '../location'
 import type { Place, RoutePlan } from '../types'
 
 interface Props {
@@ -14,6 +14,7 @@ interface Props {
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
+  mapCentre: Position | null
   locating: boolean
   locationProblem: LocationProblem | null
   onUseMyLocation: () => void
@@ -57,7 +58,7 @@ export default function RoutePanel(props: Props) {
         </p>
       </header>
 
-      <PlaceSearchBox onPick={props.onPickPlace} />
+      <PlaceSearchBox onPick={props.onPickPlace} start={places[0]} mapCentre={props.mapCentre} />
 
       {places.length === 0 && (
         <div className="empty">

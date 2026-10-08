@@ -352,6 +352,13 @@ button:disabled {
   background: var(--page);
 }
 
+/* What the list is ordered by. A caption, not something to pick. */
+.results-note {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 6px 10px 4px;
+}
+
 .result-name,
 .result-detail {
   display: block;
