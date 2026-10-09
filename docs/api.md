@@ -92,7 +92,7 @@ GET /api/v1/places/search?q=new%20world&near=-36.871,174.787&limit=2
 ]
 ```
 
-`near` is whatever point the caller wants results close to. The map screen sends the start of the trip, or the middle of the map while there is no start. It never asks where the device is just to search: that can be refused, a laptop only knows it roughly, and a trip is often planned for somewhere else. Three decimal places, about 100 metres, is plenty, because the ranking counts distance in half kilometres. A `near` that is not two numbers in range is a 400.
+`near` is whatever point the caller wants results close to. The map screen sends where you are, if the browser shared that when the page opened. If it did not, it sends the start of the trip, or the middle of the map while there is no start. Three decimal places, about 100 metres, is plenty, because the ranking counts distance in half kilometres. A `near` that is not two numbers in range is a 400.
 
 | Field | Meaning |
 | --- | --- |

@@ -15,6 +15,9 @@ export default function App() {
   const [locating, setLocating] = useState(false)
   const [locationProblem, setLocationProblem] = useState<LocationProblem | null>(null)
   const [mapCentre, setMapCentre] = useState<Position | null>(null)
+  // Where the browser last said this device is. Read when the page opens and when "Start from
+  // where I am" is pressed. It is not followed as the device moves.
+  const [devicePosition, setDevicePosition] = useState<Position | null>(null)
   const askedOnLoad = useRef(false)
 
   // Most trips start from where you are, so offer that before anything is clicked. The
@@ -32,9 +35,15 @@ export default function App() {
     setLocationProblem(null)
     try {
       const here = await currentPosition()
+      // Search looks from here from now on, whether or not it also becomes the start.
+      setDevicePosition(here)
       // The answer can take seconds. If a start was picked meanwhile, that choice stands.
       setPlaces((current) => (current.length === 0 ? [{ name: 'My location', ...here }] : current))
     } catch (problem) {
+      // Permission can be taken back. A position from before it was is not one to go on using.
+      if (problem === 'refused') {
+        setDevicePosition(null)
+      }
       // Pressing the button is asking for an answer, so a failure then is worth explaining.
       if (askedByButton) {
         setLocationProblem(problem as LocationProblem)
@@ -114,6 +123,7 @@ export default function App() {
         onPlan={planRoute}
         onClear={clearAll}
         onPickPlace={addSearchedPlace}
+        devicePosition={devicePosition}
         mapCentre={mapCentre}
         locating={locating}
         locationProblem={locationProblem}

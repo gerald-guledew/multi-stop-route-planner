@@ -8,6 +8,8 @@ const DEBOUNCE_MS = 250
 
 interface Props {
   onPick: (place: Place) => void
+  /** Where the browser says this device is. Null if it was not asked, or said no. */
+  devicePosition: Position | null
   /** The start of the trip, once there is one. */
   start: Place | undefined
   /** Where the map is looking. Null until the map has said. */
@@ -15,23 +17,44 @@ interface Props {
 }
 
 /** What a search was ranked near, so the list can say so. */
-type LookedFrom = 'start' | 'map'
+type LookedFrom = 'you' | 'start' | 'map'
 
 const NEAREST_TO: Record<LookedFrom, string> = {
+  you: 'Nearest to where you are first',
   start: 'Nearest to your start first',
   map: 'Nearest to the middle of the map first',
+}
+
+/**
+ * Where a search looks from, so the nearest of several matches can come first.
+ *
+ * Where you are, when the browser has shared it. Failing that the start of the trip, and
+ * until there is a start, the middle of the map, which is where the person is looking.
+ */
+function lookFrom(
+  devicePosition: Position | null,
+  start: Place | undefined,
+  mapCentre: Position | null,
+): { position: Position; what: LookedFrom } | null {
+  if (devicePosition) {
+    return { position: devicePosition, what: 'you' }
+  }
+  if (start) {
+    return { position: start, what: 'start' }
+  }
+  if (mapCentre) {
+    return { position: mapCentre, what: 'map' }
+  }
+  return null
 }
 
 /**
  * Type an address or the name of a business, pick it, and the pin lands there rather than
  * wherever a click happened to fall. Clicking the map still works for anywhere else.
  *
- * Of several matches the nearest comes first. Near means near the start of the trip, because
- * stops are usually around it. Until there is a start it means near the middle of the map,
- * which is where the person is looking. Search never asks where this device is. That can be
- * refused, a laptop only knows it roughly, and a trip is often planned for somewhere else.
+ * Of several matches the nearest comes first, and the list says nearest to what.
  */
-export default function PlaceSearchBox({ onPick, start, mapCentre }: Props) {
+export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentre }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<FoundPlace[]>([])
   const [rankedNear, setRankedNear] = useState<LookedFrom | null>(null)
@@ -42,13 +65,9 @@ export default function PlaceSearchBox({ onPick, start, mapCentre }: Props) {
 
   // Read by the search when it runs, rather than listed as something the search depends on.
   // Moving the map then does not run the search again and reshuffle a list somebody is reading.
-  const lookingFrom = useRef<{ position: Position; what: LookedFrom } | null>(null)
+  const lookingFrom = useRef(lookFrom(devicePosition, start, mapCentre))
   useEffect(() => {
-    lookingFrom.current = start
-      ? { position: start, what: 'start' }
-      : mapCentre
-        ? { position: mapCentre, what: 'map' }
-        : null
+    lookingFrom.current = lookFrom(devicePosition, start, mapCentre)
   })
 
   useEffect(() => {
