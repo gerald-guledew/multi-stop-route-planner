@@ -42,6 +42,37 @@ export function roughly(metres: number): string {
 }
 
 /**
+ * What a later, better answer from the browser leaves behind.
+ *
+ * It takes the place of the earlier answer. If the start is still sitting on that earlier
+ * answer, the start goes with it, keeping its name: it was only ever the browser's guess.
+ *
+ * A position the person has put right by hand is never replaced. They know better than the
+ * browser, however sure the browser has become.
+ */
+export function afterABetterAnswer(
+  places: Place[],
+  devicePosition: DevicePosition | null,
+  better: DevicePosition,
+): { places: Place[]; devicePosition: DevicePosition | null; movedTheStart: boolean } {
+  if (devicePosition?.correctedByHand) {
+    return { places, devicePosition, movedTheStart: false }
+  }
+
+  const movedTheStart = sitsOn(places[0], devicePosition)
+
+  return {
+    places: movedTheStart
+      ? places.map((place, at) =>
+          at === 0 ? { ...place, latitude: better.latitude, longitude: better.longitude } : place,
+        )
+      : places,
+    devicePosition: better,
+    movedTheStart,
+  }
+}
+
+/**
  * What a pin dragged to a new spot leaves behind.
  *
  * The pin keeps its name and its place in the list. If it was the start, still sitting where

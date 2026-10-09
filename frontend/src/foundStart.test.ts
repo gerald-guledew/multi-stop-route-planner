@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterDragging, isRoughGuess, roughly, sitsOn } from './foundStart'
+import { afterABetterAnswer, afterDragging, isRoughGuess, roughly, sitsOn } from './foundStart'
 import type { DevicePosition } from './location'
 import type { Place } from './types'
 
@@ -109,5 +109,55 @@ describe('dragging a pin', () => {
 
     expect(places).toEqual([startOnTheGuess, office])
     expect(guess.correctedByHand).toBeUndefined()
+  })
+})
+
+describe('a better answer from the browser', () => {
+  /** The same laptop a few seconds on, now sure to about 30 metres, and somewhere else. */
+  const better: DevicePosition = { latitude: -36.86896, longitude: 174.78316, accuracyMetres: 30 }
+
+  it('takes the place of the earlier answer', () => {
+    expect(afterABetterAnswer([office], guess, better).devicePosition).toBe(better)
+  })
+
+  it('takes the start with it when the start was the earlier answer, keeping its name', () => {
+    const now = afterABetterAnswer([startOnTheGuess, office], guess, better)
+
+    expect(now.places).toEqual([
+      { name: 'My location', latitude: better.latitude, longitude: better.longitude },
+      office,
+    ])
+    expect(now.movedTheStart).toBe(true)
+  })
+
+  it('leaves a start alone that was picked, not found', () => {
+    const places = [office, startOnTheGuess]
+    const now = afterABetterAnswer(places, guess, better)
+
+    expect(now.places).toBe(places)
+    expect(now.movedTheStart).toBe(false)
+  })
+
+  it('never replaces a position the person put right by hand', () => {
+    const byHand: DevicePosition = { ...guess, correctedByHand: true }
+    const places = [startOnTheGuess]
+    const now = afterABetterAnswer(places, byHand, better)
+
+    expect(now.devicePosition).toBe(byHand)
+    expect(now.places).toBe(places)
+    expect(now.movedTheStart).toBe(false)
+  })
+
+  it('does not carry the accuracy into the start, which is only a place', () => {
+    const now = afterABetterAnswer([startOnTheGuess], guess, better)
+
+    expect(Object.keys(now.places[0]).sort()).toEqual(['latitude', 'longitude', 'name'])
+  })
+
+  it('does not change the list it was given', () => {
+    const places = [startOnTheGuess, office]
+    afterABetterAnswer(places, guess, better)
+
+    expect(places).toEqual([startOnTheGuess, office])
   })
 })

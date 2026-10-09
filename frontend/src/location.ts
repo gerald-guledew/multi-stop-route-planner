@@ -22,32 +22,102 @@ export interface DevicePosition extends Position {
 
 export type LocationProblem = 'refused' | 'unavailable'
 
+/** How long to go on listening after the first answer. A phone's GPS has settled by then. */
+const LISTEN_FOR_MS = 30_000
+
+/** Close enough that listening for better is not worth a phone's battery. */
+const GOOD_ENOUGH_METRES = 20
+
 /**
- * Where the browser says this device is.
+ * Asks the browser where this device is, then goes on listening for a while.
  *
- * Wrapped in a promise because the browser's own call takes two callbacks, and reports three
- * kinds of failure the rest of the app has no use for. Two are enough: the person said no, or
- * the device could not tell.
+ * The first answer is often the roughest. A phone answers at once from the mobile network or
+ * Wi-Fi, and comes back seconds later with GPS. So `onAnswer` is called for the first answer,
+ * and again for each later one that the browser itself rates as better. An answer it rates the
+ * same or worse is dropped, which keeps a pin from wandering between equally rough guesses.
+ *
+ * Listening stops by itself half a minute after the first answer, or sooner once an answer
+ * is within 20 metres. It is not tracking: nothing follows the device after that.
+ *
+ * `onProblem` is called if the browser refuses, or cannot answer at all. The browser reports
+ * three kinds of failure and the rest of the app has no use for more than two: the person said
+ * no, or the device could not tell. Once there is an answer, only a refusal is still worth
+ * reporting, because permission can be taken back.
  *
  * Browsers only answer on a secure page. That means https, or localhost while developing.
+ *
+ * @returns a function that stops the listening early
  */
-export function currentPosition(): Promise<DevicePosition> {
-  return new Promise((resolve, reject: (problem: LocationProblem) => void) => {
-    if (!('geolocation' in navigator)) {
-      reject('unavailable')
+export function followPosition(
+  onAnswer: (position: DevicePosition, isFirst: boolean) => void,
+  onProblem: (problem: LocationProblem) => void,
+): () => void {
+  if (!('geolocation' in navigator)) {
+    onProblem('unavailable')
+    return () => {}
+  }
+
+  let best: DevicePosition | null = null
+  let stopped = false
+  let watch: number | undefined
+  let giveUp: ReturnType<typeof setTimeout> | undefined
+
+  function stop() {
+    if (stopped) {
       return
     }
+    stopped = true
+    clearTimeout(giveUp)
+    if (watch !== undefined) {
+      navigator.geolocation.clearWatch(watch)
+    }
+  }
 
-    navigator.geolocation.getCurrentPosition(
-      (found) =>
-        resolve({
-          latitude: found.coords.latitude,
-          longitude: found.coords.longitude,
-          accuracyMetres: found.coords.accuracy,
-        }),
-      (error) => reject(error.code === error.PERMISSION_DENIED ? 'refused' : 'unavailable'),
-      // A phone's GPS is worth waiting a few seconds for. A fix from the last minute will do.
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    )
-  })
+  watch = navigator.geolocation.watchPosition(
+    (found) => {
+      if (stopped) {
+        return
+      }
+      const answer: DevicePosition = {
+        latitude: found.coords.latitude,
+        longitude: found.coords.longitude,
+        accuracyMetres: found.coords.accuracy,
+      }
+
+      if (best === null) {
+        best = answer
+        giveUp = setTimeout(stop, LISTEN_FOR_MS)
+        onAnswer(answer, true)
+      } else if (answer.accuracyMetres < best.accuracyMetres) {
+        best = answer
+        onAnswer(answer, false)
+      }
+
+      if (best.accuracyMetres <= GOOD_ENOUGH_METRES) {
+        stop()
+      }
+    },
+    (error) => {
+      if (stopped) {
+        return
+      }
+      const refused = error.code === error.PERMISSION_DENIED
+      // With an answer in hand, a later hiccup changes nothing. The answer still stands.
+      if (best !== null && !refused) {
+        return
+      }
+      stop()
+      onProblem(refused ? 'refused' : 'unavailable')
+    },
+    // A phone's GPS is worth waiting a few seconds for. A fix from the last minute will do
+    // as a first answer.
+    { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+  )
+
+  // A browser answers later, never during the call above. A stand-in in a test might not.
+  if (stopped) {
+    navigator.geolocation.clearWatch(watch)
+  }
+
+  return stop
 }
