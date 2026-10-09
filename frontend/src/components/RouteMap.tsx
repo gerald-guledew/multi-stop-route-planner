@@ -11,6 +11,7 @@ import {
   useMap,
   useMapEvents,
 } from 'react-leaflet'
+import { sitsOn } from '../foundStart'
 import type { DevicePosition, Position } from '../location'
 import type { Place, RoutePlan } from '../types'
 
@@ -95,8 +96,7 @@ function ShowTheStartFoundForYou({ places, at }: { places: Place[]; at: DevicePo
   const map = useMap()
 
   useEffect(() => {
-    const start = places[0]
-    if (!at || !start || start.latitude !== at.latitude || start.longitude !== at.longitude) {
+    if (!at || !sitsOn(places[0], at)) {
       return
     }
     // A pin just dropped by hand is already where the person is looking.

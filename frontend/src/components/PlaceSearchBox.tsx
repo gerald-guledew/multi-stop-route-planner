@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { searchPlaces } from '../api'
 import type { Position } from '../location'
+import { lookFrom, type LookedFrom } from '../lookFrom'
 import type { FoundPlace, Place } from '../types'
 
 const MINIMUM_CHARACTERS = 3
@@ -16,36 +17,10 @@ interface Props {
   mapCentre: Position | null
 }
 
-/** What a search was ranked near, so the list can say so. */
-type LookedFrom = 'you' | 'start' | 'map'
-
 const NEAREST_TO: Record<LookedFrom, string> = {
   you: 'Nearest to where you are first',
   start: 'Nearest to your start first',
   map: 'Nearest to the middle of the map first',
-}
-
-/**
- * Where a search looks from, so the nearest of several matches can come first.
- *
- * Where you are, when the browser has shared it. Failing that the start of the trip, and
- * until there is a start, the middle of the map, which is where the person is looking.
- */
-function lookFrom(
-  devicePosition: Position | null,
-  start: Place | undefined,
-  mapCentre: Position | null,
-): { position: Position; what: LookedFrom } | null {
-  if (devicePosition) {
-    return { position: devicePosition, what: 'you' }
-  }
-  if (start) {
-    return { position: start, what: 'start' }
-  }
-  if (mapCentre) {
-    return { position: mapCentre, what: 'map' }
-  }
-  return null
 }
 
 /**
