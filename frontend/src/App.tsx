@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, optimizeRoute } from './api'
-import { currentPosition, type LocationProblem, type Position } from './location'
+import {
+  currentPosition,
+  type DevicePosition,
+  type LocationProblem,
+  type Position,
+} from './location'
 import RouteMap from './components/RouteMap'
 import RoutePanel from './components/RoutePanel'
 import type { Place, RoutePlan } from './types'
@@ -17,7 +22,7 @@ export default function App() {
   const [mapCentre, setMapCentre] = useState<Position | null>(null)
   // Where the browser last said this device is. Read when the page opens and when "Start from
   // where I am" is pressed. It is not followed as the device moves.
-  const [devicePosition, setDevicePosition] = useState<Position | null>(null)
+  const [devicePosition, setDevicePosition] = useState<DevicePosition | null>(null)
   const askedOnLoad = useRef(false)
 
   // Most trips start from where you are, so offer that before anything is clicked. The
@@ -38,7 +43,11 @@ export default function App() {
       // Search looks from here from now on, whether or not it also becomes the start.
       setDevicePosition(here)
       // The answer can take seconds. If a start was picked meanwhile, that choice stands.
-      setPlaces((current) => (current.length === 0 ? [{ name: 'My location', ...here }] : current))
+      setPlaces((current) =>
+        current.length === 0
+          ? [{ name: 'My location', latitude: here.latitude, longitude: here.longitude }]
+          : current,
+      )
     } catch (problem) {
       // Permission can be taken back. A position from before it was is not one to go on using.
       if (problem === 'refused') {
@@ -66,6 +75,28 @@ export default function App() {
 
   function addSearchedPlace(place: Place) {
     setPlaces((current) => [...current, place])
+    setPlan(null)
+    setError(null)
+    setUnroutablePlace(undefined)
+  }
+
+  function movePlace(index: number, latitude: number, longitude: number) {
+    // A start still sitting where the browser put it is the browser's guess at where you are.
+    // Dragging it is you saying where you really are, and you know better than the browser.
+    const moved = places[index]
+    const movedTheGuess =
+      index === 0 &&
+      devicePosition !== null &&
+      moved.latitude === devicePosition.latitude &&
+      moved.longitude === devicePosition.longitude
+    if (movedTheGuess) {
+      setDevicePosition({ ...devicePosition, latitude, longitude, correctedByHand: true })
+    }
+
+    setPlaces((current) =>
+      current.map((place, at) => (at === index ? { ...place, latitude, longitude } : place)),
+    )
+    // Any previous answer was worked out for where the pin used to be.
     setPlan(null)
     setError(null)
     setUnroutablePlace(undefined)
@@ -133,7 +164,9 @@ export default function App() {
         places={places}
         plan={plan}
         unroutablePlace={unroutablePlace}
+        devicePosition={devicePosition}
         onMapClick={addPlace}
+        onMovePlace={movePlace}
         onCentreChange={setMapCentre}
       />
     </main>

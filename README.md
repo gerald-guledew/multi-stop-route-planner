@@ -58,7 +58,7 @@ The map screen, in a second terminal:
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. Once the data below is loaded you can type them instead, and the nearest match comes first.
+Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. Once the data below is loaded you can type them instead, and the nearest match comes first.
 
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 

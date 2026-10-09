@@ -120,6 +120,35 @@ body {
   background: var(--ink);
 }
 
+/* Pins can be dragged, so they should look as if they can. */
+.leaflet-marker-draggable {
+  cursor: grab;
+}
+
+/* Where the browser says this device is, and the doubt around it. */
+.you-are-here {
+  fill: var(--accent);
+  fill-opacity: 1;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.you-are-here-doubt {
+  fill: var(--accent);
+  fill-opacity: 0.12;
+  stroke: var(--accent);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+}
+
+/* Something worth knowing about the list above it. Not a warning. */
+.note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0 0 14px;
+}
+
 /* Controls */
 
 .controls {
