@@ -120,6 +120,16 @@ body {
   background: var(--ink);
 }
 
+/* A stop kept in its place is square, on the map and in the list, so it shows without colour. */
+.pin-kept {
+  border-radius: 6px;
+}
+
+.link.kept {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 /* Pins can be dragged, so they should look as if they can. */
 .leaflet-marker-draggable {
   cursor: grab;

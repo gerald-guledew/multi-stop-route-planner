@@ -4,6 +4,12 @@ export interface Place {
   name: string
   latitude: number
   longitude: number
+  /**
+   * Set on a stop that has to be visited at the turn it has in the list, with the others
+   * arranged around it. The first call of the day that cannot wait, say. Never set on the
+   * start, which is first anyway.
+   */
+  keepInPlace?: boolean
 }
 
 /** One search result: a street address, or a named place such as a shop or a school. */
