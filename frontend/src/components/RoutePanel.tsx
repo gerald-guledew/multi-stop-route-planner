@@ -1,4 +1,5 @@
 import PlaceSearchBox from './PlaceSearchBox'
+import { isRoughGuess, roughly } from '../foundStart'
 import type { DevicePosition, LocationProblem, Position } from '../location'
 import type { Place, RoutePlan } from '../types'
 
@@ -29,14 +30,6 @@ const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
 
 const MAX_STOPS = 10
 
-/** A phone with GPS does better than this. Beyond it the pin is a guess worth owning up to. */
-const ROUGH_BEYOND_METRES = 20
-
-/** Said the way a person would: "80 m", not "83.4 m". Past a kilometre, in kilometres. */
-function roughly(metres: number): string {
-  return metres < 1000 ? `${Math.round(metres / 10) * 10} m` : `${Math.round(metres / 1000)} km`
-}
-
 /** Hands the finished order to Google Maps, which does the actual navigating. */
 function googleMapsLink(route: Place[]): string {
   const asCoordinates = (place: Place) => `${place.latitude},${place.longitude}`
@@ -53,17 +46,8 @@ export default function RoutePanel(props: Props) {
   const tooManyStops = stopCount > MAX_STOPS
   const saving = plan ? plan.enteredOrderDistanceKm - plan.totalDistanceKm : 0
 
-  // The start is still exactly where the browser put it, and the browser was not sure. Once the
-  // pin is dragged or replaced, the start is no longer a guess, so the note goes.
-  const start = places[0]
   const here = props.devicePosition
-  const startIsARoughGuess =
-    start !== undefined &&
-    here !== null &&
-    start.latitude === here.latitude &&
-    start.longitude === here.longitude &&
-    !here.correctedByHand &&
-    here.accuracyMetres > ROUGH_BEYOND_METRES
+  const startIsARoughGuess = isRoughGuess(places[0], here)
 
   return (
     <aside className="panel">

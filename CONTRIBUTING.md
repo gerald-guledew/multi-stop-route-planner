@@ -24,6 +24,12 @@ curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/au
 
 The road tests skip themselves when that file is absent, so a clean checkout stays green.
 
+The map screen needs Node 24 and pnpm. Its tests and its build are separate from the backend's:
+
+```bash
+cd frontend && pnpm install && pnpm test && pnpm build
+```
+
 ## Pull requests
 
 1. Fork, then branch off `main`.
@@ -36,6 +42,7 @@ The road tests skip themselves when that file is absent, so a clean checkout sta
 - Standard Spring Boot layout, Java 25
 - JUnit 5 for tests
 - Keep the routing and ordering logic free of framework annotations, so it can be tested on its own
+- On the map screen, Vitest for tests. Keep a rule out of the React components, as a plain function in its own file, so it can be tested on its own
 
 ## Bug reports
 

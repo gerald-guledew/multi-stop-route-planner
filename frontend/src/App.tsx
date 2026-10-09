@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, optimizeRoute } from './api'
+import { afterDragging } from './foundStart'
 import {
   currentPosition,
   type DevicePosition,
@@ -81,21 +82,9 @@ export default function App() {
   }
 
   function movePlace(index: number, latitude: number, longitude: number) {
-    // A start still sitting where the browser put it is the browser's guess at where you are.
-    // Dragging it is you saying where you really are, and you know better than the browser.
-    const moved = places[index]
-    const movedTheGuess =
-      index === 0 &&
-      devicePosition !== null &&
-      moved.latitude === devicePosition.latitude &&
-      moved.longitude === devicePosition.longitude
-    if (movedTheGuess) {
-      setDevicePosition({ ...devicePosition, latitude, longitude, correctedByHand: true })
-    }
-
-    setPlaces((current) =>
-      current.map((place, at) => (at === index ? { ...place, latitude, longitude } : place)),
-    )
+    const moved = afterDragging(places, devicePosition, index, latitude, longitude)
+    setPlaces(moved.places)
+    setDevicePosition(moved.devicePosition)
     // Any previous answer was worked out for where the pin used to be.
     setPlan(null)
     setError(null)
