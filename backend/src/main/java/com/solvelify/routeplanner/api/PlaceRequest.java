@@ -25,5 +25,16 @@ public record PlaceRequest(
         @NotNull
         @DecimalMin(value = "-180.0", message = "must be between -180 and 180")
         @DecimalMax(value = "180.0", message = "must be between -180 and 180")
-        Double longitude) {
+        Double longitude,
+
+        Boolean keepInPlace) {
+
+    /**
+     * Whether this stop has to be visited at the turn it was sent in, with the others arranged
+     * around it. Left out, it is free to move. It only means something on a stop: the start is
+     * always first, so on the start it is ignored.
+     */
+    public boolean keepInPlaceOrDefault() {
+        return keepInPlace != null && keepInPlace;
+    }
 }

@@ -144,6 +144,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `start.latitude` | number | Required, between -90 and 90 |
 | `start.longitude` | number | Required, between -180 and 180 |
 | `stops` | array | Required, 1 to 10 items, each shaped like `start` |
+| `stops[].keepInPlace` | boolean | Optional, defaults to `false`. See "Keeping a stop in its place" below |
 | `returnToStart` | boolean | Optional, defaults to `true` |
 
 ```json
@@ -195,6 +196,22 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 ```
 
 Two things that look like bugs and are not. The legs above add up to 51.75 rather than 51.76, because totals are calculated before rounding. And on a round trip the reverse order is exactly as short, so either direction is a correct answer.
+
+### Keeping a stop in its place
+
+Some stops cannot go wherever is shortest. The first call of the day that cannot wait, or the last one before heading home. Mark such a stop with `keepInPlace` and it is visited at the turn it was sent in: sent first, visited first. The other stops are arranged around it.
+
+Take the request above and keep the Airport, which was sent second, in its place:
+
+```json
+{ "name": "Airport", "latitude": -37.0082, "longitude": 174.7850, "keepInPlace": true }
+```
+
+The route becomes Sky Tower, Sylvia Park, **Airport**, Devonport, Takapuna and back to Sky Tower. That is 53.58 km, where 51.76 km was possible with every stop free. `ordersChecked` falls from 24 to 6, because only three stops are left to arrange.
+
+- Keeping a stop can only cost distance or leave it the same. It never saves any.
+- With every stop kept there is one order, the one sent, and the answer is that trip.
+- On `start` the mark is ignored. The start is first anyway.
 
 ### Errors
 
