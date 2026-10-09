@@ -4,14 +4,20 @@ export interface Position {
 }
 
 /**
- * Where the browser says this device is, and how far out it admits it could be.
+ * Where this device is, as far as the app knows. It begins as the browser's guess, which comes
+ * with the browser's own idea of how far out it could be.
  *
  * A phone with GPS is usually within a few metres. A laptop has no GPS and works from the Wi-Fi
  * networks it can see, which can put it a street away.
  */
 export interface DevicePosition extends Position {
-  /** The browser's own estimate of its error, in metres. */
+  /**
+   * The browser's own estimate of its error, in metres. An estimate, not a limit: a laptop that
+   * said 90 metres was found 130 metres out.
+   */
   accuracyMetres: number
+  /** Set once the person has dragged the guess to where they really are. Then nothing is in doubt. */
+  correctedByHand?: boolean
 }
 
 export type LocationProblem = 'refused' | 'unavailable'

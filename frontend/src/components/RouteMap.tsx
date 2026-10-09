@@ -50,9 +50,11 @@ function ClickToAddStop({ onMapClick }: { onMapClick: Props['onMapClick'] }) {
 }
 
 /**
- * Where the browser says this device is: a dot, and around it a circle as wide as the browser's
- * own doubt. On a laptop that circle can cover several houses. Drawing it says so, where a pin
- * alone would claim more than anybody knows.
+ * Where this device is: a dot, and while that is only the browser's guess, a circle around it
+ * as wide as the browser's own doubt. On a laptop that circle can cover several houses. Drawing
+ * it says so, where a pin alone would claim more than anybody knows.
+ *
+ * Once the person has dragged the guess to the right spot there is no doubt left to draw.
  *
  * Neither takes clicks, so a click inside the circle still adds a place like anywhere else.
  */
@@ -61,12 +63,14 @@ function YouAreHere({ at }: { at: DevicePosition }) {
 
   return (
     <>
-      <Circle
-        center={centre}
-        radius={at.accuracyMetres}
-        interactive={false}
-        pathOptions={{ className: 'you-are-here-doubt' }}
-      />
+      {!at.correctedByHand && (
+        <Circle
+          center={centre}
+          radius={at.accuracyMetres}
+          interactive={false}
+          pathOptions={{ className: 'you-are-here-doubt' }}
+        />
+      )}
       <CircleMarker
         center={centre}
         radius={6}
@@ -93,6 +97,10 @@ function ShowTheStartFoundForYou({ places, at }: { places: Place[]; at: DevicePo
   useEffect(() => {
     const start = places[0]
     if (!at || !start || start.latitude !== at.latitude || start.longitude !== at.longitude) {
+      return
+    }
+    // A pin just dropped by hand is already where the person is looking.
+    if (at.correctedByHand) {
       return
     }
     const doubt = L.latLng(at.latitude, at.longitude).toBounds(at.accuracyMetres * 2)

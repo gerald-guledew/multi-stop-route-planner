@@ -54,7 +54,7 @@ export default function RoutePanel(props: Props) {
   const saving = plan ? plan.enteredOrderDistanceKm - plan.totalDistanceKm : 0
 
   // The start is still exactly where the browser put it, and the browser was not sure. Once the
-  // pin is dragged or replaced, the doubt is no longer about the start, so the note goes.
+  // pin is dragged or replaced, the start is no longer a guess, so the note goes.
   const start = places[0]
   const here = props.devicePosition
   const startIsARoughGuess =
@@ -62,6 +62,7 @@ export default function RoutePanel(props: Props) {
     here !== null &&
     start.latitude === here.latitude &&
     start.longitude === here.longitude &&
+    !here.correctedByHand &&
     here.accuracyMetres > ROUGH_BEYOND_METRES
 
   return (
@@ -120,8 +121,9 @@ export default function RoutePanel(props: Props) {
 
       {startIsARoughGuess && here && (
         <p className="note">
-          Your browser can only place you to within about {roughly(here.accuracyMetres)}. That is
-          the circle on the map. If the pin is in the wrong spot, drag it.
+          Your browser guessed this spot. By its own estimate it is good to about{' '}
+          {roughly(here.accuracyMetres)}, the circle on the map. It can be further out than that.
+          Drag the pin to where you really are.
         </p>
       )}
 
