@@ -73,3 +73,64 @@ jobs:
       - name: Type check and build
         working-directory: frontend
         run: pnpm build
+
+  one-app:
+    # The API with the map screen built into it: one jar, one port. It is built with the
+    # command in the README, started, and asked for the screen and for a plan.
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_DB: routeplanner_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_NAME: routeplanner_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Build one jar with the map screen inside
+        working-directory: backend
+        # The tests ran in the backend job. This job is about the packaging.
+        run: ./mvnw -B -Pwith-screen -DskipTests package
+
+      - name: Start it, then ask for the screen and for a plan
+        working-directory: backend
+        run: |
+          java -jar target/route-planner-*.jar > one-app.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl --silent --output /dev/null http://127.0.0.1:8080/ && break
+            sleep 1
+          done
+          scripts/check-one-app.sh || { cat one-app.log; exit 1; }

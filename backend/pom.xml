@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -139,5 +140,62 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!--
+			Builds the map screen and puts it inside the jar, so the API serves both on one port.
+			Off by default, because the ordinary build needs only Java and this one needs pnpm too.
+		-->
+		<profile>
+			<id>with-screen</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>${exec-maven-plugin.version}</version>
+						<configuration>
+							<executable>pnpm</executable>
+							<workingDirectory>${project.basedir}/../frontend</workingDirectory>
+						</configuration>
+						<executions>
+							<execution>
+								<id>install-screen-dependencies</id>
+								<phase>generate-resources</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<arguments>
+										<argument>install</argument>
+										<argument>--frozen-lockfile</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>build-screen</id>
+								<phase>generate-resources</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<!--
+										Spring serves whatever is in static/. Emptying it first keeps a
+										script from an earlier build out of the jar.
+									-->
+									<arguments>
+										<argument>build</argument>
+										<argument>--outDir</argument>
+										<argument>${project.build.outputDirectory}/static</argument>
+										<argument>--emptyOutDir</argument>
+									</arguments>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>
