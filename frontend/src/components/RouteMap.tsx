@@ -24,6 +24,8 @@ interface Props {
   unroutablePlace?: string
   /** Where the browser says this device is. Null if it was not asked, or said no. */
   devicePosition: DevicePosition | null
+  /** How many times the browser has been asked where the device is. */
+  askedTimes: number
   onMapClick: (latitude: number, longitude: number) => void
   onMovePlace: (index: number, latitude: number, longitude: number) => void
   onCentreChange: (centre: Position) => void
@@ -95,9 +97,22 @@ function YouAreHere({ at }: { at: DevicePosition }) {
  *
  * It acts when a new position arrives, and only if that position became the start. If a start
  * was picked while the browser was still working it out, the map stays where it was put.
+ *
+ * The browser can come back with a better answer to the same asking. The map follows that too,
+ * but only while it is still where the last framing left it. Once somebody has moved the map,
+ * it is theirs, and a better answer moves the pin and nothing else.
  */
-function ShowTheStartFoundForYou({ places, at }: { places: Place[]; at: DevicePosition | null }) {
+function ShowTheStartFoundForYou({
+  places,
+  at,
+  askedTimes,
+}: {
+  places: Place[]
+  at: DevicePosition | null
+  askedTimes: number
+}) {
   const map = useMap()
+  const framed = useRef<{ forAsking: number; centre: L.LatLng; zoom: number } | null>(null)
 
   useEffect(() => {
     if (!at || !sitsOn(places[0], at)) {
@@ -107,8 +122,19 @@ function ShowTheStartFoundForYou({ places, at }: { places: Place[]; at: DevicePo
     if (at.correctedByHand) {
       return
     }
+
+    const last = framed.current
+    const firstAnswerToThisAsking = last === null || last.forAsking !== askedTimes
+    const mapIsWhereWeLeftIt =
+      last !== null && map.getZoom() === last.zoom && map.getCenter().equals(last.centre)
+    if (!firstAnswerToThisAsking && !mapIsWhereWeLeftIt) {
+      return
+    }
+
     const doubt = L.latLng(at.latitude, at.longitude).toBounds(at.accuracyMetres * 2)
-    map.fitBounds(doubt, { padding: [60, 60], maxZoom: 17 })
+    // Without animation, so the view has settled by the time it is remembered.
+    map.fitBounds(doubt, { padding: [60, 60], maxZoom: 17, animate: false })
+    framed.current = { forAsking: askedTimes, centre: map.getCenter(), zoom: map.getZoom() }
     // Only a new position should move the map. Adding or renaming a place later must not.
   }, [at, map])
 
@@ -176,6 +202,7 @@ export default function RouteMap({
   plan,
   unroutablePlace,
   devicePosition,
+  askedTimes,
   onMapClick,
   onMovePlace,
   onCentreChange,
@@ -202,7 +229,7 @@ export default function RouteMap({
       <ReportCentre onCentreChange={onCentreChange} />
       <KeepNewPlacesInView places={places} />
 
-      <ShowTheStartFoundForYou places={places} at={devicePosition} />
+      <ShowTheStartFoundForYou places={places} at={devicePosition} askedTimes={askedTimes} />
 
       {devicePosition && <YouAreHere at={devicePosition} />}
 

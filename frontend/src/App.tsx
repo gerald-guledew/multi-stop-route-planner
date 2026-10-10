@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { ApiError, optimizeRoute } from './api'
-import { afterDragging } from './foundStart'
+import { afterABetterAnswer, afterDragging } from './foundStart'
 import { toggleKeptInPlace, withoutPlace } from './stops'
 import {
-  currentPosition,
+  followPosition,
   type DevicePosition,
   type LocationProblem,
   type Position,
@@ -22,47 +22,60 @@ export default function App() {
   const [locating, setLocating] = useState(false)
   const [locationProblem, setLocationProblem] = useState<LocationProblem | null>(null)
   const [mapCentre, setMapCentre] = useState<Position | null>(null)
-  // Where the browser last said this device is. Read when the page opens and when "Start from
-  // where I am" is pressed. It is not followed as the device moves.
+  // Where the browser last said this device is. It is asked when the page opens and when
+  // "Start from where I am" is pressed, and listened to for half a minute after each, in case
+  // it comes back with better. After that nothing follows the device.
   const [devicePosition, setDevicePosition] = useState<DevicePosition | null>(null)
-  const askedOnLoad = useRef(false)
+  // One asking is one question put to the browser. The page puts the first, unprompted, because
+  // most trips start from where you are. The button puts the rest.
+  const [asking, setAsking] = useState({ times: 1, byButton: false })
 
-  // Most trips start from where you are, so offer that before anything is clicked. The
-  // browser asks permission itself. Saying no is an answer, not an error, so nothing is shown.
-  useEffect(() => {
-    if (askedOnLoad.current) {
-      return
-    }
-    askedOnLoad.current = true
-    void startFromMyLocation(false)
-  }, [])
+  // The browser answers seconds later, and may answer more than once. These two see the places
+  // and the position as they are when it does, not as they were when it was asked.
+  const onAnswer = useEffectEvent((here: DevicePosition, isFirst: boolean) => {
+    setLocating(false)
 
-  async function startFromMyLocation(askedByButton: boolean) {
-    setLocating(true)
-    setLocationProblem(null)
-    try {
-      const here = await currentPosition()
+    if (isFirst) {
       // Search looks from here from now on, whether or not it also becomes the start.
       setDevicePosition(here)
-      // The answer can take seconds. If a start was picked meanwhile, that choice stands.
-      setPlaces((current) =>
-        current.length === 0
-          ? [{ name: 'My location', latitude: here.latitude, longitude: here.longitude }]
-          : current,
-      )
-    } catch (problem) {
-      // Permission can be taken back. A position from before it was is not one to go on using.
-      if (problem === 'refused') {
-        setDevicePosition(null)
+      // If a start was picked while the browser was working it out, that choice stands.
+      if (places.length === 0) {
+        setPlaces([{ name: 'My location', latitude: here.latitude, longitude: here.longitude }])
       }
-      // Pressing the button is asking for an answer, so a failure then is worth explaining.
-      if (askedByButton) {
-        setLocationProblem(problem as LocationProblem)
-      }
-    } finally {
-      setLocating(false)
+      return
     }
-  }
+
+    const better = afterABetterAnswer(places, devicePosition, here)
+    setPlaces(better.places)
+    setDevicePosition(better.devicePosition)
+    if (better.movedTheStart) {
+      // Any previous answer was worked out for where the start used to be.
+      setPlan(null)
+      setError(null)
+      setUnroutablePlace(undefined)
+    }
+  })
+
+  const onProblem = useEffectEvent((problem: LocationProblem) => {
+    setLocating(false)
+    // Permission can be taken back. A position from before it was is not one to go on using.
+    if (problem === 'refused') {
+      setDevicePosition(null)
+    }
+    // Saying no to the page's own question is an answer, not an error, so nothing is shown.
+    // Pressing the button is asking for an answer, so a failure then is worth explaining.
+    if (asking.byButton) {
+      setLocationProblem(problem)
+    }
+  })
+
+  // The listening lasts as long as the asking it belongs to. Asking again, or leaving the
+  // page, stops it.
+  useEffect(() => {
+    setLocating(true)
+    setLocationProblem(null)
+    return followPosition(onAnswer, onProblem)
+  }, [asking])
 
   function addPlace(latitude: number, longitude: number) {
     setPlaces((current) => [
@@ -155,13 +168,14 @@ export default function App() {
         mapCentre={mapCentre}
         locating={locating}
         locationProblem={locationProblem}
-        onUseMyLocation={() => startFromMyLocation(true)}
+        onUseMyLocation={() => setAsking((last) => ({ times: last.times + 1, byButton: true }))}
       />
       <RouteMap
         places={places}
         plan={plan}
         unroutablePlace={unroutablePlace}
         devicePosition={devicePosition}
+        askedTimes={asking.times}
         onMapClick={addPlace}
         onMovePlace={movePlace}
         onCentreChange={setMapCentre}
