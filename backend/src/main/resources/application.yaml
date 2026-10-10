@@ -15,6 +15,13 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          # The browser asks on every visit whether the map screen has changed. Left to itself
+          # it can keep showing an old build for hours after a new one is running.
+          no-cache: true
 
 server:
   # Only the machine the app runs on can connect to it. The app has no login, so nothing else
@@ -22,6 +29,10 @@ server:
   # its own lock in front, such as a private tunnel. SERVER_ADDRESS=0.0.0.0 opens it to every
   # network the machine is on.
   address: 127.0.0.1
+  compression:
+    # The map screen and a planned route are mostly text. Compressed, the screen is a third of
+    # the size to download, which matters on a phone.
+    enabled: true
 
 routeplanner:
   routing:
