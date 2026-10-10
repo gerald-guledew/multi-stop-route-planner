@@ -16,6 +16,13 @@ spring:
     problemdetails:
       enabled: true
 
+server:
+  # Only the machine the app runs on can connect to it. The app has no login, so nothing else
+  # on the network should reach it directly. To use it from another device, put something with
+  # its own lock in front, such as a private tunnel. SERVER_ADDRESS=0.0.0.0 opens it to every
+  # network the machine is on.
+  address: 127.0.0.1
+
 routeplanner:
   routing:
     # haversine: straight lines, no setup. graphhopper: real driving distances, needs the map extract.
