@@ -2,7 +2,9 @@ package com.solvelify.routeplanner.api;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -13,6 +15,7 @@ import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -45,7 +48,7 @@ class RouteControllerTest {
 
     @Test
     void returnsThePlanAsJson() throws Exception {
-        given(routePlanningService.plan(any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -61,7 +64,7 @@ class RouteControllerTest {
 
     @Test
     void roundsDistancesToTwoDecimals() throws Exception {
-        given(routePlanningService.plan(any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -128,7 +131,7 @@ class RouteControllerTest {
 
     @Test
     void reportsAPlaceWithNoRoadNearItAsUnprocessable() throws Exception {
-        given(routePlanningService.plan(any(), any(), anyBoolean()))
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean()))
                 .willThrow(new UnroutablePlaceException("Takapuna", "No road was found near those coordinates."));
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -140,6 +143,64 @@ class RouteControllerTest {
                 .andExpect(jsonPath("$.place").value("Takapuna"))
                 .andExpect(jsonPath("$.detail").value(
                         "Cannot route to Takapuna. No road was found near those coordinates."));
+    }
+
+    // Stops kept in their place.
+
+    @Test
+    void passesOnWhichStopsHaveToKeepTheirPlace() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        String officeFirst = """
+                {
+                  "start": { "name": "Home", "latitude": -36.8689, "longitude": 174.7832 },
+                  "stops": [
+                    { "name": "Office", "latitude": -36.8485, "longitude": 174.7621, "keepInPlace": true },
+                    { "name": "Sylvia Park", "latitude": -36.9170, "longitude": 174.8414 },
+                    { "name": "Supermarket", "latitude": -36.8982, "longitude": 174.8470, "keepInPlace": false },
+                    { "name": "Airport", "latitude": -37.0070, "longitude": 174.7830, "keepInPlace": true }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(officeFirst))
+                .andExpect(status().isOk());
+
+        // Positions in the list of stops, counting from 0: the first and the fourth.
+        verify(routePlanningService).plan(any(), any(), eq(Set.of(0, 3)), eq(true));
+    }
+
+    @Test
+    void leavesEveryStopFreeToMoveUnlessToldOtherwise() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true));
+    }
+
+    @Test
+    void ignoresTheMarkOnTheStartWhichIsAlwaysFirstAnyway() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        String startMarked = """
+                {
+                  "start": { "name": "Home", "latitude": -36.8689, "longitude": 174.7832, "keepInPlace": true },
+                  "stops": [
+                    { "name": "Office", "latitude": -36.8485, "longitude": 174.7621 }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(startMarked))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true));
     }
 
     private static RoutePlan aPlan() {

@@ -45,6 +45,8 @@ The interface hands back a whole matrix rather than one pair at a time, because 
 
 **The solver minimises a cost matrix without knowing what cost means.** Distance fills it today. Seconds or litres can fill it later. That turns "fastest or most fuel-efficient" into a decision about how the matrix is built, not a rewrite of the algorithm.
 
+**A stop kept in its place is a rule about the order, not about the cost.** The solver is told which stops must be visited at the turn they were entered in, and it only ever builds the orders that respect that. It still knows nothing about why. Keeping a stop also makes the work smaller: ten stops with three kept is 5,040 orders to compare rather than 3.6 million.
+
 ## Place search
 
 A second, separate flow. It turns typing into a pin, and never touches the planning flow above.

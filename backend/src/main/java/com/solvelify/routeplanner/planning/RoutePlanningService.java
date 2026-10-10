@@ -3,6 +3,8 @@ package com.solvelify.routeplanner.planning;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 /**
@@ -22,7 +24,27 @@ public class RoutePlanningService {
         this.routeSolver = routeSolver;
     }
 
+    /** Every stop free to move. */
     public RoutePlan plan(Location start, List<Location> stops, boolean returnToStart) {
+        return plan(start, stops, Set.of(), returnToStart);
+    }
+
+    /**
+     * @param keptInPlace positions in {@code stops}, counting from 0, of the stops that must be
+     *                    visited at the turn they were entered in. The first stop of the day
+     *                    that cannot wait, say. The others are arranged around them
+     */
+    public RoutePlan plan(
+            Location start, List<Location> stops, Set<Integer> keptInPlace, boolean returnToStart) {
+
+        for (int position : keptInPlace) {
+            if (position < 0 || position >= stops.size()) {
+                throw new IllegalArgumentException(
+                        "cannot keep position " + position + " in its place, there are only "
+                                + stops.size() + " stops");
+            }
+        }
+
         List<Location> places = new ArrayList<>(stops.size() + 1);
         places.add(start);
         places.addAll(stops);
@@ -30,7 +52,8 @@ public class RoutePlanningService {
         TravelMatrix matrix = travelMatrixProvider.matrixFor(places);
 
         // Cost is distance today. Step 6 fills this table with litres instead.
-        RouteSolver.Solution solution = routeSolver.solve(matrix.asCostMatrix(), returnToStart);
+        RouteSolver.Solution solution =
+                routeSolver.solve(matrix.asCostMatrix(), returnToStart, asMatrixIndices(keptInPlace));
 
         int[] bestPath = pathOf(solution.order(), returnToStart);
         int[] enteredPath = pathOf(stopsInEnteredOrder(stops.size()), returnToStart);
@@ -41,6 +64,13 @@ public class RoutePlanningService {
                 solution.totalCost(),
                 distanceAlong(enteredPath, matrix),
                 solution.ordersChecked());
+    }
+
+    /** The matrix puts the start at 0, so the stop at position 0 of the list is index 1. */
+    private static Set<Integer> asMatrixIndices(Set<Integer> positionsAmongStops) {
+        return positionsAmongStops.stream()
+                .map(position -> position + 1)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     /** Wraps a stop order into a full path: start, the stops, and home again when asked. */

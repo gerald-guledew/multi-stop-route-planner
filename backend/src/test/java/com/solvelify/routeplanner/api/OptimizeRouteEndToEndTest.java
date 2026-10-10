@@ -49,6 +49,27 @@ class OptimizeRouteEndToEndTest {
     }
 
     @Test
+    void keepsTheAirportSecondAsInDocsApiMd() throws Exception {
+        String airportKeptSecond = AUCKLAND_ERRANDS
+                .formatted("true")
+                .replace("\"longitude\": 174.7850 }", "\"longitude\": 174.7850, \"keepInPlace\": true }");
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(airportKeptSecond))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDistanceKm").value(53.58))
+                .andExpect(jsonPath("$.enteredOrderDistanceKm").value(71.61))
+                .andExpect(jsonPath("$.ordersChecked").value(6))
+                .andExpect(jsonPath("$.route[1].name").value("Sylvia Park"))
+                .andExpect(jsonPath("$.route[2].name").value("Airport"))
+                .andExpect(jsonPath("$.route[3].name").value("Devonport"))
+                .andExpect(jsonPath("$.route[4].name").value("Takapuna"))
+                .andExpect(jsonPath("$.legs[0].distanceKm").value(10.38))
+                .andExpect(jsonPath("$.legs[2].distanceKm").value(19.5));
+    }
+
+    @Test
     void plansTheOneWayTripFromDocsApiMd() throws Exception {
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)

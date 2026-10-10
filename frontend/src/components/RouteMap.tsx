@@ -34,10 +34,14 @@ interface Props {
  * broken-image problem bundlers cause with Leaflet's image paths, and it lets the pin show
  * its position in the route.
  */
-function numberedIcon(label: string, state: 'entered' | 'planned' | 'problem'): L.DivIcon {
+function numberedIcon(
+  label: string,
+  state: 'entered' | 'planned' | 'problem',
+  keptInPlace: boolean,
+): L.DivIcon {
   return L.divIcon({
     className: '',
-    html: `<span class="pin pin-${state}">${label}</span>`,
+    html: `<span class="pin pin-${state}${keptInPlace ? ' pin-kept' : ''}">${label}</span>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   })
@@ -209,6 +213,7 @@ export default function RouteMap({
           icon={numberedIcon(
             labelFor(place, index),
             place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered',
+            index > 0 && place.keepInPlace === true,
           )}
           // A pin can land in the wrong spot: a rough location, a click on a building rather
           // than its street. Dragging puts it right without losing its name or its place in

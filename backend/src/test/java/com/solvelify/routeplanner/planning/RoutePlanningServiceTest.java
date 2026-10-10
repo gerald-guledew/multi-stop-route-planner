@@ -1,10 +1,12 @@
 package com.solvelify.routeplanner.planning;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import com.solvelify.routeplanner.distance.HaversineTravelMatrixProvider;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -87,6 +89,51 @@ class RoutePlanningServiceTest {
 
         // Two points already describe a straight line, so the map draws it without help.
         assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).isEmpty());
+    }
+
+    // Stops kept in their place. The figures were worked out separately, as the others were.
+
+    @Test
+    void arrangesTheOtherStopsAroundOneKeptInItsPlace() {
+        // The Airport was entered second and has to stay second.
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, Set.of(1), true);
+
+        assertThat(names(plan))
+                .containsExactly("Sky Tower", "Sylvia Park", "Airport", "Devonport", "Takapuna", "Sky Tower");
+        assertThat(plan.totalDistanceKm()).isCloseTo(53.58, within(0.01));
+        assertThat(plan.ordersChecked()).isEqualTo(6);
+    }
+
+    @Test
+    void keepsAStopInItsPlaceOnAOneWayTripToo() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, Set.of(1), false);
+
+        assertThat(names(plan)).containsExactly("Sky Tower", "Sylvia Park", "Airport", "Devonport", "Takapuna");
+        assertThat(plan.totalDistanceKm()).isCloseTo(46.66, within(0.01));
+    }
+
+    @Test
+    void stillComparesWithTheOrderEnteredWhenAStopIsKept() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, Set.of(1), true);
+
+        assertThat(plan.enteredOrderDistanceKm()).isCloseTo(71.61, within(0.01));
+    }
+
+    @Test
+    void drivesTheOrderEnteredWhenEveryStopIsKept() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, Set.of(0, 1, 2, 3), true);
+
+        assertThat(names(plan))
+                .containsExactly("Sky Tower", "Takapuna", "Airport", "Devonport", "Sylvia Park", "Sky Tower");
+        assertThat(plan.totalDistanceKm()).isCloseTo(71.61, within(0.01));
+        assertThat(plan.ordersChecked()).isEqualTo(1);
+    }
+
+    @Test
+    void refusesToKeepAPositionThatHasNoStop() {
+        assertThatThrownBy(() -> service.plan(SKY_TOWER, STOPS, Set.of(4), true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("only 4 stops");
     }
 
     private static List<String> names(RoutePlan plan) {

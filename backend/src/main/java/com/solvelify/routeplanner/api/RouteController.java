@@ -5,6 +5,9 @@ import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,9 +38,18 @@ public class RouteController {
         RoutePlan plan = routePlanningService.plan(
                 toLocation(request.start()),
                 stops,
+                positionsKeptInPlace(request.stops()),
                 request.returnToStartOrDefault());
 
         return OptimizeRouteResponse.from(plan);
+    }
+
+    /** Where in the list the stops marked to keep their place are, counting from 0. */
+    private static Set<Integer> positionsKeptInPlace(List<PlaceRequest> stops) {
+        return IntStream.range(0, stops.size())
+                .filter(position -> stops.get(position).keepInPlaceOrDefault())
+                .boxed()
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private static Location toLocation(PlaceRequest place) {

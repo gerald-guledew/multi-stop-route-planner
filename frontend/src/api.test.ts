@@ -75,6 +75,18 @@ describe('planning a route', () => {
     expect(JSON.parse(String(init?.body))).toEqual({ start, stops, returnToStart: false })
   })
 
+  it('says which stops have to keep their place', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+    const office = { name: 'Office', latitude: -36.8485, longitude: 174.7621, keepInPlace: true }
+
+    await optimizeRoute(start, [office, ...stops], true)
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent.stops[0].keepInPlace).toBe(true)
+    // A stop nobody marked is sent without the mark, which the API reads as free to move.
+    expect(sent.stops[1]).toEqual(stops[0])
+  })
+
   it('names the place no road reaches, so the map can point at it', async () => {
     apiThatAnswers(422, { title: 'Unroutable place', detail: 'Cannot route to Airport.', place: 'Airport' })
 

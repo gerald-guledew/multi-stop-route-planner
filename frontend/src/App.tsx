@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, optimizeRoute } from './api'
 import { afterDragging } from './foundStart'
+import { toggleKeptInPlace, withoutPlace } from './stops'
 import {
   currentPosition,
   type DevicePosition,
@@ -96,7 +97,13 @@ export default function App() {
   }
 
   function removePlace(index: number) {
-    setPlaces((current) => current.filter((_, at) => at !== index))
+    setPlaces((current) => withoutPlace(current, index))
+    setPlan(null)
+  }
+
+  function toggleKeepInPlace(index: number) {
+    setPlaces((current) => toggleKeptInPlace(current, index))
+    // A plan made while the stop was free, or kept, no longer says what was asked for.
     setPlan(null)
   }
 
@@ -139,6 +146,7 @@ export default function App() {
         returnToStart={returnToStart}
         onRename={renamePlace}
         onRemove={removePlace}
+        onToggleKeepInPlace={toggleKeepInPlace}
         onReturnToStartChange={setReturnToStart}
         onPlan={planRoute}
         onClear={clearAll}

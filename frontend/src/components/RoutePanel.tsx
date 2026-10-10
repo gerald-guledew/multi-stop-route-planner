@@ -1,5 +1,6 @@
 import PlaceSearchBox from './PlaceSearchBox'
 import { isRoughGuess, roughly } from '../foundStart'
+import { anyKeptInPlace, ordinal } from '../stops'
 import type { DevicePosition, LocationProblem, Position } from '../location'
 import type { Place, RoutePlan } from '../types'
 
@@ -11,6 +12,7 @@ interface Props {
   returnToStart: boolean
   onRename: (index: number, name: string) => void
   onRemove: (index: number) => void
+  onToggleKeepInPlace: (index: number) => void
   onReturnToStartChange: (returnToStart: boolean) => void
   onPlan: () => void
   onClear: () => void
@@ -86,7 +88,9 @@ export default function RoutePanel(props: Props) {
       <ol className="places">
         {places.map((place, index) => (
           <li key={index}>
-            <span className={`pin pin-list ${index === 0 ? 'pin-start' : ''}`}>
+            <span
+              className={`pin pin-list ${index === 0 ? 'pin-start' : ''} ${place.keepInPlace ? 'pin-kept' : ''}`}
+            >
               {index === 0 ? 'S' : index}
             </span>
             <input
@@ -96,12 +100,28 @@ export default function RoutePanel(props: Props) {
               aria-label={`Label for place ${index + 1}`}
               onChange={(event) => props.onRename(index, event.target.value)}
             />
+            {index > 0 && (
+              <button
+                className={`link ${place.keepInPlace ? 'kept' : ''}`}
+                aria-pressed={place.keepInPlace === true}
+                title="Keep this stop at this turn. The planner arranges the others around it."
+                onClick={() => props.onToggleKeepInPlace(index)}
+              >
+                {place.keepInPlace ? 'kept' : 'keep'} {ordinal(index)}
+              </button>
+            )}
             <button className="link" onClick={() => props.onRemove(index)} aria-label="Remove">
               remove
             </button>
           </li>
         ))}
       </ol>
+
+      {anyKeptInPlace(places) && (
+        <p className="note">
+          A kept stop stays at its turn. The planner arranges the others around it.
+        </p>
+      )}
 
       {startIsARoughGuess && here && (
         <p className="note">
@@ -171,9 +191,16 @@ export default function RoutePanel(props: Props) {
             {plan.route.map((place, index) => {
               const isStart = index === 0
               const isReturnHome = index === plan.route.length - 1 && returnToStart
+              // The plan carries names, not marks, so a kept stop is found again by its name.
+              const keptInPlace =
+                !isStart &&
+                !isReturnHome &&
+                places.some((entered, at) => at > 0 && entered.keepInPlace && entered.name === place.name)
               return (
                 <li key={index}>
-                  <span className={`pin pin-list ${isStart || isReturnHome ? 'pin-start' : ''}`}>
+                  <span
+                    className={`pin pin-list ${isStart || isReturnHome ? 'pin-start' : ''} ${keptInPlace ? 'pin-kept' : ''}`}
+                  >
                     {isStart || isReturnHome ? 'S' : index}
                   </span>
                   <span className="where">{place.name}</span>

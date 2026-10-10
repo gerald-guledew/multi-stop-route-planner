@@ -22,6 +22,7 @@ With five stops there are 120 possible orders. With ten stops there are more tha
 Develop an application that can accept a starting point and a list of places. It works out the order that makes the trip efficient, then hands each leg to Google Maps or Waze for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
 
 - Efficient stop order for a list of addresses
+- A stop that has to keep its turn, such as the one that must come first, stays there while the rest are arranged around it
 - Type an address or a business name and have it found, nearest first, instead of hunting for it on the map
 - Real driving distances from OpenStreetMap, not straight lines
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
@@ -58,7 +59,7 @@ The map screen, in a second terminal:
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. Once the data below is loaded you can type them instead, and the nearest match comes first.
+Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. A stop that has to keep its turn has a "keep" button beside it. Once the data below is loaded you can type them instead, and the nearest match comes first.
 
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 
