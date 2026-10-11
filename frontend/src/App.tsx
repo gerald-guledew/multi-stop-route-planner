@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useState } from 'react'
 import { ApiError, listSavedPlaces, optimizeRoute, removeSavedPlace, savePlace } from './api'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import { asPlace, startingFrom } from './savedPlaces'
-import { moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
+import { defaultLabel, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
   followPosition,
   type DevicePosition,
@@ -105,7 +105,7 @@ export default function App() {
   function addPlace(latitude: number, longitude: number) {
     setPlaces((current) => [
       ...current,
-      { name: current.length === 0 ? 'Start' : `Stop ${current.length}`, latitude, longitude },
+      { name: defaultLabel(current.length), latitude, longitude },
     ])
     // Any previous answer describes a different set of places, so it goes.
     setPlan(null)

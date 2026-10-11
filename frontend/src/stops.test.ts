@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { anyKeptInPlace, canMove, moved, ordinal, toggleKeptInPlace, withoutPlace } from './stops'
+import {
+  anyKeptInPlace,
+  canMove,
+  defaultLabel,
+  moved,
+  ordinal,
+  toggleKeptInPlace,
+  withLabelsInStep,
+  withoutPlace,
+} from './stops'
 import type { Place } from './types'
 
 const home: Place = { name: 'Home', latitude: -36.8689, longitude: 174.7832 }
@@ -138,6 +147,13 @@ describe('moving a stop to another turn', () => {
     expect(moved(places, 7, 'up')).toBe(places)
   })
 
+  it('knows nothing of the turn just past the end, though the one above it is real', () => {
+    const places = [home, office, mall]
+
+    expect(canMove(places, 3, 'up')).toBe(false)
+    expect(moved(places, 3, 'up')).toBe(places)
+  })
+
   it('leaves a kept stop kept, at the turn it moves to', () => {
     const keptMall = { ...mall, keepInPlace: true }
 
@@ -156,5 +172,99 @@ describe('moving a stop to another turn', () => {
     moved(places, 1, 'down')
 
     expect(places).toEqual([home, office, mall])
+  })
+})
+
+describe('a label nobody has changed', () => {
+  // Three pins dropped on the map and never named.
+  const first: Place = { name: 'Start', latitude: -36.85, longitude: 174.76 }
+  const second: Place = { name: 'Stop 1', latitude: -36.86, longitude: 174.77 }
+  const third: Place = { name: 'Stop 2', latitude: -36.87, longitude: 174.78 }
+  const fourth: Place = { name: 'Stop 3', latitude: -36.88, longitude: 174.79 }
+
+  const labels = (places: Place[]) => places.map((place) => place.name)
+  const latitudes = (places: Place[]) => places.map((place) => place.latitude)
+
+  it('is "Start" for the start and "Stop" with its turn for a stop', () => {
+    expect([0, 1, 2, 10].map(defaultLabel)).toEqual(['Start', 'Stop 1', 'Stop 2', 'Stop 10'])
+  })
+
+  it('goes on saying the turn when a stop is moved up', () => {
+    const rearranged = moved([first, second, third, fourth], 3, 'up')
+
+    expect(latitudes(rearranged)).toEqual([-36.85, -36.86, -36.88, -36.87])
+    expect(labels(rearranged)).toEqual(['Start', 'Stop 1', 'Stop 2', 'Stop 3'])
+  })
+
+  it('goes on saying the turn when a stop is taken out before it', () => {
+    const left = withoutPlace([first, second, third, fourth], 1)
+
+    expect(latitudes(left)).toEqual([-36.85, -36.87, -36.88])
+    expect(labels(left)).toEqual(['Start', 'Stop 1', 'Stop 2'])
+  })
+
+  it('becomes "Start" when the start is taken out and a stop takes over', () => {
+    expect(labels(withoutPlace([first, second, third], 0))).toEqual(['Start', 'Stop 1'])
+  })
+
+  it('still stops being kept on becoming the start', () => {
+    const keptSecond = { ...second, keepInPlace: true }
+
+    expect(withoutPlace([first, keptSecond, third], 0)[0]).toEqual({
+      name: 'Start',
+      latitude: -36.86,
+      longitude: 174.77,
+    })
+  })
+
+  it('stays kept through a change of label', () => {
+    const keptFourth = { ...fourth, keepInPlace: true }
+
+    expect(moved([first, second, third, keptFourth], 3, 'up')[2]).toEqual({
+      name: 'Stop 2',
+      latitude: -36.88,
+      longitude: 174.79,
+      keepInPlace: true,
+    })
+  })
+
+  it('is left alone once somebody has typed a name over it', () => {
+    const named = { ...fourth, name: 'The office' }
+
+    expect(labels(moved([first, second, third, named], 3, 'up'))).toEqual([
+      'Start',
+      'Stop 1',
+      'The office',
+      'Stop 3',
+    ])
+  })
+
+  it('is not taken for untouched because it reads like the label of another turn', () => {
+    // Called "Stop 7" while third in the list: somebody typed that, or it would say "Stop 3".
+    const typed = { ...fourth, name: 'Stop 7' }
+
+    expect(labels(moved([first, second, third, typed], 3, 'up'))).toEqual([
+      'Start',
+      'Stop 1',
+      'Stop 7',
+      'Stop 3',
+    ])
+  })
+
+  it('is not changed for a place whose turn is the same as before', () => {
+    const rearranged = moved([first, second, third, fourth], 3, 'up')
+
+    expect(rearranged[0]).toBe(first)
+    expect(rearranged[1]).toBe(second)
+  })
+
+  it('leaves a place that was not in the list before as it is', () => {
+    const newcomer: Place = { name: 'Stop 7', latitude: -36.9, longitude: 174.8 }
+
+    expect(withLabelsInStep([first, second], [first, newcomer, second])).toEqual([
+      first,
+      newcomer,
+      { ...second, name: 'Stop 2' },
+    ])
   })
 })
