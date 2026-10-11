@@ -24,6 +24,7 @@ Develop an application that can accept a starting point and a list of places. It
 - Efficient stop order for a list of addresses
 - A stop that has to keep its turn, such as the one that must come first, stays there while the rest are arranged around it
 - Type an address or a business name and have it found, nearest first, instead of hunting for it on the map
+- Save the places you go to often, such as home, and pick them again with one press
 - Real driving distances from OpenStreetMap, not straight lines
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
@@ -59,7 +60,7 @@ The map screen, in a second terminal:
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. A stop that has to keep its turn has a "keep" button beside it. Once the data below is loaded you can type them instead, and the nearest match comes first.
+Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. A stop that has to keep its turn has a "keep" button beside it. "save" keeps a place for next time, under the label you gave it. Once the data below is loaded you can type them instead, and the nearest match comes first.
 
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 
@@ -120,7 +121,7 @@ Do not put the app on an address that anyone can open. Do not point a tunnel at 
 ## Roadmap
 
 - [x] 1. REST API that returns the efficient stop order, using straight-line distances
-- [ ] 2. Address search and saved places, in PostgreSQL
+- [x] 2. Address search and saved places, in PostgreSQL
 - [x] 3. Real driving distances from GraphHopper
 - [x] 4. Map screen, first release
 - [ ] 5. Vehicle information: engine, size and load

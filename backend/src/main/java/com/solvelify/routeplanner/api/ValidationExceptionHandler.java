@@ -1,6 +1,8 @@
 package com.solvelify.routeplanner.api;
 
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
+import com.solvelify.routeplanner.saved.PlaceNameTakenException;
+import com.solvelify.routeplanner.saved.SavedPlaceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.Comparator;
@@ -64,6 +66,27 @@ class ValidationExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Unroutable place");
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("place", exception.placeName());
+        return problem;
+    }
+
+    /**
+     * A name that is already saved. The request is well formed and the server is fine. It is
+     * what is already there that the request clashes with, which is what 409 is for.
+     */
+    @ExceptionHandler(PlaceNameTakenException.class)
+    ProblemDetail handleNameTaken(PlaceNameTakenException exception, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setTitle("Name already saved");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("name", exception.name());
+        return problem;
+    }
+
+    @ExceptionHandler(SavedPlaceNotFoundException.class)
+    ProblemDetail handleNoSuchSavedPlace(SavedPlaceNotFoundException exception, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        problem.setTitle("No such saved place");
+        problem.setInstance(URI.create(request.getRequestURI()));
         return problem;
     }
 

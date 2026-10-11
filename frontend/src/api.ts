@@ -1,5 +1,5 @@
 import type { Position } from './location'
-import type { FoundPlace, Place, ProblemDetail, RoutePlan } from './types'
+import type { FoundPlace, Place, ProblemDetail, RoutePlan, SavedPlace } from './types'
 
 /**
  * An error the API explained properly, rather than a bare status code.
@@ -15,6 +15,15 @@ export class ApiError extends Error {
     this.place = problem.place
     this.fieldErrors = problem.errors ?? []
   }
+}
+
+/**
+ * Throws what the API said was wrong. Every refusal it sends carries a problem details body
+ * worth showing the user, whatever the status.
+ */
+async function refused(response: Response): Promise<never> {
+  const problem = (await response.json().catch(() => ({}))) as ProblemDetail
+  throw new ApiError(problem, response.status)
 }
 
 /**
@@ -42,8 +51,7 @@ export async function searchPlaces(
   const response = await fetch(`/api/v1/places/search?${parameters}`, { signal })
 
   if (!response.ok) {
-    const problem = (await response.json().catch(() => ({}))) as ProblemDetail
-    throw new ApiError(problem, response.status)
+    return refused(response)
   }
 
   return (await response.json()) as FoundPlace[]
@@ -61,10 +69,55 @@ export async function optimizeRoute(
   })
 
   if (!response.ok) {
-    // Both 400 and 422 carry a problem details body worth showing the user.
-    const problem = (await response.json().catch(() => ({}))) as ProblemDetail
-    throw new ApiError(problem, response.status)
+    return refused(response)
   }
 
   return (await response.json()) as RoutePlan
+}
+
+/**
+ * The places saved so far, in name order.
+ *
+ * <p>Takes an AbortSignal so that leaving the page while the list is on its way does not end
+ * in an answer nobody is waiting for.
+ */
+export async function listSavedPlaces(signal?: AbortSignal): Promise<SavedPlace[]> {
+  const response = await fetch('/api/v1/saved-places', { signal })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  return (await response.json()) as SavedPlace[]
+}
+
+/**
+ * Saves a place under its name. A name can be saved once, whatever the capitals, and the API
+ * refuses a second one in words fit to show.
+ */
+export async function savePlace(place: Place): Promise<SavedPlace> {
+  const response = await fetch('/api/v1/saved-places', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // Only what a saved place is. A stop's mark to keep its turn belongs to one trip.
+    body: JSON.stringify({
+      name: place.name,
+      latitude: place.latitude,
+      longitude: place.longitude,
+    }),
+  })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  return (await response.json()) as SavedPlace
+}
+
+export async function removeSavedPlace(id: number): Promise<void> {
+  const response = await fetch(`/api/v1/saved-places/${id}`, { method: 'DELETE' })
+
+  if (!response.ok) {
+    return refused(response)
+  }
 }

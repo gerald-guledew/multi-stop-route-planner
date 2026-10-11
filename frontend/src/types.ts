@@ -19,6 +19,15 @@ export interface FoundPlace extends Place {
   detail: string | null
 }
 
+/** A place somebody named and saved, so it can be picked again without typing. */
+export interface SavedPlace {
+  /** What it is removed by. The API hands it out when the place is saved. */
+  id: number
+  name: string
+  latitude: number
+  longitude: number
+}
+
 export interface Leg {
   from: string
   to: string

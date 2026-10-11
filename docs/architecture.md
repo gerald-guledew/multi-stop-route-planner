@@ -34,6 +34,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | `address` | LINZ addresses: the table and its importer |
 | `poi` | Named places from Overture Maps: the table and its importer |
 | `search` | Finds addresses and named places from what was typed. The `PlaceSearch` interface and its PostgreSQL implementation |
+| `saved` | Places somebody saved under a name: the JPA entity, its repository, and the rules about names |
 
 Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances are calculated.
 
@@ -77,6 +78,20 @@ Dotted lines happen at import time, not on a search.
 
 **The work for one search is bounded.** Each table hands over at most 5,000 matches to be ranked. "road" matches 850,000 addresses, and scoring them all took over four seconds. A search specific enough to be useful matches far fewer rows than the cap. When a search says where it is looking from, those 5,000 should be the nearest ones, so up to 20,000 matches are measured for distance first. Measuring is cheap. Scoring is what costs.
 
+## Saved places
+
+A third flow, and the first one that writes. A place is saved under a name, listed, and removed.
+
+**JPA here, SQL in search.** Search reads two tables that share no class, so it is one SQL statement. A saved place is one table, written and read a row at a time. That is what JPA is for, so `SavedPlace` is an entity and its repository is an interface with no code behind it.
+
+**The table keeps names apart, not the code.** A name can be saved once, whatever the capitals, because a unique index on the lower-cased name says so. The service does not look first and save second: two requests arriving together would both find the name free. It saves, and turns the database's refusal into an error that says which name.
+
+**The list is sorted in Java.** By name, with capitals and macrons counting for nothing until two names are otherwise the same. A database orders text by the rules it was created with, and those differ from one machine to the next.
+
+**A saved place and a pin are the same spot when their positions match.** One is always copied from the other, so the numbers agree to the last digit. That is how the map screen shows "saved" beside a place, and knows a saved place is already in the trip. Planning is untouched: it still takes positions, and never a saved place's id.
+
+**The list is private.** It is likely to hold a home address, and the app has no login. Its answer is marked not to be stored, and what keeps strangers away from it is the next section.
+
 ## One app
 
 Working on the code, there are two servers. Vite serves the map screen and passes `/api` on to the API. To use the planner there is one. The Maven profile `with-screen` builds the screen into the jar, and Spring serves it from the same port as the API. Either way the browser sees one origin, so there is no CORS setup.
@@ -105,13 +120,13 @@ Working on the code, there are two servers. Vite serves the map screen and passe
 
 ## Deliberately absent
 
-Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication, because there is nothing private to protect yet and the app answers only the machine it runs on. Turn by turn navigation, which is handed to Google Maps or Waze.
+Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication. Saved places are private, and what keeps them so is that the app answers only the machine it runs on, so anything put in front of it has to bring a lock of its own. Turn by turn navigation, which is handed to Google Maps or Waze.
 
 ## What each step changes
 
 | Step | Change to this picture |
 | --- | --- |
-| 2 | **Search done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. The planning flow above was untouched. Saved places still to come |
+| 2 | **Done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. Saved places are a JPA entity behind three endpoints. The planning flow above was untouched by both |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |

@@ -79,6 +79,9 @@ body {
   flex: 1;
   font: inherit;
   font-size: 14px;
+  /* Lets the label give way to the links beside it. A text box will not shrink below its
+     natural width otherwise, and the last link ends up outside the panel. */
+  min-width: 0;
   padding: 6px 8px;
 }
 
@@ -217,6 +220,7 @@ button:disabled {
   font-size: 12px;
   padding: 4px;
   text-decoration: underline;
+  white-space: nowrap;
 }
 
 /* Messages */
@@ -408,4 +412,70 @@ button:disabled {
   color: var(--muted);
   font-size: 12px;
   margin-top: 2px;
+}
+
+/* Saved places */
+
+.saved {
+  margin: 0 0 16px;
+}
+
+.saved h2 {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.saved ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.saved li {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+/* The name is the button that adds it. Filled and rounded, so it is not taken for one of the
+   label boxes below. As wide as its name, which is cut short and not wrapped when it is long. */
+.saved-name {
+  background: var(--page);
+  border-color: transparent;
+  border-radius: 999px;
+  flex: 0 1 auto;
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 5px 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Already in the trip: hollow, so it reads as done, and still easy to read. The usual faded
+   look of a button that cannot be pressed made the name too faint to make out. */
+.saved-name:disabled {
+  background: none;
+  border-color: var(--line);
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* The links sit at the far end of the row, however short the name. */
+.saved-name + .link {
+  margin-left: auto;
+}
+
+.saved .note {
+  margin: 6px 0 0;
+}
+
+/* Where "save" was, once the place is saved. Not a button: there is nothing left to press. */
+.saved-mark {
+  color: var(--good);
+  font-size: 12px;
+  padding: 4px;
 }

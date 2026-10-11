@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, optimizeRoute, searchPlaces } from './api'
+import {
+  ApiError,
+  listSavedPlaces,
+  optimizeRoute,
+  removeSavedPlace,
+  savePlace,
+  searchPlaces,
+} from './api'
 
 /** Stands in for the API: answers every request the same way and remembers what was asked. */
 function apiThatAnswers(status: number, body: unknown) {
@@ -110,5 +117,79 @@ describe('planning a route', () => {
     )
 
     await expect(optimizeRoute(start, stops, true)).rejects.toThrow('Request failed with status 502')
+  })
+})
+
+describe('saved places', () => {
+  const home = { id: 7, name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 }
+
+  it('asks for the list', async () => {
+    const fetched = apiThatAnswers(200, [home])
+
+    await expect(listSavedPlaces()).resolves.toEqual([home])
+
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/saved-places')
+  })
+
+  it('can stop waiting for the list, when the page is left', async () => {
+    const fetched = apiThatAnswers(200, [])
+    const leaving = new AbortController()
+
+    await listSavedPlaces(leaving.signal)
+
+    expect(fetched.mock.calls[0][1]).toEqual({ signal: leaving.signal })
+  })
+
+  it('saves a place under its name, to the last digit of where it is', async () => {
+    const fetched = apiThatAnswers(201, home)
+
+    await expect(
+      savePlace({ name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 }),
+    ).resolves.toEqual(home)
+
+    const [url, request] = fetched.mock.calls[0]
+    expect(url).toBe('/api/v1/saved-places')
+    expect(request?.method).toBe('POST')
+    expect(request?.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(JSON.parse(request?.body as string)).toEqual({
+      name: 'Home',
+      latitude: -36.8689416667,
+      longitude: 174.7832303333,
+    })
+  })
+
+  it('does not save that a stop was kept in its place, which belongs to one trip', async () => {
+    const fetched = apiThatAnswers(201, home)
+
+    await savePlace({ name: 'Home', latitude: -36.87, longitude: 174.78, keepInPlace: true })
+
+    expect(JSON.parse(fetched.mock.calls[0][1]?.body as string)).not.toHaveProperty('keepInPlace')
+  })
+
+  it('fails with what the API said when the name is taken', async () => {
+    apiThatAnswers(409, {
+      title: 'Name already saved',
+      detail: 'A place called "Home" is already saved. Remove it first, or save this one under another name.',
+    })
+
+    const refusal = savePlace({ name: 'Home', latitude: -36.87, longitude: 174.78 })
+
+    await expect(refusal).rejects.toBeInstanceOf(ApiError)
+    await expect(refusal).rejects.toThrow('A place called "Home" is already saved.')
+  })
+
+  it('removes a place by its id', async () => {
+    const fetched = apiThatAnswers(204, undefined)
+
+    await expect(removeSavedPlace(7)).resolves.toBeUndefined()
+
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/saved-places/7')
+    expect(fetched.mock.calls[0][1]).toEqual({ method: 'DELETE' })
+  })
+
+  it('fails with what the API said when there is no such place to remove', async () => {
+    apiThatAnswers(404, { title: 'No such saved place', detail: 'No saved place has the id 7.' })
+
+    await expect(removeSavedPlace(7)).rejects.toThrow('No saved place has the id 7.')
   })
 })

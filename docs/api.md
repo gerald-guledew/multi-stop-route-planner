@@ -251,3 +251,71 @@ A 422 names the place that cannot be reached, so the caller knows which pin to m
 ```
 
 This is easy to hit in practice. A pin dropped on an airfield, inside a shopping centre or in the middle of a park has no street beside it. Moving it to the nearest road fixes it: the Auckland Airport pin at `-37.0082, 174.7850` fails, while the terminal forecourt at `-37.0070, 174.7830` works.
+
+## Saved places
+
+Places somebody named so they can pick them again without typing: home, the office, a shop the map data does not know about. They live in the database, so they are still there after a restart.
+
+There is one list. The application has no users, so whoever can reach it can read the list, and the list may well hold a home address. What keeps it private is in "One app" in [architecture.md](architecture.md).
+
+### GET /api/v1/saved-places
+
+Every saved place, in name order. Capitals and macrons do not change the order.
+
+```json
+[
+  { "id": 7, "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 },
+  { "id": 9, "name": "The office", "latitude": -36.8485, "longitude": 174.7621 }
+]
+```
+
+The answer is marked `Cache-Control: no-store`, so neither the browser nor anything in between keeps a copy.
+
+### POST /api/v1/saved-places
+
+| Field | Type | Rules |
+| --- | --- | --- |
+| `name` | string | Required, 1 to 100 characters. Spaces around it are dropped |
+| `latitude` | number | Required, between -90 and 90 |
+| `longitude` | number | Required, between -180 and 180 |
+
+```json
+{ "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 }
+```
+
+Answers **201** with the place as saved. The `id` is what to remove it by.
+
+```json
+{ "id": 7, "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 }
+```
+
+A name can be saved once, whatever the capitals. Saving "HOME" while "Home" is there answers **409**, and the place that was there stays as it was:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Name already saved",
+  "status": 409,
+  "detail": "A place called \"HOME\" is already saved. Remove it first, or save this one under another name.",
+  "instance": "/api/v1/saved-places",
+  "name": "HOME"
+}
+```
+
+One spot may be saved under two names.
+
+### DELETE /api/v1/saved-places/{id}
+
+Answers **204** with no body. The name is then free to be saved again.
+
+### Errors
+
+| Status | When |
+| --- | --- |
+| 400 | A field is missing or out of range, or the id is not a number |
+| 404 | Removing a place that is not there |
+| 409 | Saving under a name that is taken |
+
+All three are Problem Details, as above.
+
+Planning takes positions, not ids. To plan a trip through a saved place, send its name and position like any other place.

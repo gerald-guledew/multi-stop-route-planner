@@ -26,6 +26,8 @@ interface Props {
   devicePosition: DevicePosition | null
   /** How many times the browser has been asked where the device is. */
   askedTimes: number
+  /** How many times the start has been put in from the saved places. */
+  startReplacedTimes: number
   onMapClick: (latitude: number, longitude: number) => void
   onMovePlace: (index: number, latitude: number, longitude: number) => void
   onCentreChange: (centre: Position) => void
@@ -168,16 +170,27 @@ function ReportCentre({ onCentreChange }: { onCentreChange: Props['onCentreChang
  * your own location can be anywhere in the country, and a pin dropped off screen looks exactly
  * like nothing happening.
  *
- * Only an added place moves the map. Renaming or removing one leaves the view where you put it.
+ * Only a place put into the trip moves the map: one added, or a saved place taking over as the
+ * start. The second adds nothing to the count, so it is told apart by being counted on its
+ * own. Renaming, removing or dragging leaves the view where you put it.
  */
-function KeepNewPlacesInView({ places }: { places: Place[] }) {
+function KeepNewPlacesInView({
+  places,
+  startReplacedTimes,
+}: {
+  places: Place[]
+  startReplacedTimes: number
+}) {
   const map = useMap()
   const countBefore = useRef(0)
+  const startReplacedBefore = useRef(startReplacedTimes)
 
   useEffect(() => {
     const added = places.length > countBefore.current
+    const startReplaced = startReplacedTimes !== startReplacedBefore.current
     countBefore.current = places.length
-    if (!added) {
+    startReplacedBefore.current = startReplacedTimes
+    if (!added && !startReplaced) {
       return
     }
 
@@ -192,7 +205,7 @@ function KeepNewPlacesInView({ places }: { places: Place[] }) {
     } else {
       map.fitBounds(L.latLngBounds(pins), { padding: [40, 40], maxZoom: 15 })
     }
-  }, [places, map])
+  }, [places, map, startReplacedTimes])
 
   return null
 }
@@ -203,6 +216,7 @@ export default function RouteMap({
   unroutablePlace,
   devicePosition,
   askedTimes,
+  startReplacedTimes,
   onMapClick,
   onMovePlace,
   onCentreChange,
@@ -227,7 +241,7 @@ export default function RouteMap({
 
       <ClickToAddStop onMapClick={onMapClick} />
       <ReportCentre onCentreChange={onCentreChange} />
-      <KeepNewPlacesInView places={places} />
+      <KeepNewPlacesInView places={places} startReplacedTimes={startReplacedTimes} />
 
       <ShowTheStartFoundForYou places={places} at={devicePosition} askedTimes={askedTimes} />
 
