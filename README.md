@@ -99,6 +99,24 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner
 
 Import the addresses first, because each place takes its suburb from the nearest address. Overture publishes every month. Run both commands again to pick up a new release: places are updated, added and removed to match the file.
 
+### One app, to use it from a phone
+
+The two halves above are for working on the code. To use the planner, build the map screen into the API, so that one program serves both on one port:
+
+```bash
+cd backend && ./mvnw -Pwith-screen -DskipTests package
+```
+
+```bash
+cd backend && java -jar target/route-planner-0.0.1-SNAPSHOT.jar --routeplanner.routing.provider=graphhopper
+```
+
+Open http://localhost:8080. Leave the last argument off for straight-line distances. The screen in the jar is as old as the build, so while working on the code keep using port 5173.
+
+The app has no login, so it answers only the machine it runs on. Nothing else on the network can connect to it. To use it from a phone, put a private tunnel in front of port 8080: one that only your own devices can use, and that gives the app an https address. A phone shares its location only with an https page.
+
+Do not put the app on an address that anyone can open. Do not point a tunnel at the two development servers either. They are not built to face other people.
+
 ## Roadmap
 
 - [x] 1. REST API that returns the efficient stop order, using straight-line distances

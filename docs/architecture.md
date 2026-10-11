@@ -77,6 +77,16 @@ Dotted lines happen at import time, not on a search.
 
 **The work for one search is bounded.** Each table hands over at most 5,000 matches to be ranked. "road" matches 850,000 addresses, and scoring them all took over four seconds. A search specific enough to be useful matches far fewer rows than the cap. When a search says where it is looking from, those 5,000 should be the nearest ones, so up to 20,000 matches are measured for distance first. Measuring is cheap. Scoring is what costs.
 
+## One app
+
+Working on the code, there are two servers. Vite serves the map screen and passes `/api` on to the API. To use the planner there is one. The Maven profile `with-screen` builds the screen into the jar, and Spring serves it from the same port as the API. Either way the browser sees one origin, so there is no CORS setup.
+
+**It answers only the machine it runs on.** The app has no login, so the address it listens on is the only lock it has, and that address is 127.0.0.1. Using it from another device takes something in front of it with a lock of its own, such as a private tunnel. That also supplies the https a browser asks for before it shares a location. `SERVER_ADDRESS=0.0.0.0` makes the app listen on every network the machine is on, for a server that keeps its own proxy in front. A test starts the app on a real port and tries every other address of the machine.
+
+**The browser asks every time whether the screen has changed.** Left to itself a browser can go on showing an old build for hours after a new one is running. Asking costs a few small requests and no download when nothing changed.
+
+**Text is compressed on the way out.** The screen is a third of the size to download, and a planned route with its road geometry a quarter.
+
 ## Units and limits
 
 | Thing | Decision |
@@ -95,7 +105,7 @@ Dotted lines happen at import time, not on a search.
 
 ## Deliberately absent
 
-Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication, because there is nothing private to protect yet. Turn by turn navigation, which is handed to Google Maps or Waze.
+Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication, because there is nothing private to protect yet and the app answers only the machine it runs on. Turn by turn navigation, which is handed to Google Maps or Waze.
 
 ## What each step changes
 
@@ -103,6 +113,6 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | --- | --- |
 | 2 | **Search done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. The planning flow above was untouched. Saved places still to come |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for |
-| 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup |
+| 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |
 | 6 | A second way to fill the cost matrix, using fuel instead of distance |
