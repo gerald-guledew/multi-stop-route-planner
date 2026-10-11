@@ -67,22 +67,49 @@ body {
 }
 
 .places li {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   gap: 8px;
-  padding: 4px 0;
+  padding: 5px 0;
+}
+
+/* The label, with what can be done to the place on a line of its own beneath it. One line
+   could not hold a readable label and five controls. */
+.place {
+  flex: 1;
+  min-width: 0;
 }
 
 .places input {
   border: 1px solid var(--line);
   border-radius: 6px;
-  flex: 1;
   font: inherit;
   font-size: 14px;
-  /* Lets the label give way to the links beside it. A text box will not shrink below its
-     natural width otherwise, and the last link ends up outside the panel. */
-  min-width: 0;
   padding: 6px 8px;
+  width: 100%;
+}
+
+.place-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  margin-top: 3px;
+}
+
+/* Removing is kept apart from the rest, at the far end of the line. */
+.place-actions .remove {
+  margin-left: auto;
+}
+
+/* Up and down the list. Small boxes and not underlined words: an underlined arrow is hard
+   to make out. */
+.turn {
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 9px;
 }
 
 .places input:focus {
@@ -117,6 +144,11 @@ body {
 
 .pin-list {
   flex: 0 0 28px;
+}
+
+/* Level with the label box beside it, now that a row of the trip is taller than its pin. */
+.places .pin-list {
+  margin-top: 2px;
 }
 
 .pin-start {

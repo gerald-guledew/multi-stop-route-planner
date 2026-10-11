@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { anyKeptInPlace, ordinal, toggleKeptInPlace, withoutPlace } from './stops'
+import { anyKeptInPlace, canMove, moved, ordinal, toggleKeptInPlace, withoutPlace } from './stops'
 import type { Place } from './types'
 
 const home: Place = { name: 'Home', latitude: -36.8689, longitude: 174.7832 }
 const office: Place = { name: 'Office', latitude: -36.8485, longitude: 174.7621 }
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
+const dairy: Place = { name: 'Corner dairy', latitude: -36.9, longitude: 174.8 }
 
 describe('saying which turn a stop has', () => {
   it.each([
@@ -87,5 +88,73 @@ describe('taking a place out of the list', () => {
 
   it('copes with the last place going', () => {
     expect(withoutPlace([home], 0)).toEqual([])
+  })
+})
+
+describe('moving a stop to another turn', () => {
+  it('moves it one turn earlier', () => {
+    expect(moved([home, office, mall, dairy], 3, 'up')).toEqual([home, office, dairy, mall])
+  })
+
+  it('moves it one turn later', () => {
+    expect(moved([home, office, mall, dairy], 1, 'down')).toEqual([home, mall, office, dairy])
+  })
+
+  it('will not move the first stop up past the start', () => {
+    const places = [home, office, mall]
+
+    expect(canMove(places, 1, 'up')).toBe(false)
+    expect(moved(places, 1, 'up')).toBe(places)
+  })
+
+  it('will not move the last stop down, there being no turn after it', () => {
+    const places = [home, office, mall]
+
+    expect(canMove(places, 2, 'down')).toBe(false)
+    expect(moved(places, 2, 'down')).toBe(places)
+  })
+
+  it('will not move the start, which is no stop', () => {
+    const places = [home, office, mall]
+
+    expect(canMove(places, 0, 'down')).toBe(false)
+    expect(moved(places, 0, 'down')).toBe(places)
+  })
+
+  it('has nowhere to move an only stop', () => {
+    expect(canMove([home, office], 1, 'up')).toBe(false)
+    expect(canMove([home, office], 1, 'down')).toBe(false)
+  })
+
+  it('says a stop in the middle can go either way', () => {
+    expect(canMove([home, office, mall, dairy], 2, 'up')).toBe(true)
+    expect(canMove([home, office, mall, dairy], 2, 'down')).toBe(true)
+  })
+
+  it('knows nothing of a turn that is not in the list', () => {
+    const places = [home, office, mall]
+
+    expect(canMove(places, 7, 'up')).toBe(false)
+    expect(moved(places, 7, 'up')).toBe(places)
+  })
+
+  it('leaves a kept stop kept, at the turn it moves to', () => {
+    const keptMall = { ...mall, keepInPlace: true }
+
+    expect(moved([home, office, keptMall], 2, 'up')).toEqual([home, keptMall, office])
+  })
+
+  it('leaves a kept stop kept when another stop changes places with it', () => {
+    const keptOffice = { ...office, keepInPlace: true }
+
+    expect(moved([home, keptOffice, mall], 2, 'up')).toEqual([home, mall, keptOffice])
+  })
+
+  it('does not change the list it was given', () => {
+    const places = [home, office, mall]
+
+    moved(places, 1, 'down')
+
+    expect(places).toEqual([home, office, mall])
   })
 })

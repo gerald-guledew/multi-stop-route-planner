@@ -52,6 +52,34 @@ export function withoutPlace(places: Place[], index: number): Place[] {
   ]
 }
 
+/** Up is one turn earlier, down is one turn later, as the list is drawn. */
+export type Direction = 'up' | 'down'
+
+/**
+ * Whether a stop has a turn to move to that way. The start is no stop and is not moved like
+ * one: it does not go down, and no stop goes up past it.
+ */
+export function canMove(places: Place[], index: number, direction: Direction): boolean {
+  const takesTheTurnOf = direction === 'up' ? index - 1 : index + 1
+  return index >= 1 && index < places.length && takesTheTurnOf >= 1 && takesTheTurnOf < places.length
+}
+
+/**
+ * Moves a stop one turn, by changing places with the stop beside it. A stop that is kept in
+ * its place stays kept, at the turn it now has. So does a kept stop it changed places with:
+ * keeping holds a stop against the planner, not against the person arranging the list.
+ */
+export function moved(places: Place[], index: number, direction: Direction): Place[] {
+  if (!canMove(places, index, direction)) {
+    return places
+  }
+  const takesTheTurnOf = direction === 'up' ? index - 1 : index + 1
+  const rearranged = [...places]
+  rearranged[index] = places[takesTheTurnOf]
+  rearranged[takesTheTurnOf] = places[index]
+  return rearranged
+}
+
 /** Whether any stop is being kept in its place. */
 export function anyKeptInPlace(places: Place[]): boolean {
   return places.some((place, at) => at > 0 && place.keepInPlace === true)
