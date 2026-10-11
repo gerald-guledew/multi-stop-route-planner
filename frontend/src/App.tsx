@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useState } from 'react'
-import { ApiError, optimizeRoute } from './api'
+import { ApiError, listSavedPlaces, optimizeRoute, removeSavedPlace, savePlace } from './api'
 import { afterABetterAnswer, afterDragging } from './foundStart'
+import { asPlace, startingFrom } from './savedPlaces'
 import { toggleKeptInPlace, withoutPlace } from './stops'
 import {
   followPosition,
@@ -10,7 +11,8 @@ import {
 } from './location'
 import RouteMap from './components/RouteMap'
 import RoutePanel from './components/RoutePanel'
-import type { Place, RoutePlan } from './types'
+import SavedPlaceList from './components/SavedPlaceList'
+import type { Place, RoutePlan, SavedPlace } from './types'
 
 export default function App() {
   const [places, setPlaces] = useState<Place[]>([])
@@ -29,6 +31,16 @@ export default function App() {
   // One asking is one question put to the browser. The page puts the first, unprompted, because
   // most trips start from where you are. The button puts the rest.
   const [asking, setAsking] = useState({ times: 1, byButton: false })
+  // The places saved earlier. They live in the API's database, so this is a copy, read when the
+  // page opens and read again after every change, so that it never drifts from the real list.
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([])
+  const [savedProblem, setSavedProblem] = useState<string | null>(null)
+  const [changingSaved, setChangingSaved] = useState(false)
+  // The saved place removed last. Removing takes one press, so one press must undo it.
+  const [removedSavedPlace, setRemovedSavedPlace] = useState<SavedPlace | null>(null)
+  // Counted up each time a saved place takes over as the start. Nothing is added to the trip
+  // then, so the map would not otherwise know there is somewhere new to show.
+  const [startReplacedTimes, setStartReplacedTimes] = useState(0)
 
   // The browser answers seconds later, and may answer more than once. These two see the places
   // and the position as they are when it does, not as they were when it was asked.
@@ -77,6 +89,19 @@ export default function App() {
     return followPosition(onAnswer, onProblem)
   }, [asking])
 
+  // Leaving the page while the list is on its way is not a failure, so it says nothing.
+  useEffect(() => {
+    const leaving = new AbortController()
+    listSavedPlaces(leaving.signal)
+      .then(setSavedPlaces)
+      .catch(() => {
+        if (!leaving.signal.aborted) {
+          setSavedProblem('Could not read your saved places. Is the API running?')
+        }
+      })
+    return () => leaving.abort()
+  }, [])
+
   function addPlace(latitude: number, longitude: number) {
     setPlaces((current) => [
       ...current,
@@ -107,6 +132,8 @@ export default function App() {
 
   function renamePlace(index: number, name: string) {
     setPlaces((current) => current.map((place, at) => (at === index ? { ...place, name } : place)))
+    // A name that was taken is put right by typing another, so the complaint about it goes.
+    setSavedProblem(null)
   }
 
   function removePlace(index: number) {
@@ -118,6 +145,56 @@ export default function App() {
     setPlaces((current) => toggleKeptInPlace(current, index))
     // A plan made while the stop was free, or kept, no longer says what was asked for.
     setPlan(null)
+  }
+
+  /** Makes one change to the saved places, then reads the list again. Says whether it worked. */
+  async function changeSavedPlaces(change: () => Promise<unknown>): Promise<boolean> {
+    setChangingSaved(true)
+    try {
+      await change()
+      setSavedPlaces(await listSavedPlaces())
+      setSavedProblem(null)
+      return true
+    } catch (caught) {
+      // No answer at all says nothing about whether the change went through, so this does
+      // not claim either way.
+      setSavedProblem(
+        caught instanceof ApiError
+          ? caught.message
+          : 'Could not reach the API. Reload the page to see what is saved.',
+      )
+      return false
+    } finally {
+      setChangingSaved(false)
+    }
+  }
+
+  async function saveAPlace(index: number) {
+    if (await changeSavedPlaces(() => savePlace(places[index]))) {
+      // The offer to put a removed place back lasts until the list is changed again.
+      setRemovedSavedPlace(null)
+    }
+  }
+
+  async function removeASavedPlace(saved: SavedPlace) {
+    if (await changeSavedPlaces(() => removeSavedPlace(saved.id))) {
+      setRemovedSavedPlace(saved)
+    }
+  }
+
+  async function putBackTheRemovedPlace() {
+    if (removedSavedPlace && (await changeSavedPlaces(() => savePlace(removedSavedPlace)))) {
+      setRemovedSavedPlace(null)
+    }
+  }
+
+  function startFromASavedPlace(saved: SavedPlace) {
+    setPlaces((current) => startingFrom(current, saved))
+    setStartReplacedTimes((times) => times + 1)
+    // Any previous answer was worked out from another start.
+    setPlan(null)
+    setError(null)
+    setUnroutablePlace(undefined)
   }
 
   function clearAll() {
@@ -169,6 +246,22 @@ export default function App() {
         locating={locating}
         locationProblem={locationProblem}
         onUseMyLocation={() => setAsking((last) => ({ times: last.times + 1, byButton: true }))}
+        savedPlaces={savedPlaces}
+        changingSaved={changingSaved}
+        onSavePlace={saveAPlace}
+        savedList={
+          <SavedPlaceList
+            saved={savedPlaces}
+            places={places}
+            removed={removedSavedPlace}
+            problem={savedProblem}
+            busy={changingSaved}
+            onAdd={(saved) => addSearchedPlace(asPlace(saved))}
+            onStartFrom={startFromASavedPlace}
+            onRemove={removeASavedPlace}
+            onPutBack={putBackTheRemovedPlace}
+          />
+        }
       />
       <RouteMap
         places={places}
@@ -176,6 +269,7 @@ export default function App() {
         unroutablePlace={unroutablePlace}
         devicePosition={devicePosition}
         askedTimes={asking.times}
+        startReplacedTimes={startReplacedTimes}
         onMapClick={addPlace}
         onMovePlace={movePlace}
         onCentreChange={setMapCentre}

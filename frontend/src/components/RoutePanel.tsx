@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { isRoughGuess, roughly } from '../foundStart'
+import { canBeSaved, savedAt } from '../savedPlaces'
 import { anyKeptInPlace, ordinal } from '../stops'
 import type { DevicePosition, LocationProblem, Position } from '../location'
-import type { Place, RoutePlan } from '../types'
+import type { Place, RoutePlan, SavedPlace } from '../types'
 
 interface Props {
   places: Place[]
@@ -22,6 +24,13 @@ interface Props {
   locating: boolean
   locationProblem: LocationProblem | null
   onUseMyLocation: () => void
+  /** What is saved already, to tell which places in the trip still can be. */
+  savedPlaces: SavedPlace[]
+  /** True while a change to the saved places is on its way to the API. */
+  changingSaved: boolean
+  onSavePlace: (index: number) => void
+  /** The list of saved places, drawn under the search box. */
+  savedList: ReactNode
 }
 
 const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
@@ -42,6 +51,40 @@ function googleMapsLink(route: Place[]): string {
   return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`
 }
 
+/**
+ * "save" beside a place in the trip. Once the place is saved the word "saved" stands there
+ * instead, which is also how a press is seen to have worked.
+ */
+function SaveButton(props: {
+  place: Place
+  index: number
+  saved: SavedPlace[]
+  busy: boolean
+  onSave: (index: number) => void
+}) {
+  const alreadySaved = savedAt(props.saved, props.place)
+
+  if (alreadySaved) {
+    return (
+      <span className="saved-mark" title={`Saved as “${alreadySaved.name}”`}>
+        saved
+      </span>
+    )
+  }
+
+  return (
+    <button
+      className="link"
+      disabled={props.busy || !canBeSaved(props.place)}
+      title="Keep this place for next time, under this label"
+      aria-label={`Save place ${props.index + 1}`}
+      onClick={() => props.onSave(props.index)}
+    >
+      save
+    </button>
+  )
+}
+
 export default function RoutePanel(props: Props) {
   const { places, plan, error, planning, returnToStart } = props
   const stopCount = Math.max(places.length - 1, 0)
@@ -58,7 +101,7 @@ export default function RoutePanel(props: Props) {
         <p className="lede">
           Search an address or a business to drop a pin on it, or click the map for anywhere
           else. Drag a pin to move it. The boxes beside each pin are labels you can rename; they
-          do not move anything.
+          do not move anything. “save” keeps a place for next time, under its label.
         </p>
         <p className="lede">
           Click the street outside a place rather than the building itself. A pin inside a mall
@@ -72,6 +115,8 @@ export default function RoutePanel(props: Props) {
         start={places[0]}
         mapCentre={props.mapCentre}
       />
+
+      {props.savedList}
 
       {places.length === 0 && (
         <div className="empty">
@@ -110,6 +155,13 @@ export default function RoutePanel(props: Props) {
                 {place.keepInPlace ? 'kept' : 'keep'} {ordinal(index)}
               </button>
             )}
+            <SaveButton
+              place={place}
+              index={index}
+              saved={props.savedPlaces}
+              busy={props.changingSaved}
+              onSave={props.onSavePlace}
+            />
             <button className="link" onClick={() => props.onRemove(index)} aria-label="Remove">
               remove
             </button>
