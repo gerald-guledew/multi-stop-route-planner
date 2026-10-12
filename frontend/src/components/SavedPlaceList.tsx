@@ -1,3 +1,4 @@
+import { CrossIcon } from './icons'
 import { isInTrip, isTheStart } from '../savedPlaces'
 import type { Place, SavedPlace } from '../types'
 
@@ -48,23 +49,25 @@ export default function SavedPlaceList(props: Props) {
               >
                 {place.name}
               </button>
+              {/* Drawn like the pin of the start, because pressing it makes this the start. */}
               {!isTheStart(places, place) && (
                 <button
-                  className="link"
+                  className="start-here"
                   title="Start the trip from here, in place of the start it has"
                   aria-label={`Start from ${place.name}`}
                   onClick={() => props.onStartFrom(place)}
                 >
-                  start here
+                  S
                 </button>
               )}
               <button
-                className="link"
+                className="icon-button remove"
                 disabled={busy}
+                title="Take this out of your saved places"
                 aria-label={`Remove ${place.name} from saved places`}
                 onClick={() => props.onRemove(place)}
               >
-                remove
+                <CrossIcon />
               </button>
             </li>
           )

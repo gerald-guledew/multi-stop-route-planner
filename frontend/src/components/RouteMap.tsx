@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet'
 import { sitsOn } from '../foundStart'
 import type { DevicePosition, Position } from '../location'
+import { coveredAtTheTopOfTheMap } from '../screen'
 import type { Place, RoutePlan } from '../types'
 
 // Auckland, because that is where this was built and tested.
@@ -135,7 +136,12 @@ function ShowTheStartFoundForYou({
 
     const doubt = L.latLng(at.latitude, at.longitude).toBounds(at.accuracyMetres * 2)
     // Without animation, so the view has settled by the time it is remembered.
-    map.fitBounds(doubt, { padding: [60, 60], maxZoom: 17, animate: false })
+    map.fitBounds(doubt, {
+      paddingTopLeft: [60, 60 + coveredAtTheTopOfTheMap()],
+      paddingBottomRight: [60, 60],
+      maxZoom: 17,
+      animate: false,
+    })
     framed.current = { forAsking: askedTimes, centre: map.getCenter(), zoom: map.getZoom() }
     // Only a new position should move the map. Adding or renaming a place later must not.
   }, [at, map])
@@ -203,7 +209,11 @@ function KeepNewPlacesInView({
       // Close enough to recognise the street, without zooming out if already closer.
       map.setView(pins[0], Math.max(map.getZoom(), 14))
     } else {
-      map.fitBounds(L.latLngBounds(pins), { padding: [40, 40], maxZoom: 15 })
+      map.fitBounds(L.latLngBounds(pins), {
+        paddingTopLeft: [40, 40 + coveredAtTheTopOfTheMap()],
+        paddingBottomRight: [40, 40],
+        maxZoom: 15,
+      })
     }
   }, [places, map, startReplacedTimes])
 
