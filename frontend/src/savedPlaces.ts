@@ -1,4 +1,5 @@
 import { sitsOn } from './foundStart'
+import { withLabelsInStep } from './stops'
 import type { Place, SavedPlace } from './types'
 
 /**
@@ -41,5 +42,5 @@ export function asPlace(saved: SavedPlace): Place {
  */
 export function startingFrom(places: Place[], saved: SavedPlace): Place[] {
   const stops = places.slice(1).filter((stop) => !sitsOn(stop, saved))
-  return [asPlace(saved), ...stops]
+  return withLabelsInStep(places, [asPlace(saved), ...stops])
 }

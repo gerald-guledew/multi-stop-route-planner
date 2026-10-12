@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useState } from 'react'
 import { ApiError, listSavedPlaces, optimizeRoute, removeSavedPlace, savePlace } from './api'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import { asPlace, startingFrom } from './savedPlaces'
-import { toggleKeptInPlace, withoutPlace } from './stops'
+import { defaultLabel, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
   followPosition,
   type DevicePosition,
@@ -105,7 +105,7 @@ export default function App() {
   function addPlace(latitude: number, longitude: number) {
     setPlaces((current) => [
       ...current,
-      { name: current.length === 0 ? 'Start' : `Stop ${current.length}`, latitude, longitude },
+      { name: defaultLabel(current.length), latitude, longitude },
     ])
     // Any previous answer describes a different set of places, so it goes.
     setPlan(null)
@@ -197,6 +197,13 @@ export default function App() {
     setUnroutablePlace(undefined)
   }
 
+  function changeTurn(index: number, direction: Direction) {
+    setPlaces((current) => moved(current, index, direction))
+    // A plan compares itself with the order entered, and holds kept stops to their turns.
+    // Both have just changed.
+    setPlan(null)
+  }
+
   function clearAll() {
     setPlaces([])
     setPlan(null)
@@ -237,6 +244,7 @@ export default function App() {
         onRename={renamePlace}
         onRemove={removePlace}
         onToggleKeepInPlace={toggleKeepInPlace}
+        onChangeTurn={changeTurn}
         onReturnToStartChange={setReturnToStart}
         onPlan={planRoute}
         onClear={clearAll}

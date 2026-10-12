@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { isRoughGuess, roughly } from '../foundStart'
 import { canBeSaved, savedAt } from '../savedPlaces'
-import { anyKeptInPlace, ordinal } from '../stops'
+import { anyKeptInPlace, canMove, ordinal, type Direction } from '../stops'
 import type { DevicePosition, LocationProblem, Position } from '../location'
 import type { Place, RoutePlan, SavedPlace } from '../types'
 
@@ -15,6 +15,7 @@ interface Props {
   onRename: (index: number, name: string) => void
   onRemove: (index: number) => void
   onToggleKeepInPlace: (index: number) => void
+  onChangeTurn: (index: number, direction: Direction) => void
   onReturnToStartChange: (returnToStart: boolean) => void
   onPlan: () => void
   onClear: () => void
@@ -138,33 +139,65 @@ export default function RoutePanel(props: Props) {
             >
               {index === 0 ? 'S' : index}
             </span>
-            <input
-              value={place.name}
-              placeholder="Label for this pin"
-              title="A label only. The position comes from where you clicked the map."
-              aria-label={`Label for place ${index + 1}`}
-              onChange={(event) => props.onRename(index, event.target.value)}
-            />
-            {index > 0 && (
-              <button
-                className={`link ${place.keepInPlace ? 'kept' : ''}`}
-                aria-pressed={place.keepInPlace === true}
-                title="Keep this stop at this turn. The planner arranges the others around it."
-                onClick={() => props.onToggleKeepInPlace(index)}
-              >
-                {place.keepInPlace ? 'kept' : 'keep'} {ordinal(index)}
-              </button>
-            )}
-            <SaveButton
-              place={place}
-              index={index}
-              saved={props.savedPlaces}
-              busy={props.changingSaved}
-              onSave={props.onSavePlace}
-            />
-            <button className="link" onClick={() => props.onRemove(index)} aria-label="Remove">
-              remove
-            </button>
+            {/* The label, and under it what can be done to the place. */}
+            <div className="place">
+              <input
+                value={place.name}
+                placeholder="Label for this pin"
+                title="A label only. The position comes from where you clicked the map."
+                aria-label={`Label for place ${index + 1}`}
+                onChange={(event) => props.onRename(index, event.target.value)}
+              />
+              <div className="place-actions">
+                {/* With one stop there is no other turn to move it to. */}
+                {index > 0 && stopCount > 1 && (
+                  <>
+                    <button
+                      className="turn"
+                      disabled={!canMove(places, index, 'up')}
+                      title="Move this stop one turn earlier"
+                      aria-label={`Move stop ${index} up`}
+                      onClick={() => props.onChangeTurn(index, 'up')}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className="turn"
+                      disabled={!canMove(places, index, 'down')}
+                      title="Move this stop one turn later"
+                      aria-label={`Move stop ${index} down`}
+                      onClick={() => props.onChangeTurn(index, 'down')}
+                    >
+                      ↓
+                    </button>
+                  </>
+                )}
+                {index > 0 && (
+                  <button
+                    className={`link ${place.keepInPlace ? 'kept' : ''}`}
+                    aria-pressed={place.keepInPlace === true}
+                    title="Keep this stop at this turn. The planner arranges the others around it."
+                    onClick={() => props.onToggleKeepInPlace(index)}
+                  >
+                    {place.keepInPlace ? 'kept' : 'keep'} {ordinal(index)}
+                  </button>
+                )}
+                <SaveButton
+                  place={place}
+                  index={index}
+                  saved={props.savedPlaces}
+                  busy={props.changingSaved}
+                  onSave={props.onSavePlace}
+                />
+                <button
+                  className="link remove"
+                  onClick={() => props.onRemove(index)}
+                  aria-label="Remove"
+                >
+                  remove
+                </button>
+              </div>
+            </div>
           </li>
         ))}
       </ol>

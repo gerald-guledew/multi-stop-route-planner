@@ -103,4 +103,13 @@ describe('starting the trip from a saved place', () => {
 
     expect(trip).toEqual([guess, mall])
   })
+
+  it('keeps a label nobody changed saying the turn, when a stop before it has gone', () => {
+    const pin: Place = { name: 'Stop 2', latitude: -36.95, longitude: 174.85 }
+
+    expect(startingFrom([guess, asPlace(home), pin], home)).toEqual([
+      asPlace(home),
+      { ...pin, name: 'Stop 1' },
+    ])
+  })
 })
