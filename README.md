@@ -25,7 +25,7 @@ Develop an application that can accept a starting point and a list of places. It
 - A stop that has to keep its turn, such as the one that must come first, stays there while the rest are arranged around it
 - Type an address or a business name and have it found, nearest first, instead of hunting for it on the map
 - Save the places you go to often, such as home, and pick them again with one press
-- Real driving distances from OpenStreetMap, not straight lines
+- Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
 

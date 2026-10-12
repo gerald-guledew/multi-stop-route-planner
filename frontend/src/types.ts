@@ -32,6 +32,8 @@ export interface Leg {
   from: string
   to: string
   distanceKm: number
+  /** Driving time on clear roads, with nothing for a stop. Null on straight-line distances. */
+  durationSeconds: number | null
   /** The road this leg follows, as [latitude, longitude] pairs. Empty on straight-line distances. */
   path: [number, number][]
 }
@@ -40,6 +42,8 @@ export interface RoutePlan {
   route: Place[]
   legs: Leg[]
   totalDistanceKm: number
+  /** Driving time for the whole trip. Null on straight-line distances. */
+  totalDurationSeconds: number | null
   enteredOrderDistanceKm: number
   ordersChecked: number
 }

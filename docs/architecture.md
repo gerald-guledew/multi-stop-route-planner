@@ -108,7 +108,7 @@ Working on the code, there are two servers. Vite serves the map screen and passe
 | --- | --- |
 | Coordinates | WGS84 decimal degrees, the numbers Google Maps shows |
 | Distance | Kilometres. Rounded to two decimals in responses only, never during calculation |
-| Duration | Seconds, from step 3 onwards |
+| Duration | Seconds. Driving time on clear roads, with nothing added for a stop. Absent on straight lines, which say how far and not how long |
 | Stops per request | 10 at most. Checking every order grows by factorial, so 10 stops is already 3.6 million |
 | Start | Required. Returning to it is optional |
 
@@ -127,7 +127,7 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | Step | Change to this picture |
 | --- | --- |
 | 2 | **Done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. Saved places are a JPA entity behind three endpoints. The planning flow above was untouched by both |
-| 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for |
+| 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length. The order is still chosen for distance |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |
 | 6 | A second way to fill the cost matrix, using fuel instead of distance |

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, UpIcon } from './icons'
+import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { useNarrowScreen } from '../screen'
@@ -219,7 +220,10 @@ export default function RoutePanel(props: Props) {
               }
             }}
           >
-            <p>{next.says}</p>
+            <p>
+            {next.says}
+            {next.alsoSays && <span className="also">{next.alsoSays}</span>}
+          </p>
             {next.step === 'locate' && (
               <button onClick={props.onUseMyLocation} disabled={props.locating}>
                 {props.locating ? 'Finding you…' : 'Use my location'}
@@ -386,6 +390,12 @@ export default function RoutePanel(props: Props) {
                   <dt>This order</dt>
                   <dd className="big">{plan.totalDistanceKm.toFixed(2)} km</dd>
                 </div>
+                {plan.totalDurationSeconds !== null && (
+                  <div>
+                    <dt>Driving time</dt>
+                    <dd>{howLong(plan.totalDurationSeconds)}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>The order you clicked</dt>
                   <dd>{plan.enteredOrderDistanceKm.toFixed(2)} km</dd>
@@ -395,6 +405,13 @@ export default function RoutePanel(props: Props) {
                   <dd className={saving > 0 ? 'good' : ''}>{saving.toFixed(2)} km</dd>
                 </div>
               </dl>
+
+              {plan.totalDurationSeconds !== null && (
+                <p className="note">
+                  Driving time is for clear roads. It allows nothing for traffic, or for the
+                  time you spend at each stop.
+                </p>
+              )}
 
               {/*
                 Driving order, numbered the same as the pins on the map. Showing the legs as
@@ -419,7 +436,7 @@ export default function RoutePanel(props: Props) {
                       </span>
                       <span className="where">{place.name}</span>
                       <span className="km">
-                        {isStart ? '' : `${plan.legs[index - 1].distanceKm.toFixed(2)} km`}
+                        {isStart ? '' : legSaid(plan.legs[index - 1])}
                       </span>
                     </li>
                   )
