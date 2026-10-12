@@ -139,4 +139,74 @@ class RoutePlanningServiceTest {
     private static List<String> names(RoutePlan plan) {
         return plan.route().stream().map(Location::name).toList();
     }
+
+    // Driving times. A stand-in for the roads, with figures small enough to add up by hand.
+
+    private static final Location HOME = new Location("Home", -36.87, 174.78);
+    private static final Location OFFICE = new Location("Office", -36.85, 174.76);
+    private static final Location SHOP = new Location("Shop", -36.90, 174.80);
+
+    /**
+     * Entered as Home, Office, Shop. Driven that way and back it is 11 + 5 + 20 = 36 km and
+     * 100 + 100 + 100 = 300 seconds. The other way round, Home, Shop, Office and back, is
+     * 20 + 5 + 10 = 35 km and 1500 + 300 + 600 = 2400 seconds. So the shortest order is not
+     * the order entered, and not the quickest either.
+     */
+    private static final TravelMatrixProvider ROADS_WITH_TIMES = places -> new TravelMatrix(
+            new double[][] {
+                {0, 11, 20},
+                {10, 0, 5},
+                {20, 5, 0},
+            },
+            new double[][] {
+                {0, 100, 1500},
+                {600, 0, 100},
+                {100, 300, 0},
+            });
+
+    private final RoutePlanningService onRoadsWithTimes =
+            new RoutePlanningService(ROADS_WITH_TIMES, new BruteForceRouteSolver());
+
+    @Test
+    void saysHowLongEachLegOfTheChosenOrderTakes() {
+        RoutePlan plan = onRoadsWithTimes.plan(HOME, List.of(OFFICE, SHOP), true);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office", "Home");
+        assertThat(plan.legs()).extracting(leg -> leg.durationSeconds().orElseThrow())
+                .containsExactly(1500.0, 300.0, 600.0);
+    }
+
+    @Test
+    void addsTheLegsUpIntoTheTimeForTheWholeTrip() {
+        RoutePlan plan = onRoadsWithTimes.plan(HOME, List.of(OFFICE, SHOP), true);
+
+        assertThat(plan.totalDurationSeconds()).hasValue(2400);
+    }
+
+    @Test
+    void leavesTheDriveHomeOutOfTheTimeForAOneWayTrip() {
+        // One way, Home, Office, Shop is the shortest at 16 km, and takes 100 + 100 seconds.
+        RoutePlan plan = onRoadsWithTimes.plan(HOME, List.of(OFFICE, SHOP), false);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+        assertThat(plan.totalDurationSeconds()).hasValue(200);
+    }
+
+    @Test
+    void stillChoosesTheShortestOrderWhenAnotherWouldBeQuicker() {
+        // The order entered takes 300 seconds against 2400, and is a kilometre longer.
+        RoutePlan plan = onRoadsWithTimes.plan(HOME, List.of(OFFICE, SHOP), true);
+
+        assertThat(plan.totalDistanceKm()).isEqualTo(35);
+        assertThat(plan.enteredOrderDistanceKm()).isEqualTo(36);
+        assertThat(plan.totalDurationSeconds()).hasValue(2400);
+    }
+
+    @Test
+    void hasNoTimesToGiveOnStraightLines() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, true);
+
+        assertThat(plan.totalDurationSeconds()).isEmpty();
+        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.durationSeconds()).isEmpty());
+    }
 }

@@ -742,6 +742,16 @@ button:disabled {
     white-space: nowrap;
   }
 
+  /* The second line, under how far: how long, and how many stops. Quieter than the first. */
+  .action-bar .also {
+    color: var(--muted);
+    display: block;
+    font-size: 13px;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .action-bar button,
   .action-bar .button {
     flex: 0 0 auto;

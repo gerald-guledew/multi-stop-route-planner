@@ -11,6 +11,7 @@ const plan: RoutePlan = {
   legs: [],
   // As the API sends it, already rounded to two decimals.
   totalDistanceKm: 19.31,
+  totalDurationSeconds: null,
   enteredOrderDistanceKm: 21,
   ordersChecked: 2,
 }
@@ -33,7 +34,25 @@ describe('what the bar along the bottom of a phone says', () => {
   })
 
   it('gives the distance once planned, and offers to hand the order over', () => {
-    expect(whatNext([home, office, mall], plan, 10)).toEqual({ says: '19.31 km, 2 stops', step: 'open' })
+    expect(whatNext([home, office, mall], plan, 10)).toEqual({
+      says: '19.31 km',
+      alsoSays: '2 stops',
+      step: 'open',
+    })
+  })
+
+  it('says how long the drive takes as well, when the roads say', () => {
+    const byRoad = { ...plan, totalDurationSeconds: 5057 }
+
+    expect(whatNext([home, office, mall], byRoad, 10)).toEqual({
+      says: '19.31 km',
+      alsoSays: '1 h 24 min, 2 stops',
+      step: 'open',
+    })
+  })
+
+  it('has one line to say until there is a plan', () => {
+    expect(whatNext([home, office], null, 10).alsoSays).toBeUndefined()
   })
 
   it('offers nothing while there are more stops than can be planned', () => {

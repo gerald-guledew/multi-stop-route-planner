@@ -168,7 +168,9 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `legs` | array | One entry per drive between two consecutive places |
 | `legs[].from`, `legs[].to` | string | Place names |
 | `legs[].distanceKm` | number | Distance for that leg |
+| `legs[].durationSeconds` | integer | Driving time for that leg. `null` on straight lines. See "Driving times" below |
 | `totalDistanceKm` | number | Distance of the whole trip in the returned order |
+| `totalDurationSeconds` | integer | Driving time for the whole trip. `null` on straight lines |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
 | `ordersChecked` | integer | How many orders were compared |
 
@@ -183,19 +185,36 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
     { "name": "Sky Tower",   "latitude": -36.8485, "longitude": 174.7621 }
   ],
   "legs": [
-    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92 },
-    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46 },
-    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19 },
-    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31 },
-    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87 }
+    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null },
+    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null },
+    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null },
+    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null },
+    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null }
   ],
   "totalDistanceKm": 51.76,
+  "totalDurationSeconds": null,
   "enteredOrderDistanceKm": 71.61,
   "ordersChecked": 24
 }
 ```
 
 Two things that look like bugs and are not. The legs above add up to 51.75 rather than 51.76, because totals are calculated before rounding. And on a round trip the reverse order is exactly as short, so either direction is a correct answer.
+
+### Driving times
+
+On the `graphhopper` provider each leg also says how long the drive takes, and the plan says how long the whole trip takes. By road the five stops above come to 76.91 km and 5,057 seconds, a little over 84 minutes:
+
+```json
+{ "from": "Sky Tower", "to": "Airport", "distanceKm": 20.29, "durationSeconds": 1260 }
+```
+
+Three things to know about these figures.
+
+- **They are for clear roads.** The time is what each road's speed allows with nothing in the way. OpenStreetMap carries no traffic, so the same drive at five in the afternoon takes longer.
+- **They are driving time alone.** Nothing is added for the time spent at a stop.
+- **The order is still chosen for distance.** The time is how long the shortest order takes. Another order can be quicker and longer.
+
+On straight lines both fields are `null`, not zero. A straight line says how far apart two places are, and nothing about how fast anybody gets from one to the other.
 
 ### Keeping a stop in its place
 

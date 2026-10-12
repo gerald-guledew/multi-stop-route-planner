@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.planning;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,7 @@ public class RoutePlanningService {
                 placesAlong(bestPath, places),
                 legsAlong(bestPath, places, matrix),
                 solution.totalCost(),
+                durationAlong(bestPath, matrix),
                 distanceAlong(enteredPath, matrix),
                 solution.ordersChecked());
     }
@@ -103,11 +105,28 @@ public class RoutePlanningService {
                     from.name(),
                     to.name(),
                     matrix.distanceKm(path[step], path[step + 1]),
+                    matrix.durationSeconds(path[step], path[step + 1]),
                     // Only the legs that made it into the answer are drawn, so this costs one
                     // lookup per leg rather than one per pair.
                     travelMatrixProvider.pathBetween(from, to)));
         }
         return legs;
+    }
+
+    /**
+     * Driving time for the whole trip, or empty when the matrix has no times. The order was
+     * chosen for distance. This says how long that order takes, not that it is the quickest.
+     */
+    private static OptionalDouble durationAlong(int[] path, TravelMatrix matrix) {
+        double total = 0;
+        for (int step = 0; step < path.length - 1; step++) {
+            OptionalDouble leg = matrix.durationSeconds(path[step], path[step + 1]);
+            if (leg.isEmpty()) {
+                return OptionalDouble.empty();
+            }
+            total += leg.getAsDouble();
+        }
+        return OptionalDouble.of(total);
     }
 
     private static double distanceAlong(int[] path, TravelMatrix matrix) {

@@ -1,3 +1,4 @@
+import { howLong } from './duration'
 import type { Place, RoutePlan } from './types'
 
 /**
@@ -11,6 +12,8 @@ export type NextStep = 'locate' | 'plan' | 'open'
 
 export interface WhatNext {
   says: string
+  /** A second, quieter line under the first. Only a finished plan has enough to say for one. */
+  alsoSays?: string
   /** Null when there is nothing to press yet. */
   step: NextStep | null
 }
@@ -28,7 +31,13 @@ export function whatNext(places: Place[], plan: RoutePlan | null, mostStops: num
     return { says: `${stops} stops, ${mostStops} at most`, step: null }
   }
   if (plan) {
-    return { says: `${plan.totalDistanceKm.toFixed(2)} km, ${counted(stops)}`, step: 'open' }
+    // How far on the first line. Under it how long, when the roads say, and how many stops.
+    const driving = plan.totalDurationSeconds
+    return {
+      says: `${plan.totalDistanceKm.toFixed(2)} km`,
+      alsoSays: driving === null ? counted(stops) : `${howLong(driving)}, ${counted(stops)}`,
+      step: 'open',
+    }
   }
   return { says: counted(stops), step: 'plan' }
 }
