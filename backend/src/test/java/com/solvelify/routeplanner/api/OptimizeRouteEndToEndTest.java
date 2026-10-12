@@ -61,6 +61,18 @@ class OptimizeRouteEndToEndTest {
     }
 
     @Test
+    void givesNoClimbOnStraightLines() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(AUCKLAND_ERRANDS.formatted("true")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalClimbMetres").value(nullValue()))
+                .andExpect(jsonPath("$.totalDescentMetres").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].climbMetres").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].descentMetres").value(nullValue()));
+    }
+
+    @Test
     void keepsTheAirportSecondAsInDocsApiMd() throws Exception {
         String airportKeptSecond = AUCKLAND_ERRANDS
                 .formatted("true")

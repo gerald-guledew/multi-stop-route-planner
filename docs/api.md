@@ -169,8 +169,12 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `legs[].from`, `legs[].to` | string | Place names |
 | `legs[].distanceKm` | number | Distance for that leg |
 | `legs[].durationSeconds` | integer | Driving time for that leg. `null` on straight lines. See "Driving times" below |
+| `legs[].climbMetres` | integer | How much that leg goes up. `null` unless the roads were read with their heights. See "Climb and descent" below |
+| `legs[].descentMetres` | integer | How much that leg comes down, as a number above zero. `null` whenever the climb is |
 | `totalDistanceKm` | number | Distance of the whole trip in the returned order |
 | `totalDurationSeconds` | integer | Driving time for the whole trip. `null` on straight lines |
+| `totalClimbMetres` | integer | Climb of the whole trip. `null` unless the roads were read with their heights |
+| `totalDescentMetres` | integer | Descent of the whole trip. `null` whenever the climb is |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
 | `ordersChecked` | integer | How many orders were compared |
 
@@ -185,14 +189,16 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
     { "name": "Sky Tower",   "latitude": -36.8485, "longitude": 174.7621 }
   ],
   "legs": [
-    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null },
-    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null },
-    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null },
-    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null },
-    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null }
+    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null, "climbMetres": null, "descentMetres": null }
   ],
   "totalDistanceKm": 51.76,
   "totalDurationSeconds": null,
+  "totalClimbMetres": null,
+  "totalDescentMetres": null,
   "enteredOrderDistanceKm": 71.61,
   "ordersChecked": 24
 }
@@ -215,6 +221,36 @@ Three things to know about these figures.
 - **The order is still chosen for distance.** The time is how long the shortest order takes. Another order can be quicker and longer.
 
 On straight lines both fields are `null`, not zero. A straight line says how far apart two places are, and nothing about how fast anybody gets from one to the other.
+
+### Climb and descent
+
+The map says where a road runs and not how high it is. So a plan says nothing about hills unless the roads were read together with the height of the ground, which is a setting of its own:
+
+```yaml
+routeplanner:
+  routing:
+    provider: graphhopper
+    heights:
+      enabled: true
+```
+
+The first start with this on fetches the height of the ground for every part of the map that has a road in it, which for New Zealand is 68 files and 475 MB, and prepares a second graph beside the first. Later starts fetch nothing. The files go to `backend/data/heights` and the graph to `backend/data/graph-cache-heights`, both out of git.
+
+Each leg then says how much it goes up and how much it comes down, and the plan says the same for the whole trip, all in whole metres:
+
+```json
+{ "from": "Home", "to": "Office", "distanceKm": 11.0, "durationSeconds": 840, "climbMetres": 150, "descentMetres": 100 }
+```
+
+What these figures are, and are not.
+
+- **Both are added along the road.** Neither is the difference in height between two places. The leg above ends 50 m higher than it began, and climbs 150 m to get there, because there is a ridge on the way.
+- **The descent is a number above zero**, like the climb. The climb less the descent is how much higher the leg ends than it began.
+- **On a round trip the two totals come out equal**, give or take a metre of rounding, because the trip ends where it began.
+- **A level leg is `0` and `0`.** That is an answer. With heights off, and on straight lines, all four fields are `null`, which means not known.
+- **The order is still chosen for distance.** The climb is what the shortest order climbs. Another order can climb less and be longer.
+
+With heights on, a distance is measured along the slope of the road and not as seen from above, so the same trip comes out a few metres longer than with heights off.
 
 ### Keeping a stop in its place
 
