@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { searchPlaces } from '../api'
+import { NotAnswering, searchPlaces } from '../api'
 import type { Position } from '../location'
 import { lookFrom, type LookedFrom } from '../lookFrom'
 import type { FoundPlace, Place } from '../types'
@@ -34,7 +34,8 @@ export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentr
   const [results, setResults] = useState<FoundPlace[]>([])
   const [rankedNear, setRankedNear] = useState<LookedFrom | null>(null)
   const [searching, setSearching] = useState(false)
-  const [failed, setFailed] = useState(false)
+  // Why the last search failed, in words, or null if it did not.
+  const [failed, setFailed] = useState<string | null>(null)
   const [nothingFound, setNothingFound] = useState(false)
   const inFlight = useRef<AbortController | null>(null)
 
@@ -62,7 +63,7 @@ export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentr
       const from = lookingFrom.current
 
       setSearching(true)
-      setFailed(false)
+      setFailed(null)
       try {
         const found = await searchPlaces(term, from?.position ?? null, controller.signal)
         setResults(found)
@@ -71,7 +72,13 @@ export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentr
       } catch (caught) {
         if (!controller.signal.aborted) {
           setResults([])
-          setFailed(true)
+          // No answer at all is worth saying as what it is. The map is no way round it, since
+          // planning would get no answer either.
+          setFailed(
+            caught instanceof NotAnswering
+              ? caught.message
+              : 'Search is unavailable. Click the map instead.',
+          )
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -102,7 +109,7 @@ export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentr
 
       {searching && <p className="searching">Searching…</p>}
 
-      {failed && <p className="error">Search is unavailable. Click the map instead.</p>}
+      {failed && <p className="error">{failed}</p>}
 
       {nothingFound && !searching && (
         <p className="searching">Nothing found. Try fewer words, or click the map.</p>

@@ -1,5 +1,12 @@
 import { useEffect, useEffectEvent, useState } from 'react'
-import { ApiError, listSavedPlaces, optimizeRoute, removeSavedPlace, savePlace } from './api'
+import {
+  ApiError,
+  listSavedPlaces,
+  NotAnswering,
+  optimizeRoute,
+  removeSavedPlace,
+  savePlace,
+} from './api'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import { asPlace, startingFrom } from './savedPlaces'
 import { defaultLabel, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
@@ -95,8 +102,10 @@ export default function App() {
     listSavedPlaces(leaving.signal)
       .then(setSavedPlaces)
       .catch(() => {
+        // Said briefly, whatever the cause. If the planner is not answering, the first search
+        // or plan says so in full, and saying it here as well puts the same words up twice.
         if (!leaving.signal.aborted) {
-          setSavedProblem('Could not read your saved places. Is the API running?')
+          setSavedProblem('Your saved places could not be read.')
         }
       })
     return () => leaving.abort()
@@ -161,7 +170,9 @@ export default function App() {
       setSavedProblem(
         caught instanceof ApiError
           ? caught.message
-          : 'Could not reach the API. Reload the page to see what is saved.',
+          : caught instanceof NotAnswering
+            ? `${caught.message} Then reload the page to see what is saved.`
+            : 'Something went wrong. Reload the page to see what is saved.',
       )
       return false
     } finally {
@@ -231,8 +242,10 @@ export default function App() {
       if (caught instanceof ApiError) {
         setError(caught.message)
         setUnroutablePlace(caught.place)
+      } else if (caught instanceof NotAnswering) {
+        setError(caught.message)
       } else {
-        setError('Could not reach the API. Is the backend running on port 8080?')
+        setError('Something went wrong while planning. Try again.')
       }
     } finally {
       setPlanning(false)

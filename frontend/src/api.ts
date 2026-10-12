@@ -18,6 +18,76 @@ export class ApiError extends Error {
 }
 
 /**
+ * No answer came back at all. The planner is switched off, asleep or out of reach. Not the
+ * same as a refusal, where the planner answered and said no.
+ *
+ * The words are for whoever is looking at the screen. They say what to check, because the
+ * usual cause is the plainest one: the computer the planner runs on has gone to sleep.
+ */
+export class NotAnswering extends Error {
+  constructor() {
+    super(
+      'The planner is not answering. If it runs on your own computer, check that it is switched on and awake.',
+    )
+    this.name = 'NotAnswering'
+  }
+}
+
+/** A search or a saved place is answered in a blink. This long without an answer means none is coming. */
+const A_QUICK_ANSWER_MS = 8_000
+
+/** Planning compares every order of up to ten stops on real roads, so it is given longer. */
+const A_PLAN_MS = 30_000
+
+/**
+ * What a tunnel or a proxy in front of the planner answers when the planner behind it does
+ * not: bad gateway, service unavailable, gateway timeout. Something answered, but it was not
+ * the planner.
+ */
+const ANSWERED_IN_ITS_PLACE = [502, 503, 504]
+
+/**
+ * Asks the API, and gives up after a time.
+ *
+ * A request to a computer that is asleep neither fails nor answers. Left alone the browser
+ * waits for minutes, and the screen sits there showing nothing. So every request has a limit,
+ * and running out of it is reported the same way as not getting through at all.
+ *
+ * So is an answer that came from something in front of the planner, in its place.
+ *
+ * The request can also be called off by whoever made it: a newer search, or the page being
+ * left. That is passed on as it is. It is not the planner's doing.
+ */
+async function ask(url: string, patienceMs: number, request: RequestInit = {}): Promise<Response> {
+  const calledOff = request.signal ?? undefined
+  const limit = new AbortController()
+  const outOfPatience = setTimeout(() => limit.abort(), patienceMs)
+  const passItOn = () => limit.abort()
+  calledOff?.addEventListener('abort', passItOn)
+  if (calledOff?.aborted) {
+    limit.abort()
+  }
+
+  let response: Response
+  try {
+    response = await fetch(url, { ...request, signal: limit.signal })
+  } catch (caught) {
+    if (calledOff?.aborted) {
+      throw caught
+    }
+    throw new NotAnswering()
+  } finally {
+    clearTimeout(outOfPatience)
+    calledOff?.removeEventListener('abort', passItOn)
+  }
+
+  if (ANSWERED_IN_ITS_PLACE.includes(response.status)) {
+    throw new NotAnswering()
+  }
+  return response
+}
+
+/**
  * Throws what the API said was wrong. Every refusal it sends carries a problem details body
  * worth showing the user, whatever the status.
  */
@@ -48,7 +118,7 @@ export async function searchPlaces(
     parameters.set('near', `${near.latitude.toFixed(3)},${near.longitude.toFixed(3)}`)
   }
 
-  const response = await fetch(`/api/v1/places/search?${parameters}`, { signal })
+  const response = await ask(`/api/v1/places/search?${parameters}`, A_QUICK_ANSWER_MS, { signal })
 
   if (!response.ok) {
     return refused(response)
@@ -62,7 +132,7 @@ export async function optimizeRoute(
   stops: Place[],
   returnToStart: boolean,
 ): Promise<RoutePlan> {
-  const response = await fetch('/api/v1/routes/optimize', {
+  const response = await ask('/api/v1/routes/optimize', A_PLAN_MS, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ start, stops, returnToStart }),
@@ -82,7 +152,7 @@ export async function optimizeRoute(
  * in an answer nobody is waiting for.
  */
 export async function listSavedPlaces(signal?: AbortSignal): Promise<SavedPlace[]> {
-  const response = await fetch('/api/v1/saved-places', { signal })
+  const response = await ask('/api/v1/saved-places', A_QUICK_ANSWER_MS, { signal })
 
   if (!response.ok) {
     return refused(response)
@@ -96,7 +166,7 @@ export async function listSavedPlaces(signal?: AbortSignal): Promise<SavedPlace[
  * refuses a second one in words fit to show.
  */
 export async function savePlace(place: Place): Promise<SavedPlace> {
-  const response = await fetch('/api/v1/saved-places', {
+  const response = await ask('/api/v1/saved-places', A_QUICK_ANSWER_MS, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // Only what a saved place is. A stop's mark to keep its turn belongs to one trip.
@@ -115,7 +185,7 @@ export async function savePlace(place: Place): Promise<SavedPlace> {
 }
 
 export async function removeSavedPlace(id: number): Promise<void> {
-  const response = await fetch(`/api/v1/saved-places/${id}`, { method: 'DELETE' })
+  const response = await ask(`/api/v1/saved-places/${id}`, A_QUICK_ANSWER_MS, { method: 'DELETE' })
 
   if (!response.ok) {
     return refused(response)
