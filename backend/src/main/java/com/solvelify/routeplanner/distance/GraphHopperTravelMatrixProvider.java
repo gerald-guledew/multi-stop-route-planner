@@ -6,6 +6,7 @@ import com.graphhopper.GraphHopper;
 import com.graphhopper.ResponsePath;
 import com.graphhopper.util.PointList;
 import com.graphhopper.util.exceptions.PointNotFoundException;
+import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
@@ -30,6 +31,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>The time is what each road's speed allows with nothing in the way. OpenStreetMap carries no
  * traffic, so at five in the afternoon the real drive takes longer than this says.
+ *
+ * <p>How much a drive climbs and descends is given only when the graph was prepared with the
+ * height of every road. The map itself says where a road runs and not how high it is.
  */
 @Component
 @ConditionalOnProperty(name = "routeplanner.routing.provider", havingValue = RoutingProperties.GRAPHHOPPER)
@@ -40,10 +44,13 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
 
     private final GraphHopper graphHopper;
     private final String profile;
+    private final boolean roadsHaveHeights;
 
     public GraphHopperTravelMatrixProvider(GraphHopper graphHopper, RoutingProperties properties) {
         this.graphHopper = graphHopper;
         this.profile = properties.profile();
+        // Asked of the graph and not of the settings. The graph is what the figures come from.
+        this.roadsHaveHeights = graphHopper.getBaseGraph().getNodeAccess().is3D();
     }
 
     @Override
@@ -51,19 +58,27 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
         int size = places.size();
         double[][] distances = new double[size][size];
         double[][] durations = new double[size][size];
+        ClimbAndDescent[][] climbs = new ClimbAndDescent[size][size];
 
         for (int from = 0; from < size; from++) {
             for (int to = 0; to < size; to++) {
-                if (from != to) {
-                    // One drive worked out, and both figures read off it.
+                if (from == to) {
+                    climbs[from][to] = ClimbAndDescent.LEVEL;
+                } else {
+                    // One drive worked out, and every figure read off it.
                     ResponsePath drive = bestPath(places.get(from), places.get(to));
                     distances[from][to] = drive.getDistance() / METRES_PER_KM;
                     durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
+                    climbs[from][to] = new ClimbAndDescent(drive.getAscend(), drive.getDescend());
                 }
             }
         }
 
-        return new TravelMatrix(distances, durations);
+        // On a graph without heights the engine reports a climb of nought for every drive. That
+        // is not a level road, it is no answer, and it must not be passed on as one.
+        return roadsHaveHeights
+                ? new TravelMatrix(distances, durations, climbs)
+                : new TravelMatrix(distances, durations);
     }
 
     @Override

@@ -41,6 +41,19 @@ routeplanner:
     osm-file: data/new-zealand-latest.osm.pbf
     graph-cache: data/graph-cache
     profile: car
+    heights:
+      # Set to true for a plan that says how much each leg climbs and descends. Only read with
+      # provider: graphhopper. The map says where a road runs and not how high it is, so the
+      # heights come from a grid of the ground, a height every 30 m or so. The first start with
+      # this on fetches the files for every square of the map that has a road in it and prepares
+      # a second graph. Later starts fetch nothing.
+      enabled: false
+      # Where the height files are kept once fetched.
+      files: data/heights
+      # The graph prepared with heights. It cannot be read with heights off, nor the other one
+      # with heights on, so each has a folder of its own and neither is lost by changing the
+      # setting.
+      graph-cache: data/graph-cache-heights
   addresses:
     # Set to true once, with the LINZ export in place, to load the address table.
     import-enabled: false

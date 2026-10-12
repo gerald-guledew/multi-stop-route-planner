@@ -1,5 +1,6 @@
 package com.solvelify.routeplanner.planning;
 
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -7,8 +8,8 @@ import java.util.OptionalDouble;
  *
  * <p>A class rather than a record, for two reasons. Records compare arrays by identity, which
  * would make equality meaningless here. And this type is meant to grow: it began with distances,
- * now carries durations, and step 6 adds fuel, each an extra method here instead of a changed
- * signature everywhere.
+ * now carries durations and climbs, and step 6 adds fuel, each an extra method here instead of a
+ * changed signature everywhere.
  */
 public final class TravelMatrix {
 
@@ -17,19 +18,31 @@ public final class TravelMatrix {
     /** Null when the source of the figures has no notion of how long a drive takes. */
     private final double[][] durationsSeconds;
 
+    /** Null when the source of the figures does not know how high the roads are. */
+    private final ClimbAndDescent[][] climbs;
+
     /** Distances alone, from a source that knows how far and not how long. Straight lines are one. */
     public TravelMatrix(double[][] distancesKm) {
         this.distancesKm = copyOf(distancesKm);
         this.durationsSeconds = null;
+        this.climbs = null;
     }
 
+    /** Distances and times, from roads whose heights are not known. */
     public TravelMatrix(double[][] distancesKm, double[][] durationsSeconds) {
-        if (durationsSeconds.length != distancesKm.length) {
-            throw new IllegalArgumentException(
-                    "durations for " + durationsSeconds.length + " places, distances for " + distancesKm.length);
-        }
+        requireSameSize("durations", durationsSeconds.length, distancesKm.length);
         this.distancesKm = copyOf(distancesKm);
         this.durationsSeconds = copyOf(durationsSeconds);
+        this.climbs = null;
+    }
+
+    /** Distances, times, and how much each drive climbs and descends. */
+    public TravelMatrix(double[][] distancesKm, double[][] durationsSeconds, ClimbAndDescent[][] climbs) {
+        requireSameSize("durations", durationsSeconds.length, distancesKm.length);
+        requireSameSize("climbs", climbs.length, distancesKm.length);
+        this.distancesKm = copyOf(distancesKm);
+        this.durationsSeconds = copyOf(durationsSeconds);
+        this.climbs = copyOf(climbs);
     }
 
     public double distanceKm(int from, int to) {
@@ -47,6 +60,15 @@ public final class TravelMatrix {
                 : OptionalDouble.of(durationsSeconds[from][to]);
     }
 
+    /**
+     * How much the drive climbs and descends, when the source knows how high the roads are.
+     * Empty otherwise, which is not the same as a level drive: that one is known, and is nought
+     * up and nought down. A matrix has this for every pair or for none.
+     */
+    public Optional<ClimbAndDescent> climbAndDescent(int from, int to) {
+        return climbs == null ? Optional.empty() : Optional.of(climbs[from][to]);
+    }
+
     public int size() {
         return distancesKm.length;
     }
@@ -59,8 +81,22 @@ public final class TravelMatrix {
         return copyOf(distancesKm);
     }
 
+    private static void requireSameSize(String what, int given, int places) {
+        if (given != places) {
+            throw new IllegalArgumentException(what + " for " + given + " places, distances for " + places);
+        }
+    }
+
     private static double[][] copyOf(double[][] source) {
         double[][] copy = new double[source.length][];
+        for (int row = 0; row < source.length; row++) {
+            copy[row] = source[row].clone();
+        }
+        return copy;
+    }
+
+    private static ClimbAndDescent[][] copyOf(ClimbAndDescent[][] source) {
+        ClimbAndDescent[][] copy = new ClimbAndDescent[source.length][];
         for (int row = 0; row < source.length; row++) {
             copy[row] = source[row].clone();
         }
