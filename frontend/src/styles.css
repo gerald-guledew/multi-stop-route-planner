@@ -26,14 +26,6 @@ body {
   height: 100vh;
 }
 
-@media (max-width: 800px) {
-  .layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 60vh;
-    height: auto;
-  }
-}
-
 /* Panel */
 
 .panel {
@@ -58,6 +50,36 @@ body {
 
 .empty p {
   margin: 0 0 10px;
+}
+
+/* What each drawing on a button does. */
+.legend {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.legend li {
+  align-items: flex-start;
+  display: flex;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.legend .icon {
+  flex: 0 0 auto;
+  height: 17px;
+  width: 17px;
+}
+
+/* Only a narrow screen has a panel to raise, a bar along the bottom, or instructions folded
+   away. On a wide one the instructions sit beside the map and the panel is just the panel. */
+.sheet-head,
+.how {
+  display: none;
 }
 
 .places {
@@ -92,9 +114,8 @@ body {
 .place-actions {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0 6px;
-  margin-top: 3px;
+  gap: 2px;
+  margin-top: 2px;
 }
 
 /* Removing is kept apart from the rest, at the far end of the line. */
@@ -102,14 +123,39 @@ body {
   margin-left: auto;
 }
 
-/* Up and down the list. Small boxes and not underlined words: an underlined arrow is hard
-   to make out. */
-.turn {
-  border-radius: 6px;
+/* A button that is a small drawing and no words. What it does is in its title, and in the
+   list under "How this works". */
+.icon {
+  display: block;
+}
+
+.icon-button {
+  align-items: center;
+  background: none;
+  border-color: transparent;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1;
-  padding: 4px 9px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--page);
+  border-color: transparent;
+}
+
+/* Switched on: a stop that is kept, a place that is saved. */
+.icon-button.on {
+  color: var(--accent);
+}
+
+/* Saved already, so there is nothing to press. Not faded, though: it is saying something. */
+.icon-button.on:disabled {
+  cursor: default;
+  opacity: 1;
 }
 
 .places input:focus {
@@ -158,11 +204,6 @@ body {
 /* A stop kept in its place is square, on the map and in the list, so it shows without colour. */
 .pin-kept {
   border-radius: 6px;
-}
-
-.link.kept {
-  color: var(--ink);
-  font-weight: 600;
 }
 
 /* Pins can be dragged, so they should look as if they can. */
@@ -496,18 +537,295 @@ button:disabled {
   opacity: 1;
 }
 
-/* The links sit at the far end of the row, however short the name. */
-.saved-name + .link {
+/* The buttons sit at the far end of the row, however short the name. */
+.saved-name + * {
   margin-left: auto;
+}
+
+/* Drawn like the pin of the start, because pressing it makes this place the start. */
+.start-here {
+  background: var(--ink);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  height: 28px;
+  padding: 0;
+  width: 28px;
+}
+
+.start-here:hover:not(:disabled) {
+  background: #000;
 }
 
 .saved .note {
   margin: 6px 0 0;
 }
 
-/* Where "save" was, once the place is saved. Not a button: there is nothing left to press. */
-.saved-mark {
-  color: var(--good);
-  font-size: 12px;
-  padding: 4px;
+/*
+ * A narrow screen: a phone, or a small tablet held upright.
+ *
+ * The map has the whole screen. The search box floats over the top of it. Everything else is
+ * a panel fixed to the bottom, which shows one bar until it is raised. The same width is
+ * written in screen.ts, and the two have to agree.
+ */
+@media (max-width: 800px) {
+  :root {
+    /* How much of the panel shows while it is down: its handle, and the bar under it. */
+    --panel-down: 90px;
+  }
+
+  body {
+    /* Dragging the map must not drag the page, or pull it down to reload. */
+    overscroll-behavior: none;
+  }
+
+  .layout {
+    display: block;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Down to just under the panel's rounded corners, so no page shows through beside them. */
+  .map {
+    bottom: calc(var(--panel-down) - 16px);
+    height: auto;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: auto;
+  }
+
+  /* The zoom buttons would sit under the search box, and the credit under the panel. */
+  .leaflet-top {
+    top: 60px;
+  }
+
+  .leaflet-bottom {
+    bottom: 16px;
+  }
+
+  /* Not a box of its own here. Its parts are placed on the screen one by one. */
+  .panel {
+    display: contents;
+  }
+
+  .intro {
+    display: none;
+  }
+
+  /* An iPhone zooms the whole page in when a text box with small text is tapped, and does not
+     zoom back out. 16 pixels is the size at which it leaves the page alone. */
+  .search input,
+  .places input {
+    font-size: 16px;
+  }
+
+  /* The search box, over the top of the map. */
+
+  .top-bar {
+    left: 10px;
+    position: fixed;
+    right: 10px;
+    top: 10px;
+    z-index: 1200;
+  }
+
+  .search {
+    margin: 0;
+  }
+
+  .search input {
+    border-color: transparent;
+    border-radius: 24px;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 22%);
+    padding: 12px 18px;
+  }
+
+  /* Over the map there is no panel behind these words, so they bring their own. */
+  .top-bar .searching,
+  .top-bar .error {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 18%);
+    margin: 6px 0 0;
+    padding: 9px 14px;
+  }
+
+  .results {
+    max-height: 40vh;
+    max-height: 40dvh;
+  }
+
+  .results button {
+    font-size: 15px;
+    padding: 10px 12px;
+  }
+
+  /* The panel along the bottom. */
+
+  .sheet {
+    background: var(--panel);
+    border-radius: 16px 16px 0 0;
+    bottom: 0;
+    box-shadow: 0 -2px 16px rgb(0 0 0 / 18%);
+    display: flex;
+    flex-direction: column;
+    left: 0;
+    max-height: 75vh;
+    max-height: 75dvh;
+    position: fixed;
+    right: 0;
+    /* Slid down until only its top shows. */
+    transform: translateY(calc(100% - var(--panel-down)));
+    transition: transform 0.22s ease-out;
+    z-index: 1100;
+  }
+
+  .sheet.sheet-up {
+    transform: none;
+  }
+
+  /* The top of the panel: all of it that shows while the panel is down. Swiped up and down,
+     so the browser is told not to make a scroll of the gesture. */
+  .sheet-head {
+    display: block;
+    flex: 0 0 auto;
+    height: var(--panel-down);
+    touch-action: none;
+  }
+
+  .sheet-handle {
+    background: none;
+    border: none;
+    border-radius: 0;
+    display: block;
+    height: 26px;
+    padding: 0;
+    width: 100%;
+  }
+
+  .sheet-handle:hover:not(:disabled) {
+    border: none;
+  }
+
+  .grabber {
+    background: #c9d0db;
+    border-radius: 3px;
+    display: block;
+    height: 5px;
+    margin: 0 auto;
+    width: 44px;
+  }
+
+  /* Where things stand, and the next thing to press. */
+  .action-bar {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    height: 54px;
+    padding: 0 16px;
+  }
+
+  .action-bar p {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .action-bar button,
+  .action-bar .button {
+    flex: 0 0 auto;
+    font-size: 15px;
+    padding: 11px 16px;
+    white-space: nowrap;
+    width: auto;
+  }
+
+  .sheet-body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    /* Reaching the end of the list must not start scrolling whatever is behind the panel. */
+    overscroll-behavior: contain;
+    padding: 6px 16px 24px;
+  }
+
+  /* What went wrong comes first, where it is seen as the panel comes up. */
+  .sheet-body > .error {
+    margin: 0 0 12px;
+    order: -1;
+  }
+
+  /* The bar already says these and holds these buttons. */
+  .empty > p:not(.warning),
+  .empty > button,
+  .controls .primary,
+  .result .button {
+    display: none;
+  }
+
+  .empty {
+    margin: 0;
+  }
+
+  .how {
+    border-top: 1px solid var(--line);
+    display: block;
+    margin-top: 20px;
+    padding-top: 10px;
+  }
+
+  .how summary {
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 8px 0;
+  }
+
+  .how .lede:first-of-type {
+    margin-top: 8px;
+  }
+
+  /* Things to press are made big enough for a finger. */
+
+  .icon-button {
+    height: 40px;
+    width: 40px;
+  }
+
+  .places input {
+    padding: 9px 10px;
+  }
+
+  .places .pin-list {
+    margin-top: 6px;
+  }
+
+  .saved-name {
+    font-size: 15px;
+    padding: 9px 14px;
+  }
+
+  .start-here {
+    height: 36px;
+    width: 36px;
+  }
+
+  .controls label {
+    font-size: 16px;
+  }
+
+  .legs {
+    font-size: 15px;
+  }
 }

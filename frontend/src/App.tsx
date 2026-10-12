@@ -204,6 +204,12 @@ export default function App() {
     setPlan(null)
   }
 
+  function changeReturnToStart(returns: boolean) {
+    setReturnToStart(returns)
+    // A plan made for a round trip is not the plan for a one-way one, or the other way about.
+    setPlan(null)
+  }
+
   function clearAll() {
     setPlaces([])
     setPlan(null)
@@ -245,7 +251,7 @@ export default function App() {
         onRemove={removePlace}
         onToggleKeepInPlace={toggleKeepInPlace}
         onChangeTurn={changeTurn}
-        onReturnToStartChange={setReturnToStart}
+        onReturnToStartChange={changeReturnToStart}
         onPlan={planRoute}
         onClear={clearAll}
         onPickPlace={addSearchedPlace}
