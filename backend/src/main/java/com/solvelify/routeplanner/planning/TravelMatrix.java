@@ -1,22 +1,50 @@
 package com.solvelify.routeplanner.planning;
 
+import java.util.OptionalDouble;
+
 /**
  * Travel figures between every pair of places, indexed in the order the places were given.
  *
  * <p>A class rather than a record, for two reasons. Records compare arrays by identity, which
- * would make equality meaningless here. And this type is meant to grow: step 3 adds durations
- * and step 6 adds fuel, which is an extra method here instead of a changed signature everywhere.
+ * would make equality meaningless here. And this type is meant to grow: it began with distances,
+ * now carries durations, and step 6 adds fuel, each an extra method here instead of a changed
+ * signature everywhere.
  */
 public final class TravelMatrix {
 
     private final double[][] distancesKm;
 
+    /** Null when the source of the figures has no notion of how long a drive takes. */
+    private final double[][] durationsSeconds;
+
+    /** Distances alone, from a source that knows how far and not how long. Straight lines are one. */
     public TravelMatrix(double[][] distancesKm) {
         this.distancesKm = copyOf(distancesKm);
+        this.durationsSeconds = null;
+    }
+
+    public TravelMatrix(double[][] distancesKm, double[][] durationsSeconds) {
+        if (durationsSeconds.length != distancesKm.length) {
+            throw new IllegalArgumentException(
+                    "durations for " + durationsSeconds.length + " places, distances for " + distancesKm.length);
+        }
+        this.distancesKm = copyOf(distancesKm);
+        this.durationsSeconds = copyOf(durationsSeconds);
     }
 
     public double distanceKm(int from, int to) {
         return distancesKm[from][to];
+    }
+
+    /**
+     * How long the drive takes, when the source knows. A straight line says how far apart two
+     * places are and nothing about how fast anybody gets there, so for those this is empty.
+     * A matrix has a duration for every pair or for none.
+     */
+    public OptionalDouble durationSeconds(int from, int to) {
+        return durationsSeconds == null
+                ? OptionalDouble.empty()
+                : OptionalDouble.of(durationsSeconds[from][to]);
     }
 
     public int size() {

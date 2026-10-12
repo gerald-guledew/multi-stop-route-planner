@@ -17,7 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Fills the travel matrix with real driving distances from OpenStreetMap data.
+ * Fills the travel matrix with real driving distances and times from OpenStreetMap data.
  *
  * <p>The difference from straight lines is not cosmetic. Devonport to Sylvia Park measures about
  * 10 km across the harbour and far more by road, because the drive goes round by the bridge.
@@ -27,12 +27,16 @@ import org.springframework.stereotype.Component;
  * <p>Both directions of every pair are calculated. One-way streets and motorway ramps mean the
  * drive from A to B is not always the same length as the drive back, which is a property straight
  * lines can never have.
+ *
+ * <p>The time is what each road's speed allows with nothing in the way. OpenStreetMap carries no
+ * traffic, so at five in the afternoon the real drive takes longer than this says.
  */
 @Component
 @ConditionalOnProperty(name = "routeplanner.routing.provider", havingValue = RoutingProperties.GRAPHHOPPER)
 public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
 
     private static final double METRES_PER_KM = 1000.0;
+    private static final double MILLIS_PER_SECOND = 1000.0;
 
     private final GraphHopper graphHopper;
     private final String profile;
@@ -46,16 +50,20 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
     public TravelMatrix matrixFor(List<Location> places) {
         int size = places.size();
         double[][] distances = new double[size][size];
+        double[][] durations = new double[size][size];
 
         for (int from = 0; from < size; from++) {
             for (int to = 0; to < size; to++) {
                 if (from != to) {
-                    distances[from][to] = drivingDistanceKm(places.get(from), places.get(to));
+                    // One drive worked out, and both figures read off it.
+                    ResponsePath drive = bestPath(places.get(from), places.get(to));
+                    distances[from][to] = drive.getDistance() / METRES_PER_KM;
+                    durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
                 }
             }
         }
 
-        return new TravelMatrix(distances);
+        return new TravelMatrix(distances, durations);
     }
 
     @Override
@@ -68,10 +76,6 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
             shape.add(new GeoPoint(points.getLat(index), points.getLon(index)));
         }
         return shape;
-    }
-
-    private double drivingDistanceKm(Location from, Location to) {
-        return bestPath(from, to).getDistance() / METRES_PER_KM;
     }
 
     private ResponsePath bestPath(Location from, Location to) {

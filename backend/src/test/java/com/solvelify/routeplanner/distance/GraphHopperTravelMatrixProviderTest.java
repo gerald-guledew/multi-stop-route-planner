@@ -153,4 +153,35 @@ class GraphHopperTravelMatrixProviderTest {
 
         assertThat(byRoad).isGreaterThan(15).isLessThan(30);
     }
+
+    // Driving times.
+
+    @Test
+    void saysHowLongADriveTakesOnClearRoads() {
+        TravelMatrix matrix = provider.matrixFor(List.of(SKY_TOWER, SYLVIA_PARK));
+
+        double minutes = matrix.durationSeconds(0, 1).orElseThrow() / 60;
+
+        // About 12 km, most of it motorway. A quarter of an hour, give or take, with nothing
+        // in the way. Anybody who has driven it at five in the afternoon knows a longer figure.
+        assertThat(minutes).isBetween(8.0, 25.0);
+    }
+
+    @Test
+    void drivesAtASpeedACarCouldDo() {
+        TravelMatrix matrix = provider.matrixFor(List.of(DEVONPORT, SYLVIA_PARK));
+
+        double hours = matrix.durationSeconds(0, 1).orElseThrow() / 3600;
+        double kmPerHour = matrix.distanceKm(0, 1) / hours;
+
+        assertThat(kmPerHour).isBetween(25.0, 100.0);
+    }
+
+    @Test
+    void takesNoTimeToStayWhereYouAre() {
+        TravelMatrix matrix = provider.matrixFor(List.of(SKY_TOWER, SYLVIA_PARK));
+
+        assertThat(matrix.durationSeconds(0, 0)).hasValue(0);
+        assertThat(matrix.durationSeconds(1, 1)).hasValue(0);
+    }
 }
