@@ -1,5 +1,7 @@
 package com.solvelify.routeplanner.api;
 
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -15,6 +17,7 @@ import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -201,6 +204,50 @@ class RouteControllerTest {
                 .andExpect(status().isOk());
 
         verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true));
+    }
+
+    // Driving times.
+
+    @Test
+    void givesDrivingTimesInWholeSeconds() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlanWithTimes());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.legs[0].durationSeconds").value(754))
+                .andExpect(jsonPath("$.legs[1].durationSeconds").value(802))
+                .andExpect(jsonPath("$.totalDurationSeconds").value(1556));
+    }
+
+    @Test
+    void saysNullAndNotZeroWhenThereAreNoTimesToGive() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasKey("totalDurationSeconds")))
+                .andExpect(jsonPath("$.totalDurationSeconds").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0]", hasKey("durationSeconds")))
+                .andExpect(jsonPath("$.legs[0].durationSeconds").value(nullValue()));
+    }
+
+    private static RoutePlan aPlanWithTimes() {
+        Location skyTower = new Location("Sky Tower", -36.8485, 174.7621);
+        Location takapuna = new Location("Takapuna", -36.7870, 174.7740);
+
+        return new RoutePlan(
+                List.of(skyTower, takapuna, skyTower),
+                List.of(
+                        new RoutePlan.Leg("Sky Tower", "Takapuna", 9.412, OptionalDouble.of(754.4), List.of()),
+                        new RoutePlan.Leg("Takapuna", "Sky Tower", 9.873, OptionalDouble.of(801.6), List.of())),
+                19.285,
+                OptionalDouble.of(1556.0),
+                19.285,
+                1);
     }
 
     private static RoutePlan aPlan() {

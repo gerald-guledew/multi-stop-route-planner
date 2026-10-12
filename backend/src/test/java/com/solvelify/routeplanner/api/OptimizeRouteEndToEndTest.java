@@ -1,5 +1,6 @@
 package com.solvelify.routeplanner.api;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -46,6 +47,17 @@ class OptimizeRouteEndToEndTest {
                 .andExpect(jsonPath("$.ordersChecked").value(24))
                 .andExpect(jsonPath("$.route.length()").value(6))
                 .andExpect(jsonPath("$.legs.length()").value(5));
+    }
+
+    @Test
+    void givesNoDrivingTimeOnStraightLines() throws Exception {
+        // The tests run on straight lines, which say how far and not how long.
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(AUCKLAND_ERRANDS.formatted("true")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDurationSeconds").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].durationSeconds").value(nullValue()));
     }
 
     @Test
