@@ -388,7 +388,14 @@ button:disabled {
 .legs .km {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  text-align: right;
   white-space: nowrap;
+}
+
+/* A second line under the distance, so that a long name keeps its room. */
+.legs .climb {
+  display: block;
+  font-size: 12px;
 }
 
 .checked {

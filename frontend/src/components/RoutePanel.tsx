@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, UpIcon } from './icons'
+import { climbSaid } from '../climb'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { canBeSaved, savedAt } from '../savedPlaces'
@@ -143,6 +144,7 @@ export default function RoutePanel(props: Props) {
   const stopCount = Math.max(places.length - 1, 0)
   const tooManyStops = stopCount > MAX_STOPS
   const saving = plan ? plan.enteredOrderDistanceKm - plan.totalDistanceKm : 0
+  const climb = plan ? climbSaid(plan.totalClimbMetres, plan.totalDescentMetres) : null
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -396,6 +398,12 @@ export default function RoutePanel(props: Props) {
                     <dd>{howLong(plan.totalDurationSeconds)}</dd>
                   </div>
                 )}
+                {climb && (
+                  <div>
+                    <dt>Climb</dt>
+                    <dd>{climb}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>The order you clicked</dt>
                   <dd>{plan.enteredOrderDistanceKm.toFixed(2)} km</dd>
@@ -412,6 +420,12 @@ export default function RoutePanel(props: Props) {
                   time you spend at each stop.
                 </p>
               )}
+              {climb && (
+                <p className="note">
+                  Climb is every metre the roads go up, added along the way, and the same for
+                  down. It comes from the height of the ground, so take it as an estimate.
+                </p>
+              )}
 
               {/*
                 Driving order, numbered the same as the pins on the map. Showing the legs as
@@ -421,6 +435,8 @@ export default function RoutePanel(props: Props) {
               <ol className="legs">
                 {plan.route.map((place, index) => {
                   const isStart = index === 0
+                  const leg = isStart ? null : plan.legs[index - 1]
+                  const legClimb = leg ? climbSaid(leg.climbMetres, leg.descentMetres) : null
                   const isReturnHome = index === plan.route.length - 1 && returnToStart
                   // The plan carries names, not marks, so a kept stop is found again by its name.
                   const keptInPlace =
@@ -435,8 +451,10 @@ export default function RoutePanel(props: Props) {
                         {isStart || isReturnHome ? 'S' : index}
                       </span>
                       <span className="where">{place.name}</span>
+                      {/* How far and how long, and under it how hilly, when the roads say. */}
                       <span className="km">
-                        {isStart ? '' : legSaid(plan.legs[index - 1])}
+                        {leg ? legSaid(leg) : ''}
+                        {legClimb && <span className="climb">{legClimb}</span>}
                       </span>
                     </li>
                   )

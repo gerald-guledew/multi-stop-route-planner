@@ -12,6 +12,8 @@ const plan: RoutePlan = {
   // As the API sends it, already rounded to two decimals.
   totalDistanceKm: 19.31,
   totalDurationSeconds: null,
+  totalClimbMetres: null,
+  totalDescentMetres: null,
   enteredOrderDistanceKm: 21,
   ordersChecked: 2,
 }
