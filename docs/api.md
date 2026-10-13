@@ -106,20 +106,38 @@ GET /api/v1/places/search?q=new%20world&near=-36.871,174.787&limit=2
 - Each space becomes a wildcard, so "bassett road remuera" matches "20A Bassett Road, Remuera, Auckland" despite the comma. Words have to be typed in the order they appear. A comma counts as a space.
 - Accents and apostrophes are ignored on both sides. "whangarei" finds Whangārei, and "mcdonalds" finds McDonald's.
 - A named place is found by its name, its address, its suburb or its city. "the warehouse newmarket" works although the name is only "The Warehouse".
+- Some words are read both ways, whichever way they were typed. "12 bassett rd" finds 12 Bassett Road, "st heliers" finds Saint Heliers, and "80 saint lukes road" finds 80 St Lukes Road, which LINZ writes short. A full stop after one of them is ignored.
+
+| Short | In full |
+| --- | --- |
+| `rd` | road |
+| `st` | saint |
+| `mt` | mount |
+| `pt` | point |
+| `ln` | lane |
+| `tce` | terrace |
+| `ct` | court |
+| `pde` | parade |
+| `hwy` | highway |
+| `blvd` | boulevard |
+
+Five more words find their abbreviation when they are typed in full: street, avenue, drive, place and crescent, written `st`, `ave`, `dr`, `pl` and `cres`. So "42 nuffield street" finds the shop that gives its address as "42 Nuffield St". Typed short these need no help. Each is the beginning of its word, and is found the way any unfinished word is.
 
 ### How results are ordered
 
-Each match gets a score, and the highest comes first. The score is three things multiplied together.
+Each match gets a score, and the highest comes first. The score is these multiplied together.
 
 - **How well the words appear in what the place is called.** That is the address, for an address, and the name with or without its suburb, for a named place. Words that appear together, as whole words, score in full wherever in the name they are. So "new world" matches "New World Remuera" as fully as it matches "New World". The last word may be unfinished: "mcdonald" finds McDonald's.
 - **Whether an address is the one typed.** An address that begins with the words keeps its whole score. One that only contains them keeps four fifths. So "12 queen street" lists number 12 before 112, "277 broadway" lists that address before the shops inside it, and "mcdonalds" lists the restaurants before the houses on McDonalds Road.
+- **Whether a named place was found by its name.** One with a word in its name that begins with the first word typed keeps its whole score. One found only by its suburb or its street keeps four fifths. So "st heliers" lists what is named for Saint Heliers before what is merely there, and "mobil st heliers" still finds the Mobil in full.
 - **How near it is, when `near` is given.** Next door keeps the whole score, 50 km away keeps three quarters, and nothing loses more than half. So distance chooses between equal matches, and a place whose name barely matches cannot jump ahead by being close. Distance counts in half kilometres, so the houses of one street stay in order.
 
 Between equal scores, the name the words account for most of comes first, then the place the data is more sure of. Without `near` most matches score the same, and this is what orders them.
 
 ### Known gaps
 
-- Abbreviations are not expanded. "12 bassett rd" does not find 12 Bassett Road, and "mt eden" does not find an address in Mount Eden.
+- A word typed in full is read as its abbreviation only beside another word of three letters or more. "saint he" finds what is written Saint. From "saint hel" on, what is written St Heliers is found too.
+- Other abbreviations are not read. "ter" finds Terrace, being the beginning of the word, but "terrace" does not find a place that writes "Ter".
 - A unit number LINZ does not hold finds nothing. "3/90A Bassett Road" fails where "90A Bassett Road" works.
 - Near means in a straight line, not by road. Across a harbour, the nearest branch to drive to can be a different one.
 - Words are matched as a run. "auckland hospital" lists "Auckland Hospital Foundation" before "Auckland City Hospital", because "City" interrupts the run. Typing the name in full finds it.
