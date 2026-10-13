@@ -34,6 +34,13 @@ export interface Leg {
   distanceKm: number
   /** Driving time on clear roads, with nothing for a stop. Null on straight-line distances. */
   durationSeconds: number | null
+  /**
+   * How much this leg goes up, in metres added along the road. Null unless the planner read
+   * the roads with their heights.
+   */
+  climbMetres: number | null
+  /** How much it comes down, as a number above zero. Null whenever the climb is. */
+  descentMetres: number | null
   /** The road this leg follows, as [latitude, longitude] pairs. Empty on straight-line distances. */
   path: [number, number][]
 }
@@ -44,6 +51,9 @@ export interface RoutePlan {
   totalDistanceKm: number
   /** Driving time for the whole trip. Null on straight-line distances. */
   totalDurationSeconds: number | null
+  /** Climb and descent for the whole trip. Null unless the roads were read with their heights. */
+  totalClimbMetres: number | null
+  totalDescentMetres: number | null
   enteredOrderDistanceKm: number
   ordersChecked: number
 }

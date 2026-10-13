@@ -12,11 +12,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -233,6 +235,123 @@ class RouteControllerTest {
                 .andExpect(jsonPath("$.totalDurationSeconds").value(nullValue()))
                 .andExpect(jsonPath("$.legs[0]", hasKey("durationSeconds")))
                 .andExpect(jsonPath("$.legs[0].durationSeconds").value(nullValue()));
+    }
+
+    // Climb and descent.
+
+    @Test
+    void givesClimbAndDescentInWholeMetres() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlanWithClimbs());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.legs[0].climbMetres").value(86))
+                .andExpect(jsonPath("$.legs[0].descentMetres").value(41))
+                .andExpect(jsonPath("$.legs[1].climbMetres").value(41))
+                .andExpect(jsonPath("$.legs[1].descentMetres").value(87))
+                // Totalled before rounding, so 127.0 and 127.1 say the same thing here. The
+                // one-way trip below ends higher than it began and tells the two apart.
+                .andExpect(jsonPath("$.totalClimbMetres").value(127))
+                .andExpect(jsonPath("$.totalDescentMetres").value(127));
+    }
+
+    @Test
+    void keepsTheClimbOfTheTripApartFromItsDescent() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aOneWayPlanUphill());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalClimbMetres").value(86))
+                .andExpect(jsonPath("$.totalDescentMetres").value(41));
+    }
+
+    @Test
+    void saysNoughtAndNotNullForALegThatIsLevel() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aLevelPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.legs[0].climbMetres").value(0))
+                .andExpect(jsonPath("$.legs[0].descentMetres").value(0))
+                .andExpect(jsonPath("$.totalClimbMetres").value(0))
+                .andExpect(jsonPath("$.totalDescentMetres").value(0));
+    }
+
+    @Test
+    void saysNullAndNotNoughtWhenTheRoadsHaveNoHeights() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlanWithTimes());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasKey("totalClimbMetres")))
+                .andExpect(jsonPath("$.totalClimbMetres").value(nullValue()))
+                .andExpect(jsonPath("$", hasKey("totalDescentMetres")))
+                .andExpect(jsonPath("$.totalDescentMetres").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0]", hasKey("climbMetres")))
+                .andExpect(jsonPath("$.legs[0].climbMetres").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0]", hasKey("descentMetres")))
+                .andExpect(jsonPath("$.legs[0].descentMetres").value(nullValue()))
+                // The times are still there. Only the heights are missing.
+                .andExpect(jsonPath("$.totalDurationSeconds").value(1556));
+    }
+
+    private static RoutePlan aPlanWithClimbs() {
+        Location skyTower = new Location("Sky Tower", -36.8485, 174.7621);
+        Location takapuna = new Location("Takapuna", -36.7870, 174.7740);
+
+        return new RoutePlan(
+                List.of(skyTower, takapuna, skyTower),
+                List.of(
+                        new RoutePlan.Leg("Sky Tower", "Takapuna", 9.412, OptionalDouble.of(754.4),
+                                Optional.of(new ClimbAndDescent(86.4, 40.6)), List.of()),
+                        new RoutePlan.Leg("Takapuna", "Sky Tower", 9.873, OptionalDouble.of(801.6),
+                                Optional.of(new ClimbAndDescent(40.6, 86.5)), List.of())),
+                19.285,
+                OptionalDouble.of(1556.0),
+                Optional.of(new ClimbAndDescent(127.0, 127.1)),
+                19.285,
+                1);
+    }
+
+    private static RoutePlan aOneWayPlanUphill() {
+        Location skyTower = new Location("Sky Tower", -36.8485, 174.7621);
+        Location takapuna = new Location("Takapuna", -36.7870, 174.7740);
+
+        return new RoutePlan(
+                List.of(skyTower, takapuna),
+                List.of(new RoutePlan.Leg("Sky Tower", "Takapuna", 9.412, OptionalDouble.of(754.4),
+                        Optional.of(new ClimbAndDescent(86.4, 40.6)), List.of())),
+                9.412,
+                OptionalDouble.of(754.4),
+                Optional.of(new ClimbAndDescent(86.4, 40.6)),
+                9.412,
+                1);
+    }
+
+    private static RoutePlan aLevelPlan() {
+        Location skyTower = new Location("Sky Tower", -36.8485, 174.7621);
+        Location takapuna = new Location("Takapuna", -36.7870, 174.7740);
+
+        return new RoutePlan(
+                List.of(skyTower, takapuna, skyTower),
+                List.of(
+                        new RoutePlan.Leg("Sky Tower", "Takapuna", 9.412, OptionalDouble.of(754.4),
+                                Optional.of(ClimbAndDescent.LEVEL), List.of()),
+                        new RoutePlan.Leg("Takapuna", "Sky Tower", 9.873, OptionalDouble.of(801.6),
+                                Optional.of(ClimbAndDescent.LEVEL), List.of())),
+                19.285,
+                OptionalDouble.of(1556.0),
+                Optional.of(ClimbAndDescent.LEVEL),
+                19.285,
+                1);
     }
 
     private static RoutePlan aPlanWithTimes() {

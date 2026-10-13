@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version="0.6" generator="by hand">
+  <!--
+    Five roads drawn by hand for RoadsWithHeightsTest. None is joined to another.
+
+    The test supplies the heights, which depend only on how far east a point is. A hill: sea
+    level at longitude 174.70, 80 m at 174.71, 30 m at 174.72. Then level ground at 30 m, with
+    a rise in it, 45 m at 174.77 and back to 30 m at 174.78, and a bump, 36 m at 174.81 and
+    back to 30 m at 174.82. Even slopes between.
+
+    Summit Road goes straight over the hill and has a point at the top.
+    Long Road goes straight over the same hill with no point between its two ends.
+    Level Road runs north to south on the level ground.
+    Rise Road goes straight over the rise and has a point at the top.
+    Bump Road goes straight over the bump and has a point at the top.
+  -->
+  <node id="1" lat="-36.9000" lon="174.7000"/>
+  <node id="2" lat="-36.9050" lon="174.7100"/>
+  <node id="3" lat="-36.9100" lon="174.7200"/>
+  <node id="4" lat="-36.9300" lon="174.7000"/>
+  <node id="5" lat="-36.9400" lon="174.7200"/>
+  <node id="6" lat="-36.9000" lon="174.7400"/>
+  <node id="7" lat="-36.9100" lon="174.7400"/>
+  <node id="8" lat="-36.9000" lon="174.7600"/>
+  <node id="9" lat="-36.9050" lon="174.7700"/>
+  <node id="10" lat="-36.9100" lon="174.7800"/>
+  <node id="11" lat="-36.9000" lon="174.8000"/>
+  <node id="12" lat="-36.9050" lon="174.8100"/>
+  <node id="13" lat="-36.9100" lon="174.8200"/>
+  <way id="10">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Summit Road"/>
+  </way>
+  <way id="20">
+    <nd ref="4"/>
+    <nd ref="5"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Long Road"/>
+  </way>
+  <way id="30">
+    <nd ref="6"/>
+    <nd ref="7"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Level Road"/>
+  </way>
+  <way id="40">
+    <nd ref="8"/>
+    <nd ref="9"/>
+    <nd ref="10"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Rise Road"/>
+  </way>
+  <way id="50">
+    <nd ref="11"/>
+    <nd ref="12"/>
+    <nd ref="13"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Bump Road"/>
+  </way>
+</osm>

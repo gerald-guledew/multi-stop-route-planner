@@ -26,6 +26,7 @@ Develop an application that can accept a starting point and a list of places. It
 - Type an address or a business name and have it found, nearest first, instead of hunting for it on the map
 - Save the places you go to often, such as home, and pick them again with one press
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
+- How much each leg climbs and descends, worked out from the height of the ground. An estimate, and the first thing a fuel estimate will read
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
 
@@ -75,6 +76,14 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments=--routeplanner.
 ```
 
 The first start builds a routing graph and takes a few minutes, then loads in under a second after that. Neither the map file nor the graph goes into git.
+
+The map does not say how high a road is. To have each leg say how much it climbs and descends, switch heights on as well:
+
+```bash
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner.routing.provider=graphhopper --routeplanner.routing.heights.enabled=true"
+```
+
+The first start with heights on fetches the height of the ground for New Zealand, 70 files and 480 MB, into `backend/data/heights`, and builds a second graph beside the first. Later starts fetch nothing. Switching heights off again goes back to the first graph, which is left as it was. The climb is an estimate, and [docs/api.md](docs/api.md) says how it is counted and where it is wrong.
 
 ### Address search
 
@@ -150,4 +159,5 @@ Copyright 2026 Gerald Guledew. Apache License 2.0, see [LICENSE](LICENSE).
 
 - Map and roads: © OpenStreetMap contributors, Open Database License
 - NZ addresses: Toitū Te Whenua Land Information New Zealand, CC BY 4.0
+- Heights of the ground, fetched only when heights are switched on: [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), kept by Mapzen at the Linux Foundation. New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New Zealand and the New Zealand Government (All rights reserved). Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration. Global GMTED2010 and SRTM terrain data courtesy of the U.S. Geological Survey
 - Business names: Overture Maps Foundation, overturemaps.org. Places from Meta and Microsoft under CDLA Permissive 2.0, from Foursquare under Apache 2.0 (Copyright 2024 Foursquare Labs, Inc.) and from AllThePlaces under CC0

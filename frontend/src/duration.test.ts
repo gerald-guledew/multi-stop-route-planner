@@ -40,7 +40,15 @@ describe('saying how long a drive takes', () => {
 })
 
 describe('saying how far and how long a leg is', () => {
-  const leg = { from: 'Sky Tower', to: 'Airport', distanceKm: 20.29, durationSeconds: 1260, path: [] }
+  const leg = {
+    from: 'Sky Tower',
+    to: 'Airport',
+    distanceKm: 20.29,
+    durationSeconds: 1260,
+    climbMetres: null,
+    descentMetres: null,
+    path: [],
+  }
 
   it('gives the distance and the time when the roads say how long', () => {
     expect(legSaid(leg)).toBe('20.29 km · 21 min')

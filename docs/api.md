@@ -169,8 +169,12 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `legs[].from`, `legs[].to` | string | Place names |
 | `legs[].distanceKm` | number | Distance for that leg |
 | `legs[].durationSeconds` | integer | Driving time for that leg. `null` on straight lines. See "Driving times" below |
+| `legs[].climbMetres` | integer | How much that leg goes up, counting rises of 10 m or more. `null` unless the roads were read with their heights. See "Climb and descent" below |
+| `legs[].descentMetres` | integer | How much that leg comes down, as a number above zero. `null` whenever the climb is |
 | `totalDistanceKm` | number | Distance of the whole trip in the returned order |
 | `totalDurationSeconds` | integer | Driving time for the whole trip. `null` on straight lines |
+| `totalClimbMetres` | integer | Climb of the whole trip. `null` unless the roads were read with their heights |
+| `totalDescentMetres` | integer | Descent of the whole trip. `null` whenever the climb is |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
 | `ordersChecked` | integer | How many orders were compared |
 
@@ -185,14 +189,16 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
     { "name": "Sky Tower",   "latitude": -36.8485, "longitude": 174.7621 }
   ],
   "legs": [
-    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null },
-    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null },
-    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null },
-    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null },
-    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null }
+    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null, "climbMetres": null, "descentMetres": null },
+    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null, "climbMetres": null, "descentMetres": null }
   ],
   "totalDistanceKm": 51.76,
   "totalDurationSeconds": null,
+  "totalClimbMetres": null,
+  "totalDescentMetres": null,
   "enteredOrderDistanceKm": 71.61,
   "ordersChecked": 24
 }
@@ -215,6 +221,70 @@ Three things to know about these figures.
 - **The order is still chosen for distance.** The time is how long the shortest order takes. Another order can be quicker and longer.
 
 On straight lines both fields are `null`, not zero. A straight line says how far apart two places are, and nothing about how fast anybody gets from one to the other.
+
+### Climb and descent
+
+The map says where a road runs and not how high it is. So a plan says nothing about hills unless the roads were read together with the height of the ground, which is a setting of its own:
+
+```yaml
+routeplanner:
+  routing:
+    provider: graphhopper
+    heights:
+      enabled: true
+```
+
+The first start with this on fetches the height of the ground for every part of the map that has a road in it, which for New Zealand is 70 files and 480 MB, and prepares a second graph beside the first. That took a minute and a half where it was measured. Later starts fetch nothing. The files go to `backend/data/heights` and the graph to `backend/data/graph-cache-heights`, both out of git.
+
+Each leg then says how much it goes up and how much it comes down, and the plan says the same for the whole trip, all in whole metres. By road the five stops above climb 478 m and descend 478 m:
+
+```json
+{ "from": "Sky Tower", "to": "Airport", "distanceKm": 20.29, "durationSeconds": 1261, "climbMetres": 92, "descentMetres": 132 }
+```
+
+What these figures are, and are not.
+
+- **Both are added along the road.** Neither is the difference in height between two places. The leg above ends 40 m lower than it began, and climbs 92 m on the way.
+- **The descent is a number above zero**, like the climb. The climb less the descent is how much higher the leg ends than it began.
+- **On a round trip the two totals come out equal**, give or take a metre of rounding, because the trip ends where it began.
+- **A level leg is `0` and `0`.** That is an answer. With heights off, and on straight lines, all four fields are `null`, which means not known.
+- **The order is still chosen for distance.** The climb is what the shortest order climbs. Another order can climb less and be longer.
+
+#### How the climb is counted
+
+The heights are read off a grid of the ground, a whole number of metres every 30 m or so. The ground is not the road. A road cut into a hillside is read partly off the slope above it and partly off the slope below. Added up as they stand, the heights along a level road across the Hauraki Plains came to 113 m of climbing in 19 km.
+
+So two things are done before anything is counted:
+
+- **Each height is evened out with the 150 m of road around it.** One wrong height then moves the road very little.
+- **A rise or a dip counts only when the road turns by 10 m or more.** Anything smaller is taken for a wobble in the grid. A real rise of 8 m is lost with the wobbles, which is the price.
+
+Both settings were chosen by measuring. A road that only climbs has to climb at least the height it gains, and whatever is counted beyond that is error or a dip too small to see on a map:
+
+| Road | Height gained | Counted | Added up as the heights stand |
+| --- | --- | --- | --- |
+| Crown Range, from the river to the summit | 709 m | 722 m | 809 m |
+| Remutaka Hill, from Featherston to the summit | 513 m | 523 m | 771 m |
+| Tākaka Hill, from the valley floor to the top | 815 m | 856 m | 1,213 m |
+| Arthur's Pass, from Otira to the pass | 531 m | 591 m | 813 m |
+| Hauraki Plains, 19 km of level road | 0 m | 0 m | 113 m |
+
+The summits themselves read 3 to 8 m above their published heights on six passes out of seven. Tākaka Hill reads 26 m above.
+
+Take the figure as an estimate. Three things it is known to get wrong:
+
+- **A bridge is drawn as one even slope from end to end**, because the ground under it is the water. The Auckland Harbour Bridge rises more than 40 m and is counted as 4.
+- **In a gorge it runs high.** Where the road is cut into a steep side, even 150 m of evening out leaves some of the hillside in. Arthur's Pass is 11% over.
+- **Under a cliff it reads some of the cliff.** A level waterfront road in Auckland still comes to 37 m in 8 km.
+
+The figure for a city leg moves by a third or so if 10 m is changed to 5 m or to 15 m. The rule is in `HeightProfile`, with the two settings at the top.
+
+#### What heights do not change
+
+- **The distance.** It is measured on the map, with heights or without. The routing engine itself measures a road with heights along its slope, bumps of the grid included, which made the road through the Otira Gorge 1.3% longer than it measures on the map.
+- **The order of the stops**, since that is chosen for distance.
+
+The driving time does move a little, because the engine times each road along its slope: 5,063 seconds for the five stops against 5,057.
 
 ### Keeping a stop in its place
 

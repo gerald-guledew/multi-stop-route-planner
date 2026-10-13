@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.planning;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -64,6 +65,7 @@ public class RoutePlanningService {
                 legsAlong(bestPath, places, matrix),
                 solution.totalCost(),
                 durationAlong(bestPath, matrix),
+                climbAlong(bestPath, matrix),
                 distanceAlong(enteredPath, matrix),
                 solution.ordersChecked());
     }
@@ -106,6 +108,7 @@ public class RoutePlanningService {
                     to.name(),
                     matrix.distanceKm(path[step], path[step + 1]),
                     matrix.durationSeconds(path[step], path[step + 1]),
+                    matrix.climbAndDescent(path[step], path[step + 1]),
                     // Only the legs that made it into the answer are drawn, so this costs one
                     // lookup per leg rather than one per pair.
                     travelMatrixProvider.pathBetween(from, to)));
@@ -127,6 +130,22 @@ public class RoutePlanningService {
             total += leg.getAsDouble();
         }
         return OptionalDouble.of(total);
+    }
+
+    /**
+     * Climb and descent for the whole trip, or empty when the matrix has none. Each is added up
+     * leg by leg: the way down one leg takes nothing off the way up the next.
+     */
+    private static Optional<ClimbAndDescent> climbAlong(int[] path, TravelMatrix matrix) {
+        ClimbAndDescent total = ClimbAndDescent.LEVEL;
+        for (int step = 0; step < path.length - 1; step++) {
+            Optional<ClimbAndDescent> leg = matrix.climbAndDescent(path[step], path[step + 1]);
+            if (leg.isEmpty()) {
+                return Optional.empty();
+            }
+            total = total.plus(leg.get());
+        }
+        return Optional.of(total);
     }
 
     private static double distanceAlong(int[] path, TravelMatrix matrix) {

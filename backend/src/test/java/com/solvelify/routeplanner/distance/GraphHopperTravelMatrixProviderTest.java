@@ -6,9 +6,7 @@ import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.graphhopper.GraphHopper;
-import com.graphhopper.config.CHProfile;
-import com.graphhopper.config.Profile;
-import com.graphhopper.util.GHUtility;
+import com.graphhopper.reader.dem.ElevationProvider;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
@@ -47,17 +45,16 @@ class GraphHopperTravelMatrixProviderTest {
         assumeTrue(Files.exists(OSM_FILE),
                 "Map extract missing at " + OSM_FILE.toAbsolutePath() + ", skipping road distance tests");
 
-        graphHopper = new GraphHopper();
-        graphHopper.setOSMFile(OSM_FILE.toString());
-        graphHopper.setGraphHopperLocation(GRAPH_CACHE.toString());
-        graphHopper.setEncodedValuesString("car_access, car_average_speed, road_access");
-        graphHopper.setProfiles(new Profile("car").setCustomModel(GHUtility.loadCustomModelFromJar("car.json")));
-        graphHopper.getCHPreparationHandler().setCHProfiles(new CHProfile("car"));
+        // The engine as the application sets it up, on roads read without heights.
+        graphHopper = GraphHopperConfiguration.engineFor(
+                OSM_FILE, GRAPH_CACHE.toString(), "car", ElevationProvider.NOOP);
         graphHopper.importOrLoad();
 
         provider = new GraphHopperTravelMatrixProvider(
                 graphHopper,
-                new RoutingProperties("graphhopper", OSM_FILE.toString(), GRAPH_CACHE.toString(), "car"));
+                new RoutingProperties(
+                        "graphhopper", OSM_FILE.toString(), GRAPH_CACHE.toString(), "car",
+                        new RoutingProperties.Heights(false, null, null)));
     }
 
     @AfterAll

@@ -209,4 +209,93 @@ class RoutePlanningServiceTest {
         assertThat(plan.totalDurationSeconds()).isEmpty();
         assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.durationSeconds()).isEmpty());
     }
+
+    // Climb and descent. The same three places and distances, on roads whose heights are known.
+
+    /**
+     * Home is 10 m up, the Office 60 m and the Shop 30 m. The road from Home to the Office goes
+     * over a ridge 160 m high, so it climbs 150 m and comes down 100 m. The other two roads
+     * slope one way only.
+     */
+    private static final TravelMatrixProvider ROADS_WITH_HEIGHTS = places -> new TravelMatrix(
+            new double[][] {
+                {0, 11, 20},
+                {10, 0, 5},
+                {20, 5, 0},
+            },
+            new double[][] {
+                {0, 100, 1500},
+                {600, 0, 100},
+                {100, 300, 0},
+            },
+            new ClimbAndDescent[][] {
+                {ClimbAndDescent.LEVEL, new ClimbAndDescent(150, 100), new ClimbAndDescent(20, 0)},
+                {new ClimbAndDescent(100, 150), ClimbAndDescent.LEVEL, new ClimbAndDescent(0, 30)},
+                {new ClimbAndDescent(0, 20), new ClimbAndDescent(30, 0), ClimbAndDescent.LEVEL},
+            });
+
+    private final RoutePlanningService onRoadsWithHeights =
+            new RoutePlanningService(ROADS_WITH_HEIGHTS, new BruteForceRouteSolver());
+
+    @Test
+    void saysHowMuchEachLegOfTheChosenOrderClimbsAndDescends() {
+        RoutePlan plan = onRoadsWithHeights.plan(HOME, List.of(OFFICE, SHOP), true);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office", "Home");
+        assertThat(plan.legs()).extracting(leg -> leg.climbAndDescent().orElseThrow())
+                .containsExactly(
+                        new ClimbAndDescent(20, 0),
+                        new ClimbAndDescent(30, 0),
+                        new ClimbAndDescent(100, 150));
+    }
+
+    @Test
+    void addsTheLegsUpIntoTheClimbAndTheDescentOfTheWholeTrip() {
+        RoutePlan plan = onRoadsWithHeights.plan(HOME, List.of(OFFICE, SHOP), true);
+
+        // A round trip ends where it began, so what it climbs it also comes down.
+        assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(150, 150));
+    }
+
+    @Test
+    void leavesTheDriveHomeOutOfTheClimbForAOneWayTrip() {
+        // One way the shortest is Home, Office, Shop: over the ridge, then down to the Shop.
+        RoutePlan plan = onRoadsWithHeights.plan(HOME, List.of(OFFICE, SHOP), false);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+        // The Shop is 20 m higher than Home, which is the climb less the descent.
+        assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(150, 130));
+    }
+
+    @Test
+    void stillChoosesTheShortestOrderWhenAnotherWouldClimbLess() {
+        // Home, Shop, Office never meets the ridge and climbs 50 m. It is 9 km longer.
+        RoutePlan plan = onRoadsWithHeights.plan(HOME, List.of(OFFICE, SHOP), false);
+
+        assertThat(plan.totalDistanceKm()).isEqualTo(16);
+        assertThat(plan.totalClimbAndDescent().orElseThrow().climbMetres()).isEqualTo(150);
+    }
+
+    @Test
+    void stillGivesTheTimesWhenItAlsoHasTheClimb() {
+        RoutePlan plan = onRoadsWithHeights.plan(HOME, List.of(OFFICE, SHOP), true);
+
+        assertThat(plan.totalDurationSeconds()).hasValue(2400);
+    }
+
+    @Test
+    void hasNoClimbToGiveWhenTheRoadsHaveNoHeights() {
+        RoutePlan plan = onRoadsWithTimes.plan(HOME, List.of(OFFICE, SHOP), true);
+
+        assertThat(plan.totalClimbAndDescent()).isEmpty();
+        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.climbAndDescent()).isEmpty());
+    }
+
+    @Test
+    void hasNoClimbToGiveOnStraightLines() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, true);
+
+        assertThat(plan.totalClimbAndDescent()).isEmpty();
+        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.climbAndDescent()).isEmpty());
+    }
 }
