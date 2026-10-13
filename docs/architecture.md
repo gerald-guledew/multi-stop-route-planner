@@ -30,7 +30,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | --- | --- |
 | `api` | HTTP only. Controller, request and response records, validation, error handling |
 | `planning` | The domain. Cost matrices, solvers, the resulting plan. Plain Java, no Spring annotations |
-| `distance` | Where travel figures come from. The provider interface and its implementations |
+| `distance` | Where travel figures come from. The provider interface and its implementations, and the rule that turns the heights along a drive into a climb |
 | `address` | LINZ addresses: the table and its importer |
 | `poi` | Named places from Overture Maps: the table and its importer |
 | `search` | Finds addresses and named places from what was typed. The `PlaceSearch` interface and its PostgreSQL implementation |
@@ -109,6 +109,7 @@ Working on the code, there are two servers. Vite serves the map screen and passe
 | Coordinates | WGS84 decimal degrees, the numbers Google Maps shows |
 | Distance | Kilometres. Rounded to two decimals in responses only, never during calculation |
 | Duration | Seconds. Driving time on clear roads, with nothing added for a stop. Absent on straight lines, which say how far and not how long |
+| Climb and descent | Metres, whole in responses. Each is added along the road, counting only where the road turns by 10 m or more. Absent unless the roads were read with their heights |
 | Stops per request | 10 at most. Checking every order grows by factorial, so 10 stops is already 3.6 million |
 | Start | Required. Returning to it is optional |
 
@@ -117,6 +118,18 @@ Working on the code, there are two servers. Vite serves the map screen and passe
 **Distances stopped being symmetric.** A straight line from A to B equals the line back. A drive does not, because of one-way streets and motorway ramps, so every ordered pair is calculated separately rather than mirroring half the table.
 
 **Some places cannot be reached at all.** A coordinate away from any street, on an airfield or inside a park, has nothing to snap to. That is not a broken request and not a broken server, so it answers 422 naming the place, rather than failing with a 500.
+
+## What heights brought with them
+
+The map has no heights in it. GraphHopper can read them off a grid of the ground while it prepares its graph, and that is a setting, off unless asked for, because switching it on fetches 480 MB.
+
+**Two graphs, each in its own folder.** A graph prepared with heights and one prepared without cannot be read as each other. So the setting chooses the folder as well, and changing it loses neither.
+
+**The engine's settings had to change for hills to survive.** Left alone it drops any point a road keeps its shape without, judging by the map alone, and the top of a hill on a straight road is such a point. It also knows nothing of the ground between two bends. So a height is taken every 60 m along a straight stretch, and a point is kept when dropping it would move the road up or down by more than a metre. Each needs the other.
+
+**The engine's own totals for climb are not used.** It adds up every rise and fall between neighbouring points. The grid is the ground and not the road, and in whole metres, so that sum came to 113 m of climbing on 19 km of level road. `HeightProfile` evens the heights out over 150 m of road and counts a rise or a dip only when the road turns by 10 m or more. It is plain Java and its two settings can be changed without preparing the graph again. `docs/api.md` has what was measured.
+
+**Distance is still measured on the map.** With heights the engine measures every road along its slope, wobble of the grid included, which lengthened a gorge road by 1.3% over what it measures on the map. Distance is what the solver minimises, so it is taken off the map either way and switching heights on does not move it. Driving time is left as the engine gives it, and comes out a fraction longer.
 
 ## Deliberately absent
 
@@ -127,7 +140,7 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | Step | Change to this picture |
 | --- | --- |
 | 2 | **Done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. Saved places are a JPA entity behind three endpoints. The planning flow above was untouched by both |
-| 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length. The order is still chosen for distance |
+| 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length, and with heights switched on how much it climbs and descends. The order is still chosen for distance |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |
 | 6 | A second way to fill the cost matrix, using fuel instead of distance |

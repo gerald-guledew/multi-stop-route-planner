@@ -422,8 +422,9 @@ export default function RoutePanel(props: Props) {
               )}
               {climb && (
                 <p className="note">
-                  Climb is every metre the roads go up, added along the way, and the same for
-                  down. It comes from the height of the ground, so take it as an estimate.
+                  Climb adds up every rise of 10 m or more along the roads, and the same for
+                  down. It is read off the height of the ground, not of the road, so take it as
+                  an estimate. A high bridge counts as level.
                 </p>
               )}
 

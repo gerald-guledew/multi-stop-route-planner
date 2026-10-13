@@ -45,8 +45,8 @@ routeplanner:
       # Set to true for a plan that says how much each leg climbs and descends. Only read with
       # provider: graphhopper. The map says where a road runs and not how high it is, so the
       # heights come from a grid of the ground, a height every 30 m or so. The first start with
-      # this on fetches the files for every square of the map that has a road in it and prepares
-      # a second graph. Later starts fetch nothing.
+      # this on fetches the files for every square of the map that has a road in it, 70 files
+      # and 480 MB for New Zealand, and prepares a second graph. Later starts fetch nothing.
       enabled: false
       # Where the height files are kept once fetched.
       files: data/heights
