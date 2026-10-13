@@ -4,6 +4,8 @@ import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
 import com.graphhopper.GraphHopper;
 import com.graphhopper.ResponsePath;
+import com.graphhopper.util.DistanceCalcEarth;
+import com.graphhopper.util.Parameters;
 import com.graphhopper.util.PointList;
 import com.graphhopper.util.exceptions.PointNotFoundException;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
@@ -33,7 +35,14 @@ import org.springframework.stereotype.Component;
  * traffic, so at five in the afternoon the real drive takes longer than this says.
  *
  * <p>How much a drive climbs and descends is given only when the graph was prepared with the
- * height of every road. The map itself says where a road runs and not how high it is.
+ * height of every road. The map itself says where a road runs and not how high it is. The
+ * engine's own totals for climb and descent are not used: see {@link HeightProfile} for why,
+ * and for what is counted instead.
+ *
+ * <p>A graph with heights also measures every road along its slope, bumps of the grid included.
+ * On the real map that made a gorge road 1.3% longer than it measures on the map. So with heights
+ * the distance is still taken off the map, as it is without them, and switching heights on does
+ * not move it.
  */
 @Component
 @ConditionalOnProperty(name = "routeplanner.routing.provider", havingValue = RoutingProperties.GRAPHHOPPER)
@@ -41,6 +50,9 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
 
     private static final double METRES_PER_KM = 1000.0;
     private static final double MILLIS_PER_SECOND = 1000.0;
+
+    private static final boolean EVERY_POINT = true;
+    private static final boolean THINNED_FOR_DRAWING = false;
 
     private final GraphHopper graphHopper;
     private final String profile;
@@ -64,18 +76,23 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
             for (int to = 0; to < size; to++) {
                 if (from == to) {
                     climbs[from][to] = ClimbAndDescent.LEVEL;
-                } else {
+                } else if (roadsHaveHeights) {
                     // One drive worked out, and every figure read off it.
-                    ResponsePath drive = bestPath(places.get(from), places.get(to));
+                    ResponsePath drive = bestPath(places.get(from), places.get(to), EVERY_POINT);
+                    Road road = Road.along(drive.getPoints());
+                    distances[from][to] = road.metresOnTheMap() / METRES_PER_KM;
+                    durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
+                    climbs[from][to] = HeightProfile.climbAndDescent(road.metresAlong(), road.heights());
+                } else {
+                    ResponsePath drive = bestPath(places.get(from), places.get(to), THINNED_FOR_DRAWING);
                     distances[from][to] = drive.getDistance() / METRES_PER_KM;
                     durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
-                    climbs[from][to] = new ClimbAndDescent(drive.getAscend(), drive.getDescend());
                 }
             }
         }
 
-        // On a graph without heights the engine reports a climb of nought for every drive. That
-        // is not a level road, it is no answer, and it must not be passed on as one.
+        // Without heights there is nothing to say about climb, which is not the same as a level
+        // road. The engine itself answers nought for every drive on such a graph.
         return roadsHaveHeights
                 ? new TravelMatrix(distances, durations, climbs)
                 : new TravelMatrix(distances, durations);
@@ -83,7 +100,7 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
 
     @Override
     public List<GeoPoint> pathBetween(Location from, Location to) {
-        ResponsePath path = bestPath(from, to);
+        ResponsePath path = bestPath(from, to, THINNED_FOR_DRAWING);
 
         PointList points = path.getPoints();
         List<GeoPoint> shape = new ArrayList<>(points.size());
@@ -93,11 +110,19 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
         return shape;
     }
 
-    private ResponsePath bestPath(Location from, Location to) {
+    /**
+     * @param everyPoint whether the answer keeps every point of the drive. Left alone the engine
+     *                   drops any point the line can be drawn without, judging by the map alone,
+     *                   and the heights of a straight road go with them
+     */
+    private ResponsePath bestPath(Location from, Location to, boolean everyPoint) {
         GHRequest request = new GHRequest(
                 from.latitude(), from.longitude(),
                 to.latitude(), to.longitude())
                 .setProfile(profile);
+        if (everyPoint) {
+            request.putHint(Parameters.Routing.WAY_POINT_MAX_DISTANCE, 0);
+        }
 
         GHResponse response = graphHopper.route(request);
         if (response.hasErrors()) {
@@ -105,6 +130,31 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
         }
 
         return response.getBest();
+    }
+
+    /**
+     * One drive as a line of points: how far along the drive each one is, measured on the map,
+     * and how high it is.
+     */
+    private record Road(double[] metresAlong, double[] heights) {
+
+        static Road along(PointList points) {
+            double[] metresAlong = new double[points.size()];
+            double[] heights = new double[points.size()];
+            for (int at = 0; at < points.size(); at++) {
+                heights[at] = points.getEle(at);
+                if (at > 0) {
+                    metresAlong[at] = metresAlong[at - 1] + DistanceCalcEarth.DIST_EARTH.calcDist(
+                            points.getLat(at - 1), points.getLon(at - 1),
+                            points.getLat(at), points.getLon(at));
+                }
+            }
+            return new Road(metresAlong, heights);
+        }
+
+        double metresOnTheMap() {
+            return metresAlong.length == 0 ? 0 : metresAlong[metresAlong.length - 1];
+        }
     }
 
     /**
