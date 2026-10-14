@@ -228,6 +228,8 @@ export default function App() {
     try {
       setVehicle(await change())
       setVehicleProblem(null)
+      // A plan's fuel was worked out for the vehicle there was.
+      setPlan(null)
       return true
     } catch (caught) {
       setVehicleProblem(
@@ -286,7 +288,7 @@ export default function App() {
     setUnroutablePlace(undefined)
 
     try {
-      setPlan(await optimizeRoute(start, stops, returnToStart, factorInRoadClimbs))
+      setPlan(await optimizeRoute(start, stops, returnToStart, factorInRoadClimbs, vehicle))
     } catch (caught) {
       setPlan(null)
       if (caught instanceof ApiError) {
