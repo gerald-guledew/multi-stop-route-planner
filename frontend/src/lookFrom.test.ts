@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { lookFrom } from './lookFrom'
 
-const whereYouAre = { latitude: -36.8689, longitude: 174.7832 }
+const whereYouAre = { latitude: -36.9146, longitude: 174.8392 }
 const start = { name: 'Depot', latitude: -36.9, longitude: 174.8 }
 const mapCentre = { latitude: -36.8485, longitude: 174.7621 }
 

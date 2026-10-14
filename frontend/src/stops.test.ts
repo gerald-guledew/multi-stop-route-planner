@@ -11,7 +11,7 @@ import {
 } from './stops'
 import type { Place } from './types'
 
-const home: Place = { name: 'Home', latitude: -36.8689, longitude: 174.7832 }
+const home: Place = { name: 'Home', latitude: -36.9146, longitude: 174.8392 }
 const office: Place = { name: 'Office', latitude: -36.8485, longitude: 174.7621 }
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const dairy: Place = { name: 'Corner dairy', latitude: -36.9, longitude: 174.8 }

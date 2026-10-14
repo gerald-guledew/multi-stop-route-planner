@@ -158,7 +158,7 @@ class RouteControllerTest {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
         String officeFirst = """
                 {
-                  "start": { "name": "Home", "latitude": -36.8689, "longitude": 174.7832 },
+                  "start": { "name": "Home", "latitude": -36.9146, "longitude": 174.8392 },
                   "stops": [
                     { "name": "Office", "latitude": -36.8485, "longitude": 174.7621, "keepInPlace": true },
                     { "name": "Sylvia Park", "latitude": -36.9170, "longitude": 174.8414 },
@@ -194,7 +194,7 @@ class RouteControllerTest {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
         String startMarked = """
                 {
-                  "start": { "name": "Home", "latitude": -36.8689, "longitude": 174.7832, "keepInPlace": true },
+                  "start": { "name": "Home", "latitude": -36.9146, "longitude": 174.8392, "keepInPlace": true },
                   "stops": [
                     { "name": "Office", "latitude": -36.8485, "longitude": 174.7621 }
                   ]
