@@ -29,6 +29,7 @@ Develop an application that can accept a starting point and a list of places. It
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and the first thing a fuel estimate will read
 - An order that factors in road climbs when asked: a little longer, to climb less. Off unless ticked
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
+- Your vehicle saved once, and the fuel each leg and the whole trip takes, from the figure its dashboard shows
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
 

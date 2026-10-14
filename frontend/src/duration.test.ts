@@ -47,6 +47,7 @@ describe('saying how far and how long a leg is', () => {
     durationSeconds: 1260,
     climbMetres: null,
     descentMetres: null,
+    fuelLitres: null,
     path: [],
   }
 
@@ -64,5 +65,10 @@ describe('saying how far and how long a leg is', () => {
 
   it('keeps two decimals on the distance', () => {
     expect(legSaid({ ...leg, distanceKm: 6.9, durationSeconds: null })).toBe('6.90 km')
+  })
+
+  it('gives the fuel the leg takes when the plan was made for a vehicle', () => {
+    expect(legSaid({ ...leg, fuelLitres: 1.52 })).toBe('20.29 km · 21 min · 1.5 L')
+    expect(legSaid({ ...leg, durationSeconds: null, fuelLitres: 1.52 })).toBe('20.29 km · 1.5 L')
   })
 })

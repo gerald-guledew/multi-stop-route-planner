@@ -50,6 +50,21 @@ class OptimizeRouteEndToEndTest {
     }
 
     @Test
+    void givesTheFuelForTheVehicleSentAsInDocsApiMd() throws Exception {
+        String withAVehicle = AUCKLAND_ERRANDS
+                .formatted("true")
+                .replace("\"returnToStart\": true", "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5 }");
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(withAVehicle))
+                .andExpect(status().isOk())
+                // The same order as without a vehicle, and 51.76 km at 7.5 L/100 km.
+                .andExpect(jsonPath("$.totalDistanceKm").value(51.76))
+                .andExpect(jsonPath("$.totalFuelLitres").value(3.88));
+    }
+
+    @Test
     void givesNoDrivingTimeOnStraightLines() throws Exception {
         // The tests run on straight lines, which say how far and not how long.
         mockMvc.perform(post("/api/v1/routes/optimize")

@@ -1,3 +1,4 @@
+import { litresSaid } from './fuel'
 import type { Leg } from './types'
 
 /**
@@ -21,8 +22,17 @@ export function howLong(seconds: number): string {
   return left === 0 ? `${hours} h` : `${hours} h ${left} min`
 }
 
-/** How far a leg is, and how long it takes to drive when the roads say. */
+/**
+ * How far a leg is, how long it takes to drive when the roads say, and the fuel it takes when
+ * the plan was made for a vehicle.
+ */
 export function legSaid(leg: Leg): string {
-  const far = `${leg.distanceKm.toFixed(2)} km`
-  return leg.durationSeconds === null ? far : `${far} · ${howLong(leg.durationSeconds)}`
+  const parts = [`${leg.distanceKm.toFixed(2)} km`]
+  if (leg.durationSeconds !== null) {
+    parts.push(howLong(leg.durationSeconds))
+  }
+  if (leg.fuelLitres !== null) {
+    parts.push(litresSaid(leg.fuelLitres))
+  }
+  return parts.join(' · ')
 }

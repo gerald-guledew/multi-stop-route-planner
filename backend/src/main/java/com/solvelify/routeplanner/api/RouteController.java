@@ -1,11 +1,14 @@
 package com.solvelify.routeplanner.api;
 
 import com.solvelify.routeplanner.planning.ChosenFor;
+import com.solvelify.routeplanner.planning.FuelEstimate;
+import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -43,7 +46,10 @@ public class RouteController {
                 request.returnToStartOrDefault(),
                 request.factorInRoadClimbsOrDefault() ? ChosenFor.DISTANCE_AND_CLIMB : ChosenFor.DISTANCE);
 
-        return OptimizeRouteResponse.from(plan);
+        Optional<FuelEstimate> fuel = Optional.ofNullable(request.vehicle())
+                .map(vehicle -> FuelEstimate.of(plan, new FuelUse(vehicle.litresPer100Km())));
+
+        return OptimizeRouteResponse.from(plan, fuel);
     }
 
     /** Where in the list the stops marked to keep their place are, counting from 0. */

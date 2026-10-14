@@ -189,7 +189,7 @@ describe('planning a route', () => {
   it('posts the start, the stops and whether to come back', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, false, false)
+    await optimizeRoute(start, stops, false, false, null)
 
     const [url, init] = fetched.mock.calls[0]
     expect(url).toBe('/api/v1/routes/optimize')
@@ -202,10 +202,28 @@ describe('planning a route', () => {
     })
   })
 
+  it('sends the fuel use of the vehicle, when there is one', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+
+    await optimizeRoute(start, stops, true, false, { litresPer100Km: 7.5, size: 'medium' })
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5 })
+  })
+
+  it('sends no vehicle when there is none', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+
+    await optimizeRoute(start, stops, true, false, null)
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent).not.toHaveProperty('vehicle')
+  })
+
   it('asks for road climbs to be factored in when told to', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, true, true)
+    await optimizeRoute(start, stops, true, true, null)
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.factorInRoadClimbs).toBe(true)
@@ -216,7 +234,7 @@ describe('planning a route', () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
     const office = { name: 'Office', latitude: -36.8485, longitude: 174.7621, keepInPlace: true }
 
-    await optimizeRoute(start, [office, ...stops], true, false)
+    await optimizeRoute(start, [office, ...stops], true, false, null)
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.stops[0].keepInPlace).toBe(true)
@@ -227,7 +245,7 @@ describe('planning a route', () => {
   it('names the place no road reaches, so the map can point at it', async () => {
     apiThatAnswers(422, { title: 'Unroutable place', detail: 'Cannot route to Airport.', place: 'Airport' })
 
-    const failure = await optimizeRoute(start, stops, true, false).catch((caught: unknown) => caught)
+    const failure = await optimizeRoute(start, stops, true, false, null).catch((caught: unknown) => caught)
 
     expect(failure).toBeInstanceOf(ApiError)
     expect((failure as ApiError).place).toBe('Airport')
@@ -246,7 +264,7 @@ describe('planning a route', () => {
       })),
     )
 
-    await expect(optimizeRoute(start, stops, true, false)).rejects.toThrow('Request failed with status 500')
+    await expect(optimizeRoute(start, stops, true, false, null)).rejects.toThrow('Request failed with status 500')
   })
 })
 
@@ -373,7 +391,7 @@ describe('a planner that does not answer', () => {
     vi.useFakeTimers()
     apiThatNeverAnswers()
 
-    const planning = optimizeRoute(home, [office], true, false)
+    const planning = optimizeRoute(home, [office], true, false, null)
     const outcome = expect(planning).rejects.toBeInstanceOf(NotAnswering)
     await vi.advanceTimersByTimeAsync(8_000)
     expect(await hasSettled(planning)).toBe(false)

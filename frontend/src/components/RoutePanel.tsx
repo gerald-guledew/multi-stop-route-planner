@@ -3,6 +3,7 @@ import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, UpIcon } from './icons'
 import { differsFromTheShortest, roadClimbsSaid, shortestSaid } from '../roadClimbs'
 import { climbSaid } from '../climb'
+import { litresSaid } from '../fuel'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { canBeSaved, savedAt } from '../savedPlaces'
@@ -152,6 +153,7 @@ export default function RoutePanel(props: Props) {
   const tooManyStops = stopCount > MAX_STOPS
   const saving = plan ? savingSaid(plan.enteredOrderDistanceKm, plan.totalDistanceKm) : null
   const climb = plan ? climbSaid(plan.totalClimbMetres, plan.totalDescentMetres) : null
+  const fuel = plan && plan.totalFuelLitres !== null ? litresSaid(plan.totalFuelLitres) : null
   const roadClimbs = plan ? roadClimbsSaid(props.factorInRoadClimbs, plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
   const shortest = plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
@@ -428,6 +430,12 @@ export default function RoutePanel(props: Props) {
                     <dd>{climb}</dd>
                   </div>
                 )}
+                {fuel && (
+                  <div>
+                    <dt>Fuel</dt>
+                    <dd>{fuel}</dd>
+                  </div>
+                )}
                 {shortest && (
                   <div>
                     <dt>The shortest order</dt>
@@ -459,6 +467,14 @@ export default function RoutePanel(props: Props) {
                   down. It is read off the height of the ground, not of the road, so take it as
                   an estimate. A high bridge counts as level.
                 </p>
+              )}
+              {fuel ? (
+                <p className="note">
+                  Fuel is your vehicle's figure for every kilometre. Hills and speed do not change
+                  it yet.
+                </p>
+              ) : (
+                <p className="note">Add your vehicle above to see the fuel this trip takes.</p>
               )}
 
               {/*

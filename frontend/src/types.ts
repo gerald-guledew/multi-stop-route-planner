@@ -51,6 +51,8 @@ export interface Leg {
   climbMetres: number | null
   /** How much it comes down, as a number above zero. Null whenever the climb is. */
   descentMetres: number | null
+  /** The fuel this leg takes, for the vehicle sent with the plan. Null when none was sent. */
+  fuelLitres: number | null
   /** The road this leg follows, as [latitude, longitude] pairs. Empty on straight-line distances. */
   path: [number, number][]
 }
@@ -71,6 +73,8 @@ export interface RoutePlan {
   /** Climb and descent for the whole trip. Null unless the roads were read with their heights. */
   totalClimbMetres: number | null
   totalDescentMetres: number | null
+  /** The fuel the whole trip takes, for the vehicle sent with the plan. Null when none was sent. */
+  totalFuelLitres: number | null
   enteredOrderDistanceKm: number
   /**
    * Set when the order was chosen for distance and climb together, so that it can be held

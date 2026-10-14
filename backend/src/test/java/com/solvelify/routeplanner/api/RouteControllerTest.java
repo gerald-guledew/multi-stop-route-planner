@@ -79,6 +79,45 @@ class RouteControllerTest {
     }
 
     @Test
+    void givesTheFuelEachLegTakesForTheVehicleSent() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5 }")))
+                .andExpect(status().isOk())
+                // 6.918 km at 7.5 L/100 km is 0.519 L, rounded to a hundredth as distances are.
+                .andExpect(jsonPath("$.legs[0].fuelLitres").value(0.52))
+                .andExpect(jsonPath("$.legs[1].fuelLitres").value(0.52))
+                .andExpect(jsonPath("$.totalFuelLitres").value(1.04));
+    }
+
+    @Test
+    void saysNothingAboutFuelWithoutAVehicle() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasKey("totalFuelLitres")))
+                .andExpect(jsonPath("$.totalFuelLitres").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].fuelLitres").value(nullValue()));
+    }
+
+    @Test
+    void refusesAVehicleWithAFigureNoPetrolCarShows() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 75 }")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("vehicle.litresPer100Km"))
+                .andExpect(jsonPath("$.errors[0].message").value("must be between 2 and 30"));
+    }
+
+    @Test
     void rejectsACoordinateThatCannotExist() throws Exception {
         String impossibleLatitude = """
                 {

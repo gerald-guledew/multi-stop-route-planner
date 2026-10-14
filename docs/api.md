@@ -166,6 +166,8 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `stops[].keepInPlace` | boolean | Optional, defaults to `false`. See "Keeping a stop in its place" below |
 | `returnToStart` | boolean | Optional, defaults to `true` |
 | `factorInRoadClimbs` | boolean | Optional, defaults to `false`. See "Factoring in road climbs" below |
+| `vehicle` | object | Optional. The vehicle to work out the fuel for. See "Fuel" below |
+| `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows |
 
 ```json
 {
@@ -191,10 +193,12 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `legs[].durationSeconds` | integer | Driving time for that leg. `null` on straight lines. See "Driving times" below |
 | `legs[].climbMetres` | integer | How much that leg goes up, counting rises of 10 m or more. `null` unless the roads were read with their heights. See "Climb and descent" below |
 | `legs[].descentMetres` | integer | How much that leg comes down, as a number above zero. `null` whenever the climb is |
+| `legs[].fuelLitres` | number | The fuel that leg takes. `null` when no `vehicle` was sent |
 | `totalDistanceKm` | number | Distance of the whole trip in the returned order |
 | `totalDurationSeconds` | integer | Driving time for the whole trip. `null` on straight lines |
 | `totalClimbMetres` | integer | Climb of the whole trip. `null` unless the roads were read with their heights |
 | `totalDescentMetres` | integer | Descent of the whole trip. `null` whenever the climb is |
+| `totalFuelLitres` | number | The fuel the whole trip takes. `null` when no `vehicle` was sent |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
 | `shortestOrder` | object | Only when road climbs were factored in: the `distanceKm`, `climbMetres` and `descentMetres` of the shortest order, to hold this one against. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
@@ -210,16 +214,17 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
     { "name": "Sky Tower",   "latitude": -36.8485, "longitude": 174.7621 }
   ],
   "legs": [
-    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null, "climbMetres": null, "descentMetres": null },
-    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null, "climbMetres": null, "descentMetres": null },
-    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null, "climbMetres": null, "descentMetres": null },
-    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null, "climbMetres": null, "descentMetres": null },
-    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null, "climbMetres": null, "descentMetres": null }
+    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
+    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
+    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
+    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
+    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null }
   ],
   "totalDistanceKm": 51.76,
   "totalDurationSeconds": null,
   "totalClimbMetres": null,
   "totalDescentMetres": null,
+  "totalFuelLitres": null,
   "enteredOrderDistanceKm": 71.61,
   "shortestOrder": null,
   "ordersChecked": 24
@@ -362,6 +367,23 @@ routeplanner:
 ```
 
 It is a round figure, and not a fuel estimate. A [study that simulated cars on graded roads](https://vtechworks.lib.vt.edu/handle/10919/46178) put the extra fuel at over 9% for each 1% of slope, and a slope of 1% is a metre climbed in every 100 m of road. The planner knows nothing of the vehicle yet, so one figure serves for every car.
+
+### Fuel
+
+Send the vehicle with the request and every leg says how much fuel it takes, and the plan says the same for the whole trip, in litres:
+
+```json
+"vehicle": { "litresPer100Km": 7.5 }
+```
+
+For the five stops above that is 3.88 L: 51.76 km at 7.5 L for every 100 km. Without a `vehicle` both fields are `null`.
+
+- **It is the dashboard's figure for every kilometre.** A dashboard average already holds the hills and the town driving the car usually does, so for a trip like the usual ones it is close.
+- **Hills and speed do not change it yet.** A trip that climbs more than usual, or keeps to the motorway, takes more or less than this says.
+- **The order is chosen as it would be without a vehicle.** Fuel is worked out for the order chosen, not used to choose it.
+- **Rounded to a hundredth of a litre**, as distances are to a hundredth of a kilometre. The legs can add up to a hundredth more or less than the total.
+
+The screen sends the vehicle saved in the planner, see "The vehicle" below.
 
 ### Keeping a stop in its place
 
@@ -523,7 +545,7 @@ Planning takes positions, not ids. To plan a trip through a saved place, send it
 
 ## The vehicle
 
-The vehicle the planner works out fuel for, saved so it is entered once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The fuel estimate that reads it comes next.
+The vehicle the planner works out fuel for, saved so it is entered once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The screen sends its fuel use with every plan, see "Fuel" above.
 
 ### GET /api/v1/vehicle
 
