@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { litresSaid } from './fuel'
+import { fuelNote, litresSaid } from './fuel'
+
+describe('saying what the fuel rests on', () => {
+  it('says a dashboard figure is the figure for every kilometre', () => {
+    expect(fuelNote('dashboard')).toBe(
+      "Fuel is your vehicle's figure for every kilometre. Hills and speed do not change it yet.",
+    )
+  })
+
+  it('says a figure from the register is a lab figure, which real driving exceeds', () => {
+    expect(fuelNote('register')).toBe(
+      "Fuel is your car's lab figure for every kilometre, and real driving uses more. Hills and speed do not change it yet.",
+    )
+  })
+})
 
 describe('saying an amount of fuel', () => {
   it('says it to a tenth of a litre', () => {

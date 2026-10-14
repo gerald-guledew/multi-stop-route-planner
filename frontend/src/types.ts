@@ -31,12 +31,51 @@ export interface SavedPlace {
 /** How big a vehicle is. It stands in for the weight, which few drivers know. */
 export type VehicleSize = 'small' | 'medium' | 'large'
 
-/** The vehicle saved in the planner. Petrol cars only for now. */
-export interface Vehicle {
-  /** What the dashboard shows, from 2 to 30. */
-  litresPer100Km: number
-  size: VehicleSize
+/** A car as NZTA's vehicle register describes it, and as a driver would. */
+export interface Car {
+  /** As the register writes it, such as "SUZUKI". */
+  make: string
+  model: string
+  year: number
+  /** To the nearest tenth of a litre, such as 1.2. */
+  engineLitres: number
+  /** True for a used import, false for a car sold new in New Zealand. */
+  importedUsed: boolean
 }
+
+/** One car the register lists, with the figure most cars like it carry. */
+export interface CarVariant {
+  car: Car
+  /** The combined figure of the laboratory test the car was approved with. Real driving uses more. */
+  litresPer100Km: number
+  /** How many of these cars are registered. */
+  cars: number
+}
+
+/** Where a vehicle's fuel use comes from: its dashboard, or the register's laboratory figure. */
+export type FigureFrom = 'dashboard' | 'register'
+
+/**
+ * The vehicle saved in the planner. Petrol cars only for now. Entered by hand, with a size, or
+ * found in the register, with its make, model, year and engine.
+ */
+export interface Vehicle {
+  /** From 2 to 30. */
+  litresPer100Km: number
+  figureFrom: FigureFrom
+  /** Null for a car found in the register. */
+  size: VehicleSize | null
+  /** Null for a vehicle entered by hand. */
+  car: Car | null
+}
+
+/**
+ * A vehicle as it is sent to be saved. Entered by hand, with the dashboard's figure, or found
+ * in the register, with the dashboard's figure only if the driver knows it.
+ */
+export type VehicleToSave =
+  | { size: VehicleSize; litresPer100Km: number }
+  | { car: Car; litresPer100Km: number | null }
 
 export interface Leg {
   from: string

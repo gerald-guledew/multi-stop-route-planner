@@ -348,7 +348,7 @@ export default function App() {
             vehicle={vehicle}
             problem={vehicleProblem}
             busy={changingVehicle}
-            onSave={(entered) => changeVehicle(() => saveVehicle(entered))}
+            onSave={(given) => changeVehicle(() => saveVehicle(given))}
             onRemove={() =>
               changeVehicle(async () => {
                 await removeVehicle()
@@ -357,6 +357,7 @@ export default function App() {
             }
           />
         }
+        vehicleFigureFrom={vehicle?.figureFrom ?? null}
       />
       <RouteMap
         places={places}

@@ -3,7 +3,11 @@ import {
   ApiError,
   getVehicle,
   heightAt,
+  listMakes,
+  listModels,
   listSavedPlaces,
+  listVariants,
+  listYears,
   NotAnswering,
   optimizeRoute,
   removeSavedPlace,
@@ -142,6 +146,25 @@ describe('asking how high a spot is', () => {
 
 describe('the vehicle saved in the planner', () => {
   const car = { litresPer100Km: 7.5, size: 'medium' as const }
+  const usedSwift = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2, importedUsed: true }
+  const foundSwift = { litresPer100Km: 4.2, figureFrom: 'register', size: null, car: usedSwift }
+
+  it('is saved as the register describes it when it was found there', async () => {
+    const fetched = apiThatAnswers(200, foundSwift)
+
+    await expect(saveVehicle({ car: usedSwift, litresPer100Km: null })).resolves.toEqual(foundSwift)
+
+    // No figure is sent, so the register's is used.
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: usedSwift })
+  })
+
+  it("is saved with the dashboard's figure when one was typed for a car found in the register", async () => {
+    const fetched = apiThatAnswers(200, foundSwift)
+
+    await saveVehicle({ car: usedSwift, litresPer100Km: 5.6 })
+
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: usedSwift, litresPer100Km: 5.6 })
+  })
 
   it('is none until one is saved', async () => {
     apiThatAnswers(204, undefined)
@@ -182,6 +205,46 @@ describe('the vehicle saved in the planner', () => {
   })
 })
 
+describe('finding a car in the register', () => {
+  it('lists the makes', async () => {
+    const fetched = apiThatAnswers(200, ['MAZDA', 'SUZUKI'])
+
+    await expect(listMakes()).resolves.toEqual(['MAZDA', 'SUZUKI'])
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/cars/makes')
+  })
+
+  it('lists the models of a make, with the make written safely into the address', async () => {
+    const fetched = apiThatAnswers(200, ['DEFENDER'])
+
+    await listModels('LAND ROVER')
+
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/cars/models?make=LAND+ROVER')
+  })
+
+  it('lists the years of a model', async () => {
+    const fetched = apiThatAnswers(200, [2018, 2017])
+
+    await expect(listYears('MAZDA', 'CX-5')).resolves.toEqual([2018, 2017])
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/cars/years?make=MAZDA&model=CX-5')
+  })
+
+  it('lists the engines of a year, each with its figure', async () => {
+    const swift = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2, importedUsed: false }
+    const fetched = apiThatAnswers(200, [{ car: swift, litresPer100Km: 4.8, cars: 1344 }])
+
+    await expect(listVariants('SUZUKI', 'SWIFT', 2018)).resolves.toEqual([
+      { car: swift, litresPer100Km: 4.8, cars: 1344 },
+    ])
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/cars/variants?make=SUZUKI&model=SWIFT&year=2018')
+  })
+
+  it('fails with what the API said was wrong', async () => {
+    apiThatAnswers(400, { title: 'Bad Request', detail: "Required parameter 'make' is not present." })
+
+    await expect(listModels('')).rejects.toThrow("Required parameter 'make' is not present.")
+  })
+})
+
 describe('planning a route', () => {
   const start = { name: 'Sky Tower', latitude: -36.8485, longitude: 174.7621 }
   const stops = [{ name: 'Takapuna', latitude: -36.787, longitude: 174.774 }]
@@ -205,7 +268,7 @@ describe('planning a route', () => {
   it('sends the fuel use of the vehicle, when there is one', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, true, false, { litresPer100Km: 7.5, size: 'medium' })
+    await optimizeRoute(start, stops, true, false, { litresPer100Km: 7.5 })
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.vehicle).toEqual({ litresPer100Km: 7.5 })

@@ -1,4 +1,4 @@
-import type { Vehicle, VehicleSize } from './types'
+import type { Car, CarVariant, Vehicle, VehicleSize, VehicleToSave } from './types'
 
 /** The same limits as the API's. A figure outside them is refused here, before it is sent. */
 export const LEAST_LITRES_PER_100_KM = 2
@@ -17,9 +17,58 @@ const SIZE_IN_SHORT: Record<VehicleSize, string> = {
   large: 'Large car or SUV',
 }
 
-/** The vehicle in a few words, such as "Medium car, 7.5 L/100 km". */
+/** An engine size as it is said, always with its tenth: "1.2 L", "2.0 L". */
+export function engineSaid(litres: number): string {
+  return `${litres.toFixed(1)} L`
+}
+
+/** Where the car was first registered, which is why two of the same car carry different figures. */
+export function originSaid(car: Car): string {
+  return car.importedUsed ? 'imported used' : 'sold new in NZ'
+}
+
+/** A car as the register describes it: "2018 SUZUKI SWIFT 1.2 L, imported used". */
+export function carSaid(car: Car): string {
+  return `${car.year} ${car.make} ${car.model} ${engineSaid(car.engineLitres)}, ${originSaid(car)}`
+}
+
+/** One engine in the list to pick from, with its figure: "1.2 L, sold new in NZ: 4.8 L/100 km". */
+export function variantSaid(found: CarVariant): string {
+  return `${engineSaid(found.car.engineLitres)}, ${originSaid(found.car)}: ${found.litresPer100Km} L/100 km`
+}
+
+/**
+ * The vehicle in a few words: "Medium car, 7.5 L/100 km" when entered by hand. A car found in
+ * the register is named, and its figure called a lab figure unless it is the dashboard's.
+ */
 export function vehicleSaid(vehicle: Vehicle): string {
-  return `${SIZE_IN_SHORT[vehicle.size]}, ${vehicle.litresPer100Km} L/100 km`
+  if (vehicle.car === null) {
+    return `${SIZE_IN_SHORT[vehicle.size ?? 'medium']}, ${vehicle.litresPer100Km} L/100 km`
+  }
+  const figure = vehicle.figureFrom === 'register' ? ' lab figure' : ''
+  return `${carSaid(vehicle.car)}, ${vehicle.litresPer100Km} L/100 km${figure}`
+}
+
+/** Tells the engines of one year apart, as a list's value: the size and where it was registered. */
+export function variantKey(found: CarVariant): string {
+  return `${found.car.engineLitres}|${found.car.importedUsed}`
+}
+
+/**
+ * Which of a year's engines to show picked when the list arrives: the one saved, when the
+ * saved car is being changed, or the only one there is. None otherwise, so the driver picks.
+ */
+export function variantToPick(variants: CarVariant[], saved: Car | null): CarVariant | null {
+  const theSavedOne = variants.find(
+    (found) =>
+      saved !== null &&
+      found.car.make === saved.make &&
+      found.car.model === saved.model &&
+      found.car.year === saved.year &&
+      found.car.engineLitres === saved.engineLitres &&
+      found.car.importedUsed === saved.importedUsed,
+  )
+  return theSavedOne ?? (variants.length === 1 ? variants[0] : null)
 }
 
 /**
@@ -42,4 +91,32 @@ export function litresFrom(typed: string): { litres: number } | { problem: strin
     }
   }
   return { litres }
+}
+
+/** The same, for a car found in the register, where the dashboard's figure may be left out. */
+export function dashboardLitresFrom(typed: string): { litres: number | null } | { problem: string } {
+  return typed.trim() === '' ? { litres: null } : litresFrom(typed)
+}
+
+/** The two ways to give the vehicle: found in NZTA's register, or entered by hand. */
+export type Way = 'find' | 'enter'
+
+/**
+ * What the form saves, from what was picked and typed the way that is chosen. Entered by hand,
+ * the dashboard's figure is needed. Found in the register, the car is needed down to its
+ * engine, and the dashboard's figure only if one was typed.
+ */
+export function vehicleToSave(
+  way: Way,
+  given: { size: VehicleSize; found: CarVariant | null; typed: string },
+): VehicleToSave | { problem: string } {
+  if (way === 'enter') {
+    const read = litresFrom(given.typed)
+    return 'problem' in read ? read : { size: given.size, litresPer100Km: read.litres }
+  }
+  if (given.found === null) {
+    return { problem: 'Pick your car down to its engine, or enter it yourself.' }
+  }
+  const read = dashboardLitresFrom(given.typed)
+  return 'problem' in read ? read : { car: given.found.car, litresPer100Km: read.litres }
 }

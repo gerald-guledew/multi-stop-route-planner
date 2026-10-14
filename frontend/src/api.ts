@@ -1,5 +1,14 @@
 import type { Position } from './location'
-import type { FoundPlace, Place, ProblemDetail, RoutePlan, SavedPlace, Vehicle } from './types'
+import type {
+  CarVariant,
+  FoundPlace,
+  Place,
+  ProblemDetail,
+  RoutePlan,
+  SavedPlace,
+  Vehicle,
+  VehicleToSave,
+} from './types'
 
 /**
  * An error the API explained properly, rather than a bare status code.
@@ -139,7 +148,7 @@ export async function optimizeRoute(
   stops: Place[],
   returnToStart: boolean,
   factorInRoadClimbs: boolean,
-  vehicle: Vehicle | null,
+  vehicle: Pick<Vehicle, 'litresPer100Km'> | null,
 ): Promise<RoutePlan> {
   const fuel = vehicle ? { vehicle: { litresPer100Km: vehicle.litresPer100Km } } : {}
   const response = await ask('/api/v1/routes/optimize', A_PLAN_MS, {
@@ -226,12 +235,22 @@ export async function getVehicle(signal?: AbortSignal): Promise<Vehicle | null> 
   return response.status === 204 ? null : ((await response.json()) as Vehicle)
 }
 
-/** Saves the vehicle in place of the one there was. */
-export async function saveVehicle(vehicle: Vehicle): Promise<Vehicle> {
+/**
+ * Saves the vehicle in place of the one there was. A car found in the register is sent as
+ * the register described it, with the dashboard's figure only when the driver gave one.
+ */
+export async function saveVehicle(vehicle: VehicleToSave): Promise<Vehicle> {
+  const body =
+    'car' in vehicle
+      ? {
+          car: vehicle.car,
+          ...(vehicle.litresPer100Km === null ? {} : { litresPer100Km: vehicle.litresPer100Km }),
+        }
+      : { size: vehicle.size, litresPer100Km: vehicle.litresPer100Km }
   const response = await ask('/api/v1/vehicle', A_QUICK_ANSWER_MS, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ litresPer100Km: vehicle.litresPer100Km, size: vehicle.size }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -239,6 +258,47 @@ export async function saveVehicle(vehicle: Vehicle): Promise<Vehicle> {
   }
 
   return (await response.json()) as Vehicle
+}
+
+/**
+ * The petrol cars of NZTA's vehicle register, for a driver to find theirs one step at a time:
+ * the makes, then the models of one make, the years of one model, and the engines of one
+ * year. Each list is short, and comes in the order it is shown in.
+ *
+ * <p>Each takes an AbortSignal, so a list that arrives after another make was picked is not
+ * shown in its place.
+ */
+export async function listMakes(signal?: AbortSignal): Promise<string[]> {
+  return listOfCars('/api/v1/cars/makes', signal)
+}
+
+export async function listModels(make: string, signal?: AbortSignal): Promise<string[]> {
+  return listOfCars(`/api/v1/cars/models?${new URLSearchParams({ make })}`, signal)
+}
+
+export async function listYears(make: string, model: string, signal?: AbortSignal): Promise<number[]> {
+  return listOfCars(`/api/v1/cars/years?${new URLSearchParams({ make, model })}`, signal)
+}
+
+/** The engines of one year, each with the register's figure. */
+export async function listVariants(
+  make: string,
+  model: string,
+  year: number,
+  signal?: AbortSignal,
+): Promise<CarVariant[]> {
+  const parameters = new URLSearchParams({ make, model, year: String(year) })
+  return listOfCars(`/api/v1/cars/variants?${parameters}`, signal)
+}
+
+async function listOfCars<T>(url: string, signal?: AbortSignal): Promise<T[]> {
+  const response = await ask(url, A_QUICK_ANSWER_MS, { signal })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  return (await response.json()) as T[]
 }
 
 export async function removeVehicle(): Promise<void> {
