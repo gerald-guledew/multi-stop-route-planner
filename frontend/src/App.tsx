@@ -1,11 +1,14 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import {
   ApiError,
+  getVehicle,
   listSavedPlaces,
   NotAnswering,
   optimizeRoute,
   removeSavedPlace,
+  removeVehicle,
   savePlace,
+  saveVehicle,
 } from './api'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import { asPlace, startingFrom } from './savedPlaces'
@@ -19,7 +22,8 @@ import {
 import RouteMap from './components/RouteMap'
 import RoutePanel from './components/RoutePanel'
 import SavedPlaceList from './components/SavedPlaceList'
-import type { Place, RoutePlan, SavedPlace } from './types'
+import VehicleSection from './components/VehicleSection'
+import type { Place, RoutePlan, SavedPlace, Vehicle } from './types'
 
 export default function App() {
   const [places, setPlaces] = useState<Place[]>([])
@@ -47,6 +51,11 @@ export default function App() {
   const [changingSaved, setChangingSaved] = useState(false)
   // The saved place removed last. Removing takes one press, so one press must undo it.
   const [removedSavedPlace, setRemovedSavedPlace] = useState<SavedPlace | null>(null)
+  // The vehicle saved in the planner, read when the page opens. Each change answers with the
+  // vehicle as saved, or none, so there is nothing to read again afterwards.
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [vehicleProblem, setVehicleProblem] = useState<string | null>(null)
+  const [changingVehicle, setChangingVehicle] = useState(false)
   // Counted up each time a saved place takes over as the start. Nothing is added to the trip
   // then, so the map would not otherwise know there is somewhere new to show.
   const [startReplacedTimes, setStartReplacedTimes] = useState(0)
@@ -108,6 +117,18 @@ export default function App() {
         // or plan says so in full, and saying it here as well puts the same words up twice.
         if (!leaving.signal.aborted) {
           setSavedProblem('Your saved places could not be read.')
+        }
+      })
+    return () => leaving.abort()
+  }, [])
+
+  useEffect(() => {
+    const leaving = new AbortController()
+    getVehicle(leaving.signal)
+      .then(setVehicle)
+      .catch(() => {
+        if (!leaving.signal.aborted) {
+          setVehicleProblem('Your vehicle could not be read.')
         }
       })
     return () => leaving.abort()
@@ -198,6 +219,27 @@ export default function App() {
   async function putBackTheRemovedPlace() {
     if (removedSavedPlace && (await changeSavedPlaces(() => savePlace(removedSavedPlace)))) {
       setRemovedSavedPlace(null)
+    }
+  }
+
+  /** Makes one change to the vehicle and keeps what the API answers. Says whether it worked. */
+  async function changeVehicle(change: () => Promise<Vehicle | null>): Promise<boolean> {
+    setChangingVehicle(true)
+    try {
+      setVehicle(await change())
+      setVehicleProblem(null)
+      return true
+    } catch (caught) {
+      setVehicleProblem(
+        caught instanceof ApiError
+          ? caught.message
+          : caught instanceof NotAnswering
+            ? `${caught.message} Then reload the page to see the vehicle saved.`
+            : 'Something went wrong. Reload the page to see the vehicle saved.',
+      )
+      return false
+    } finally {
+      setChangingVehicle(false)
     }
   }
 
@@ -297,6 +339,20 @@ export default function App() {
             onStartFrom={startFromASavedPlace}
             onRemove={removeASavedPlace}
             onPutBack={putBackTheRemovedPlace}
+          />
+        }
+        vehicleSection={
+          <VehicleSection
+            vehicle={vehicle}
+            problem={vehicleProblem}
+            busy={changingVehicle}
+            onSave={(entered) => changeVehicle(() => saveVehicle(entered))}
+            onRemove={() =>
+              changeVehicle(async () => {
+                await removeVehicle()
+                return null
+              })
+            }
           />
         }
       />

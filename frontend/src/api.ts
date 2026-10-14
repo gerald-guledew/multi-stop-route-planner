@@ -1,5 +1,5 @@
 import type { Position } from './location'
-import type { FoundPlace, Place, ProblemDetail, RoutePlan, SavedPlace } from './types'
+import type { FoundPlace, Place, ProblemDetail, RoutePlan, SavedPlace, Vehicle } from './types'
 
 /**
  * An error the API explained properly, rather than a bare status code.
@@ -208,6 +208,40 @@ export async function savePlace(place: Place): Promise<SavedPlace> {
   }
 
   return (await response.json()) as SavedPlace
+}
+
+/** The vehicle saved in the planner. Null until one is saved: the API then answers 204. */
+export async function getVehicle(signal?: AbortSignal): Promise<Vehicle | null> {
+  const response = await ask('/api/v1/vehicle', A_QUICK_ANSWER_MS, { signal })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  return response.status === 204 ? null : ((await response.json()) as Vehicle)
+}
+
+/** Saves the vehicle in place of the one there was. */
+export async function saveVehicle(vehicle: Vehicle): Promise<Vehicle> {
+  const response = await ask('/api/v1/vehicle', A_QUICK_ANSWER_MS, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ litresPer100Km: vehicle.litresPer100Km, size: vehicle.size }),
+  })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  return (await response.json()) as Vehicle
+}
+
+export async function removeVehicle(): Promise<void> {
+  const response = await ask('/api/v1/vehicle', A_QUICK_ANSWER_MS, { method: 'DELETE' })
+
+  if (!response.ok) {
+    return refused(response)
+  }
 }
 
 export async function removeSavedPlace(id: number): Promise<void> {

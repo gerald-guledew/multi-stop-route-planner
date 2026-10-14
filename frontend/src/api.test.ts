@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
+  getVehicle,
   heightAt,
   listSavedPlaces,
   NotAnswering,
   optimizeRoute,
   removeSavedPlace,
+  removeVehicle,
   savePlace,
+  saveVehicle,
   searchPlaces,
 } from './api'
 
@@ -134,6 +137,48 @@ describe('asking how high a spot is', () => {
     apiThatAnswers(400, { title: 'Bad Request', detail: 'Invalid request content.' })
 
     await expect(heightAt(maungawhau)).rejects.toThrow('Invalid request content.')
+  })
+})
+
+describe('the vehicle saved in the planner', () => {
+  const car = { litresPer100Km: 7.5, size: 'medium' as const }
+
+  it('is none until one is saved', async () => {
+    apiThatAnswers(204, undefined)
+
+    await expect(getVehicle()).resolves.toBeNull()
+  })
+
+  it('is read when one is saved', async () => {
+    const fetched = apiThatAnswers(200, car)
+
+    await expect(getVehicle()).resolves.toEqual(car)
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/vehicle')
+  })
+
+  it('is saved by sending its two figures, in place of the one there was', async () => {
+    const fetched = apiThatAnswers(200, car)
+
+    await expect(saveVehicle(car)).resolves.toEqual(car)
+
+    const [url, init] = fetched.mock.calls[0]
+    expect(url).toBe('/api/v1/vehicle')
+    expect(init?.method).toBe('PUT')
+    expect(JSON.parse(String(init?.body))).toEqual(car)
+  })
+
+  it('is removed', async () => {
+    const fetched = apiThatAnswers(204, undefined)
+
+    await removeVehicle()
+
+    expect(fetched.mock.calls[0][1]?.method).toBe('DELETE')
+  })
+
+  it('fails with what the API said was wrong', async () => {
+    apiThatAnswers(400, { title: 'Bad Request', detail: 'Validation failed' })
+
+    await expect(saveVehicle(car)).rejects.toThrow('Validation failed')
   })
 })
 
