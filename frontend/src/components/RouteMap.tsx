@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Circle,
   CircleMarker,
@@ -11,7 +11,9 @@ import {
   useMap,
   useMapEvents,
 } from 'react-leaflet'
+import { heightAt } from '../api'
 import { sitsOn } from '../foundStart'
+import { heightSaid, spotOf } from '../height'
 import type { DevicePosition, Position } from '../location'
 import { coveredAtTheTopOfTheMap } from '../screen'
 import type { Place, RoutePlan } from '../types'
@@ -234,6 +236,22 @@ export default function RouteMap({
   // Once planned, pins are numbered by driving order instead of the order they were clicked.
   const plannedOrder = plan?.route.map((place) => place.name) ?? []
 
+  // The height of each spot a pin has stood on, asked for when its popup first opens there.
+  const [heights, setHeights] = useState<Record<string, number | null>>({})
+
+  function askHowHigh(place: Place) {
+    const spot = spotOf(place)
+    if (spot in heights) {
+      return
+    }
+    heightAt(place).then(
+      (metres) => setHeights((known) => ({ ...known, [spot]: metres })),
+      // No answer leaves the popup as it was, and the next opening asks again. A planner out
+      // of reach is said where it matters, when a plan is asked for.
+      () => undefined,
+    )
+  }
+
   function labelFor(place: Place, index: number): string {
     if (plannedOrder.length === 0) {
       return index === 0 ? 'S' : String(index)
@@ -257,34 +275,45 @@ export default function RouteMap({
 
       {devicePosition && <YouAreHere at={devicePosition} />}
 
-      {places.map((place, index) => (
-        <Marker
-          key={`${place.name}-${place.latitude}-${place.longitude}`}
-          position={[place.latitude, place.longitude]}
-          icon={numberedIcon(
-            labelFor(place, index),
-            place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered',
-            index > 0 && place.keepInPlace === true,
-          )}
-          // A pin can land in the wrong spot: a rough location, a click on a building rather
-          // than its street. Dragging puts it right without losing its name or its place in
-          // the list.
-          draggable
-          title="Drag to move"
-          eventHandlers={{
-            dragend: (event) => {
-              const droppedAt = (event.target as L.Marker).getLatLng()
-              onMovePlace(index, droppedAt.lat, droppedAt.lng)
-            },
-          }}
-        >
-          <Popup>
-            <strong>{place.name}</strong>
-            <br />
-            {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
-          </Popup>
-        </Marker>
-      ))}
+      {places.map((place, index) => {
+        const height = heightSaid(heights[spotOf(place)])
+
+        return (
+          <Marker
+            key={`${place.name}-${place.latitude}-${place.longitude}`}
+            position={[place.latitude, place.longitude]}
+            icon={numberedIcon(
+              labelFor(place, index),
+              place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered',
+              index > 0 && place.keepInPlace === true,
+            )}
+            // A pin can land in the wrong spot: a rough location, a click on a building rather
+            // than its street. Dragging puts it right without losing its name or its place in
+            // the list.
+            draggable
+            title="Drag to move"
+            eventHandlers={{
+              dragend: (event) => {
+                const droppedAt = (event.target as L.Marker).getLatLng()
+                onMovePlace(index, droppedAt.lat, droppedAt.lng)
+              },
+              popupopen: () => askHowHigh(place),
+            }}
+          >
+            <Popup>
+              <strong>{place.name}</strong>
+              <br />
+              {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
+              {height && (
+                <>
+                  <br />
+                  {height}
+                </>
+              )}
+            </Popup>
+          </Marker>
+        )
+      })}
 
       {/*
         One line per leg. When the API sends the road it follows, draw that. When distances are

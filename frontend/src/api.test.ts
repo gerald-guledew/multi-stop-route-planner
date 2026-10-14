@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
+  heightAt,
   listSavedPlaces,
   NotAnswering,
   optimizeRoute,
@@ -106,6 +107,33 @@ describe('searching for a place', () => {
     await expect(searchPlaces('new world', null, notCancelled)).rejects.toThrow(
       "Failed to convert 'near' with value: 'here'",
     )
+  })
+})
+
+describe('asking how high a spot is', () => {
+  const maungawhau = { latitude: -36.8778, longitude: 174.7639 }
+
+  it('sends the spot in the body, where logs do not keep it', async () => {
+    const fetched = apiThatAnswers(200, { heightMetres: 195 })
+
+    await expect(heightAt(maungawhau)).resolves.toBe(195)
+
+    const [url, init] = fetched.mock.calls[0]
+    expect(url).toBe('/api/v1/heights/lookup')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual(maungawhau)
+  })
+
+  it('gives null when the planner knows no height there', async () => {
+    apiThatAnswers(200, { heightMetres: null })
+
+    await expect(heightAt(maungawhau)).resolves.toBeNull()
+  })
+
+  it('fails with what the API said was wrong', async () => {
+    apiThatAnswers(400, { title: 'Bad Request', detail: 'Invalid request content.' })
+
+    await expect(heightAt(maungawhau)).rejects.toThrow('Invalid request content.')
   })
 })
 
