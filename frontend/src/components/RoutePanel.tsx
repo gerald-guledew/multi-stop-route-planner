@@ -42,6 +42,8 @@ interface Props {
   onSavePlace: (index: number) => void
   /** The list of saved places, drawn under the search box. */
   savedList: ReactNode
+  /** The vehicle saved in the planner, drawn under the saved places. */
+  vehicleSection: ReactNode
 }
 
 const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
@@ -255,6 +257,7 @@ export default function RoutePanel(props: Props) {
         {/* Down, the rest of the panel is off the screen, so it is taken out of reach as well. */}
         <div className="sheet-body" inert={narrow && !panelUp}>
           {props.savedList}
+          {props.vehicleSection}
 
           {places.length === 0 && (
             <div className="empty">

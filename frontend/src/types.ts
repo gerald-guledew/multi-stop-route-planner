@@ -28,6 +28,16 @@ export interface SavedPlace {
   longitude: number
 }
 
+/** How big a vehicle is. It stands in for the weight, which few drivers know. */
+export type VehicleSize = 'small' | 'medium' | 'large'
+
+/** The vehicle saved in the planner. Petrol cars only for now. */
+export interface Vehicle {
+  /** What the dashboard shows, from 2 to 30. */
+  litresPer100Km: number
+  size: VehicleSize
+}
+
 export interface Leg {
   from: string
   to: string
