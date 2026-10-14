@@ -45,6 +45,13 @@ export interface Leg {
   path: [number, number][]
 }
 
+/** What the shortest order comes to: how far it is, and how much it climbs and comes down. */
+export interface ShortestOrder {
+  distanceKm: number
+  climbMetres: number
+  descentMetres: number
+}
+
 export interface RoutePlan {
   route: Place[]
   legs: Leg[]
@@ -55,6 +62,12 @@ export interface RoutePlan {
   totalClimbMetres: number | null
   totalDescentMetres: number | null
   enteredOrderDistanceKm: number
+  /**
+   * Set when the order was chosen for distance and climb together, so that it can be held
+   * against the shortest. Null when it was chosen for distance alone. That includes a planner
+   * asked to factor in altitude that has no heights to go on.
+   */
+  shortestOrder: ShortestOrder | null
   ordersChecked: number
 }
 

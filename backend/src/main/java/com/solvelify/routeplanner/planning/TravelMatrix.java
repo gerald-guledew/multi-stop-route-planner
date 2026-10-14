@@ -13,6 +13,8 @@ import java.util.OptionalDouble;
  */
 public final class TravelMatrix {
 
+    private static final double METRES_IN_A_KILOMETRE = 1000;
+
     private final double[][] distancesKm;
 
     /** Null when the source of the figures has no notion of how long a drive takes. */
@@ -74,11 +76,32 @@ public final class TravelMatrix {
     }
 
     /**
-     * The table a solver minimises. Distance is the cost today. Step 6 can supply litres
-     * instead without the solver knowing the difference.
+     * The table a solver minimises to find the shortest order: the distances. Step 6 can supply
+     * litres instead without the solver knowing the difference.
      */
     public double[][] asCostMatrix() {
         return copyOf(distancesKm);
+    }
+
+    /**
+     * The table for an order chosen for distance and climb together. Each drive costs its
+     * distance, and on top of it {@code roadMetresPerMetreClimbed} metres of road for every
+     * metre it climbs. Coming down counts for nothing.
+     *
+     * <p>Empty when the heights of the roads are not known. There is then no climb to count.
+     */
+    public Optional<double[][]> asCostMatrixCountingClimb(double roadMetresPerMetreClimbed) {
+        if (climbs == null) {
+            return Optional.empty();
+        }
+        double[][] cost = copyOf(distancesKm);
+        for (int from = 0; from < cost.length; from++) {
+            for (int to = 0; to < cost[from].length; to++) {
+                double roadForTheClimb = climbs[from][to].climbMetres() * roadMetresPerMetreClimbed;
+                cost[from][to] += roadForTheClimb / METRES_IN_A_KILOMETRE;
+            }
+        }
+        return Optional.of(cost);
     }
 
     private static void requireSameSize(String what, int given, int places) {

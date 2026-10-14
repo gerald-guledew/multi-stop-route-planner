@@ -16,6 +16,10 @@ import java.util.OptionalDouble;
  *
  * <p>The climb and descent are empty unless the roads were read with their heights. On a round
  * trip the two come out equal, since the trip ends where it began.
+ *
+ * <p>{@code shortestOrder} is given when the order was chosen for distance and climb together.
+ * It is what the shortest order would have come to, so that what was given up for what can be
+ * seen. Empty when the order was chosen for distance alone: the plan is then the shortest order.
  */
 public record RoutePlan(
         List<Location> route,
@@ -24,7 +28,8 @@ public record RoutePlan(
         OptionalDouble totalDurationSeconds,
         Optional<ClimbAndDescent> totalClimbAndDescent,
         double enteredOrderDistanceKm,
-        long ordersChecked) {
+        long ordersChecked,
+        Optional<ShortestOrder> shortestOrder) {
 
     /** A plan from a source that knows distances and not times. */
     public RoutePlan(
@@ -46,6 +51,26 @@ public record RoutePlan(
             long ordersChecked) {
         this(route, legs, totalDistanceKm, totalDurationSeconds, Optional.empty(),
                 enteredOrderDistanceKm, ordersChecked);
+    }
+
+    /** A plan chosen for distance alone. It is the shortest order itself. */
+    public RoutePlan(
+            List<Location> route,
+            List<Leg> legs,
+            double totalDistanceKm,
+            OptionalDouble totalDurationSeconds,
+            Optional<ClimbAndDescent> totalClimbAndDescent,
+            double enteredOrderDistanceKm,
+            long ordersChecked) {
+        this(route, legs, totalDistanceKm, totalDurationSeconds, totalClimbAndDescent,
+                enteredOrderDistanceKm, ordersChecked, Optional.empty());
+    }
+
+    /**
+     * What the shortest order comes to, to hold a plan chosen for more than distance against.
+     * Only given on roads whose heights are known, so its climb always is.
+     */
+    public record ShortestOrder(double distanceKm, ClimbAndDescent climbAndDescent) {
     }
 
     /**

@@ -14,6 +14,6 @@ export function climbSaid(climbMetres: number | null, descentMetres: number | nu
 }
 
 /** A comma in the thousands, the way a road sign for a pass has it: "1,076 m". */
-function metres(howMany: number): string {
+export function metres(howMany: number): string {
   return `${howMany.toLocaleString('en-NZ')} m`
 }
