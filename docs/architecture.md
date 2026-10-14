@@ -20,7 +20,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 
 1. The controller takes JSON, validates it, and turns it into domain objects.
 2. The service asks a matrix provider for travel figures between every pair of places.
-3. The service turns those figures into a cost matrix. Cost means distance. When the request asks to factor in altitude, it means distance with the climb counted as extra road.
+3. The service turns those figures into a cost matrix. Cost means distance. When the request asks to factor in road climbs, it means distance with the climb counted as extra road.
 4. The solver returns the cheapest order it can find.
 5. The service builds the answer: the ordered stops, each leg, and the totals.
 
@@ -46,7 +46,7 @@ The interface hands back a whole matrix rather than one pair at a time, because 
 
 **The solver minimises a cost matrix without knowing what cost means.** Distance fills it today. Seconds or litres can fill it later. That turns "fastest or most fuel-efficient" into a decision about how the matrix is built, not a rewrite of the algorithm.
 
-Factoring in altitude was the first use of it. A second table counts every metre a drive climbs as 10 m of road, and the same solver is run over it. The shortest order is still worked out, so the answer can say what was given up for what. The 10 is `routeplanner.planning.road-metres-per-metre-climbed`.
+Factoring in road climbs was the first use of it. A second table counts every metre a drive climbs as 10 m of road, and the same solver is run over it. The shortest order is still worked out, so the answer can say what was given up for what. The 10 is `routeplanner.planning.road-metres-per-metre-climbed`.
 
 **A stop kept in its place is a rule about the order, not about the cost.** The solver is told which stops must be visited at the turn they were entered in, and it only ever builds the orders that respect that. It still knows nothing about why. Keeping a stop also makes the work smaller: ten stops with three kept is 5,040 orders to compare rather than 3.6 million.
 
@@ -151,4 +151,4 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length, and with heights switched on how much it climbs and descends. The order is chosen for distance unless the request asks otherwise |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
 | 5 | Vehicle details arrive in the request and reach the matrix provider |
-| 6 | **Begun.** A second way to fill the cost matrix: distance with the climb counted as extra road, when the request asks to factor in altitude. Fuel instead of distance is still to come, and needs the vehicle of step 5 |
+| 6 | **Begun.** A second way to fill the cost matrix: distance with the climb counted as extra road, when the request asks to factor in road climbs. Fuel instead of distance is still to come, and needs the vehicle of step 5 |

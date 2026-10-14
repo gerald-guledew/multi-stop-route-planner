@@ -307,24 +307,24 @@ class RouteControllerTest {
     // An order chosen for distance and climb together.
 
     @Test
-    void asksForDistanceAndClimbTogetherWhenToldToFactorInAltitude() throws Exception {
+    void asksForDistanceAndClimbTogetherWhenToldToFactorInRoadClimbs() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInAltitude\": true")))
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInRoadClimbs\": true")))
                 .andExpect(status().isOk());
 
         verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE_AND_CLIMB));
     }
 
     @Test
-    void asksForDistanceAloneWhenToldNotToFactorInAltitude() throws Exception {
+    void asksForDistanceAloneWhenToldNotToFactorInRoadClimbs() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInAltitude\": false")))
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInRoadClimbs\": false")))
                 .andExpect(status().isOk());
 
         verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE));

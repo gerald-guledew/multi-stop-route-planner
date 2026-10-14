@@ -65,7 +65,7 @@ export interface RoutePlan {
   /**
    * Set when the order was chosen for distance and climb together, so that it can be held
    * against the shortest. Null when it was chosen for distance alone. That includes a planner
-   * asked to factor in altitude that has no heights to go on.
+   * asked to factor in road climbs that has no heights to go on.
    */
   shortestOrder: ShortestOrder | null
   ordersChecked: number

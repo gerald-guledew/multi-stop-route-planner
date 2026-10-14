@@ -41,7 +41,7 @@ public class RouteController {
                 stops,
                 positionsKeptInPlace(request.stops()),
                 request.returnToStartOrDefault(),
-                request.factorInAltitudeOrDefault() ? ChosenFor.DISTANCE_AND_CLIMB : ChosenFor.DISTANCE);
+                request.factorInRoadClimbsOrDefault() ? ChosenFor.DISTANCE_AND_CLIMB : ChosenFor.DISTANCE);
 
         return OptimizeRouteResponse.from(plan);
     }

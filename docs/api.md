@@ -150,7 +150,7 @@ Results are empty until the data is imported: LINZ addresses for `address`, Over
 
 ## POST /api/v1/routes/optimize
 
-Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in altitude, it returns the order that comes out best with the climb counted as well.
+Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in road climbs, it returns the order that comes out best with the climb counted as well.
 
 Distances are straight lines for now. Step 3 replaces them with real driving distances.
 
@@ -165,7 +165,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `stops` | array | Required, 1 to 10 items, each shaped like `start` |
 | `stops[].keepInPlace` | boolean | Optional, defaults to `false`. See "Keeping a stop in its place" below |
 | `returnToStart` | boolean | Optional, defaults to `true` |
-| `factorInAltitude` | boolean | Optional, defaults to `false`. See "Factoring in altitude" below |
+| `factorInRoadClimbs` | boolean | Optional, defaults to `false`. See "Factoring in road climbs" below |
 
 ```json
 {
@@ -196,7 +196,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `totalClimbMetres` | integer | Climb of the whole trip. `null` unless the roads were read with their heights |
 | `totalDescentMetres` | integer | Descent of the whole trip. `null` whenever the climb is |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
-| `shortestOrder` | object | Only when altitude was factored in: the `distanceKm`, `climbMetres` and `descentMetres` of the shortest order, to hold this one against. `null` otherwise |
+| `shortestOrder` | object | Only when road climbs were factored in: the `distanceKm`, `climbMetres` and `descentMetres` of the shortest order, to hold this one against. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
 
 ```json
@@ -270,7 +270,7 @@ What these figures are, and are not.
 - **The descent is a number above zero**, like the climb. The climb less the descent is how much higher the leg ends than it began.
 - **On a round trip the two totals come out equal**, give or take a metre of rounding, because the trip ends where it began.
 - **A level leg is `0` and `0`.** That is an answer. With heights off, and on straight lines, all four fields are `null`, which means not known.
-- **The order is chosen for distance unless asked otherwise.** The climb is then what the shortest order climbs, and another order can climb less and be longer. See "Factoring in altitude" below.
+- **The order is chosen for distance unless asked otherwise.** The climb is then what the shortest order climbs, and another order can climb less and be longer. See "Factoring in road climbs" below.
 
 #### How the climb is counted
 
@@ -304,13 +304,13 @@ The figure for a city leg moves by a third or so if 10 m is changed to 5 m or to
 #### What heights do not change
 
 - **The distance.** It is measured on the map, with heights or without. The routing engine itself measures a road with heights along its slope, bumps of the grid included, which made the road through the Otira Gorge 1.3% longer than it measures on the map.
-- **The order of the stops**, unless the request asks to factor in altitude. Left alone it is chosen for distance.
+- **The order of the stops**, unless the request asks to factor in road climbs. Left alone it is chosen for distance.
 
 The driving time does move a little, because the engine times each road along its slope: 5,063 seconds for the five stops against 5,057.
 
-### Factoring in altitude
+### Factoring in road climbs
 
-Send `"factorInAltitude": true` and the order is chosen for distance and climb together. Left out, it is chosen for distance alone. Every metre a leg climbs then counts as 10 m of road on top of its length, so an order that is 1 km longer comes out ahead when it climbs more than 100 m less.
+Send `"factorInRoadClimbs": true` and the order is chosen for distance and climb together. Left out, it is chosen for distance alone. Every metre a leg climbs then counts as 10 m of road on top of its length, so an order that is 1 km longer comes out ahead when it climbs more than 100 m less.
 
 It changes the order of the stops and nothing else. The road between two stops is the same road either way.
 
@@ -325,14 +325,14 @@ The answer also says what the shortest order comes to, in `shortestOrder`, so th
     { "name": "Takapuna",       "latitude": -36.7870, "longitude": 174.7740 },
     { "name": "Mission Bay",    "latitude": -36.8490, "longitude": 174.8310 }
   ],
-  "factorInAltitude": true
+  "factorInRoadClimbs": true
 }
 ```
 
 | | Order of the stops | Distance | Climb |
 | --- | --- | --- | --- |
 | Shortest | Glen Eden, Blockhouse Bay, Mission Bay, Takapuna | 62.58 km | 666 m |
-| With altitude factored in | Glen Eden, Blockhouse Bay, Takapuna, Mission Bay | 62.88 km | 561 m |
+| With road climbs factored in | Glen Eden, Blockhouse Bay, Takapuna, Mission Bay | 62.88 km | 561 m |
 
 ```json
 {
