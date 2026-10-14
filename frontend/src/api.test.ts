@@ -75,9 +75,9 @@ describe('searching for a place', () => {
   it('says where it is looking from, to about a hundred metres and no closer', async () => {
     const fetched = apiThatAnswers(200, [])
 
-    await searchPlaces('new world', { latitude: -36.868955, longitude: 174.783159 }, notCancelled)
+    await searchPlaces('new world', { latitude: -36.914655, longitude: 174.839159 }, notCancelled)
 
-    expect(fetched.mock.calls[0][0]).toBe('/api/v1/places/search?q=new+world&limit=8&near=-36.869%2C174.783')
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/places/search?q=new+world&limit=8&near=-36.915%2C174.839')
   })
 
   it('can be cancelled, so a slow answer cannot overwrite a newer one', async () => {
@@ -206,7 +206,7 @@ describe('planning a route', () => {
 })
 
 describe('saved places', () => {
-  const home = { id: 7, name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 }
+  const home = { id: 7, name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 }
 
   it('asks for the list', async () => {
     const fetched = apiThatAnswers(200, [home])
@@ -234,7 +234,7 @@ describe('saved places', () => {
     const fetched = apiThatAnswers(201, home)
 
     await expect(
-      savePlace({ name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 }),
+      savePlace({ name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 }),
     ).resolves.toEqual(home)
 
     const [url, request] = fetched.mock.calls[0]
@@ -243,8 +243,8 @@ describe('saved places', () => {
     expect(request?.headers).toEqual({ 'Content-Type': 'application/json' })
     expect(JSON.parse(request?.body as string)).toEqual({
       name: 'Home',
-      latitude: -36.8689416667,
-      longitude: 174.7832303333,
+      latitude: -36.9146416667,
+      longitude: 174.8392303333,
     })
   })
 

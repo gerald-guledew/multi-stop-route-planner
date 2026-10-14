@@ -465,7 +465,7 @@ Every saved place, in name order. Capitals and macrons do not change the order.
 
 ```json
 [
-  { "id": 7, "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 },
+  { "id": 7, "name": "Home", "latitude": -36.9146416667, "longitude": 174.8392303333 },
   { "id": 9, "name": "The office", "latitude": -36.8485, "longitude": 174.7621 }
 ]
 ```
@@ -481,13 +481,13 @@ The answer is marked `Cache-Control: no-store`, so neither the browser nor anyth
 | `longitude` | number | Required, between -180 and 180 |
 
 ```json
-{ "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 }
+{ "name": "Home", "latitude": -36.9146416667, "longitude": 174.8392303333 }
 ```
 
 Answers **201** with the place as saved. The `id` is what to remove it by.
 
 ```json
-{ "id": 7, "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 }
+{ "id": 7, "name": "Home", "latitude": -36.9146416667, "longitude": 174.8392303333 }
 ```
 
 A name can be saved once, whatever the capitals. Saving "HOME" while "Home" is there answers **409**, and the place that was there stays as it was:
