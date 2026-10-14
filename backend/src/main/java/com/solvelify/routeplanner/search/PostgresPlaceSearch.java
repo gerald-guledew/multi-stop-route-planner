@@ -29,6 +29,14 @@ public class PostgresPlaceSearch implements PlaceSearch {
      * address. For a business it is the name, with or without its suburb, and not the street
      * it happens to be on.
      *
+     * <p><b>What was typed may be written more than one way.</b> "mt eden rd" is also "mount
+     * eden road", and {@link SearchTerm} lists each such spelling. A place is found when it
+     * matches any of them, which {@code :anySpelling} tests in one go. It is then scored on
+     * each spelling it holds, and the best one counts, so "12 Bassett Road" ranks the same
+     * whether "road" or "rd" was typed. It is not scored on the spellings it does not hold.
+     * Those are not what found it, and scoring is the costly part. {@code :oneSpelling} saves
+     * even the asking when there is nothing to choose between.
+     *
      * <p><b>The score is three things multiplied together.</b>
      *
      * <p>First, how well the words appear in the name. {@code word_similarity} is 1 when they
@@ -44,10 +52,13 @@ public class PostgresPlaceSearch implements PlaceSearch {
      * trigram back, so "mcdonald" finds McDonald's as surely as it finds a firm called
      * McDonald Metals.
      *
-     * <p>Second, whether an address is the one typed. An address that begins with the words
-     * keeps its whole score, and one that only contains them keeps four fifths. So "12 queen
+     * <p>Second, whether it is the place typed. An address that begins with the words keeps
+     * its whole score, and one that only contains them keeps four fifths. So "12 queen
      * street" puts number 12 ahead of 112 and of 12/125, and the houses on McDonalds Road do
-     * not bury the restaurants.
+     * not bury the restaurants. A business keeps its whole score when a word of its name
+     * begins with the first word typed, and four fifths when the words found it by its suburb
+     * or its street alone. So "st heliers" lists what is named for Saint Heliers ahead of
+     * whatever happens to be there, and "mobil st heliers" still finds the Mobil in full.
      *
      * <p>Third, how near the place is, when the caller said where it is looking from. Next
      * door keeps the whole score, 50 km away keeps three quarters, and nothing loses more
@@ -72,24 +83,31 @@ public class PostgresPlaceSearch implements PlaceSearch {
      * <p>Distance is measured on a sphere rather than on the true shape of the earth. That is
      * within half a percent, far finer than ranking needs, and under half the work.
      *
-     * <p>{@code term} and {@code nearest_poi} are materialized so that what they work out is
-     * worked out once: what was typed once for the query, and the simplified names once for
-     * each place rather than once for each comparison that reads them.
+     * <p>{@code spelling} and {@code nearest_poi} are materialized so that what they work out
+     * is worked out once: what was typed once for the query, and the simplified names once
+     * for each place rather than once for each comparison that reads them.
      *
      * <p>Both sides of every comparison go through {@code searchable}, which drops accents
-     * and apostrophes, so "paknsave mangere" finds PAK'nSAVE in Māngere.
+     * and apostrophes, so "paknsave mangere" finds PAK'nSAVE in Māngere. The patterns go
+     * through it too. {@link SearchTerm#isLookedFor} sees to it that nothing in them comes
+     * out as something a pattern would read.
      */
     private static final String SEARCH = """
             WITH term AS MATERIALIZED (
-                SELECT lower(searchable(:words)) AS words,
-                       1.0 / greatest(cardinality(show_trgm(searchable(:words))), 1) AS slack,
-                       CAST(ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326) AS geography) AS origin
+                SELECT CAST(ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326) AS geography) AS origin,
+                       searchable(:firstWord) AS first_word
+            ),
+            spelling AS MATERIALIZED (
+                SELECT lower(searchable(written.words)) AS words,
+                       1.0 / greatest(cardinality(show_trgm(searchable(written.words))), 1) AS slack,
+                       searchable(written.pattern) AS pattern
+                FROM unnest(CAST(:words AS text[]), CAST(:patterns AS text[])) AS written(words, pattern)
             ),
             nearest_address AS (
                 SELECT matched.*, ST_Distance(matched.location, term.origin, false) / 1000 AS km
                 FROM (SELECT full_address, search_text, latitude, longitude, location
                       FROM address
-                      WHERE search_text ILIKE searchable(:pattern)
+                      WHERE search_text ~* searchable(:anySpelling)
                       LIMIT :scan) AS matched, term
                 ORDER BY km
                 LIMIT :candidates
@@ -99,9 +117,10 @@ public class PostgresPlaceSearch implements PlaceSearch {
                        searchable(matched.name) AS plain_name,
                        searchable(matched.name || ' ' || coalesce(matched.suburb, ''))
                            AS plain_name_and_suburb
-                FROM (SELECT name, address, suburb, locality, latitude, longitude, confidence, location
+                FROM (SELECT name, address, suburb, locality, search_text,
+                             latitude, longitude, confidence, location
                       FROM poi
-                      WHERE search_text ILIKE searchable(:pattern)
+                      WHERE search_text ~* searchable(:anySpelling)
                         AND confidence >= :minConfidence
                       LIMIT :scan) AS matched, term
                 ORDER BY km
@@ -111,22 +130,34 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 (SELECT 'ADDRESS' AS kind, full_address AS name,
                         NULL AS address, NULL AS suburb, NULL AS locality,
                         latitude, longitude, 1.0 AS confidence,
-                        least(1.0, word_similarity(term.words, search_text) + term.slack)
-                            * CASE WHEN starts_with(lower(replace(search_text, ',', '')), term.words)
-                                   THEN 1.0 ELSE 0.8 END
-                            * coalesce(0.5 + 0.5 / (1 + round(km * 2) / 2 / 50.0), 1.0) AS score,
-                        similarity(search_text, term.words) AS coverage
-                 FROM nearest_address, term
+                        best.match * coalesce(0.5 + 0.5 / (1 + round(km * 2) / 2 / 50.0), 1.0) AS score,
+                        best.coverage
+                 FROM nearest_address
+                 CROSS JOIN LATERAL (
+                     SELECT max(least(1.0, word_similarity(spelling.words, search_text) + spelling.slack)
+                                * CASE WHEN starts_with(lower(replace(search_text, ',', '')), spelling.words)
+                                       THEN 1.0 ELSE 0.8 END) AS match,
+                            max(similarity(search_text, spelling.words)) AS coverage
+                     FROM spelling
+                     WHERE :oneSpelling OR search_text ~* spelling.pattern) AS best
                  ORDER BY score DESC, coverage DESC, length(full_address)
                  LIMIT :limit)
                 UNION ALL
                 (SELECT 'POI', name, address, suburb, locality,
                         latitude, longitude, confidence,
-                        least(1.0, word_similarity(term.words, plain_name_and_suburb) + term.slack)
+                        best.match
+                            * CASE WHEN plain_name ~* term.first_word THEN 1.0 ELSE 0.8 END
                             * coalesce(0.5 + 0.5 / (1 + round(km * 2) / 2 / 50.0), 1.0) AS score,
-                        greatest(similarity(plain_name, term.words),
-                                 similarity(plain_name_and_suburb, term.words)) AS coverage
-                 FROM nearest_poi, term
+                        best.coverage
+                 FROM nearest_poi
+                 CROSS JOIN term
+                 CROSS JOIN LATERAL (
+                     SELECT max(least(1.0, word_similarity(spelling.words, plain_name_and_suburb)
+                                           + spelling.slack)) AS match,
+                            max(greatest(similarity(plain_name, spelling.words),
+                                         similarity(plain_name_and_suburb, spelling.words))) AS coverage
+                     FROM spelling
+                     WHERE :oneSpelling OR search_text ~* spelling.pattern) AS best
                  ORDER BY score DESC, coverage DESC, confidence DESC, length(name)
                  LIMIT :limit)
             )
@@ -156,9 +187,14 @@ public class PostgresPlaceSearch implements PlaceSearch {
         int candidates = properties.candidateLimit();
         int scan = near == null ? candidates : Math.max(properties.scanLimit(), candidates);
 
+        List<SearchTerm.Spelling> spellings = term.get().spellings();
+
         return jdbc.sql(SEARCH)
-                .param("words", term.get().words())
-                .param("pattern", term.get().pattern())
+                .param("words", spellings.stream().map(SearchTerm.Spelling::words).toArray(String[]::new))
+                .param("patterns", spellings.stream().map(SearchTerm.Spelling::pattern).toArray(String[]::new))
+                .param("anySpelling", term.get().anySpelling())
+                .param("firstWord", term.get().firstWord())
+                .param("oneSpelling", spellings.size() == 1)
                 // Typed, because a bare null gives PostgreSQL nothing to tell its type from.
                 .param("latitude", near == null ? null : near.latitude(), Types.DOUBLE)
                 .param("longitude", near == null ? null : near.longitude(), Types.DOUBLE)
