@@ -41,7 +41,7 @@ class PostgresPlaceSearchTest {
     @BeforeEach
     void insertAddressesAndPlaces() {
         insertAddress(1, "20A Bassett Road, Remuera", -36.8712, 174.7866);
-        insertAddress(2, "3/90A Bassett Road, Remuera", -36.8714, 174.7869);
+        insertAddress(2, "2/286 Mount Wellington Highway, Mount Wellington", -36.9170, 174.8409);
         insertAddress(3, "12 Bassett Street, Invercargill", -46.4300, 168.3800);
         insertAddress(4, "100 Broadway, Newmarket", -36.8700, 174.7770);
         insertAddress(5, "12 Bank Street, Whangārei", -35.7251, 174.3237);
@@ -66,7 +66,7 @@ class PostgresPlaceSearchTest {
     @Test
     void findsAnAddressFromPartOfIt() {
         assertThat(names(placeSearch.search("bassett road remuera", 8)))
-                .contains("20A Bassett Road, Remuera", "3/90A Bassett Road, Remuera");
+                .contains("20A Bassett Road, Remuera");
     }
 
     @Test
@@ -254,7 +254,7 @@ class PostgresPlaceSearchTest {
     @Test
     void findsARoadTypedAsRd() {
         assertThat(names(placeSearch.search("bassett rd remuera", 8)))
-                .containsExactly("20A Bassett Road, Remuera", "3/90A Bassett Road, Remuera");
+                .containsExactly("20A Bassett Road, Remuera");
     }
 
     @Test
@@ -573,11 +573,15 @@ class PostgresPlaceSearchTest {
 
     @Test
     void keepsTheHousesOfOneStreetInOrderRatherThanSortingThemByAFewMetres() {
-        // 35 metres apart, and the search is looking from the gate of the second one.
-        ReferencePoint outside90A = new ReferencePoint(-36.8714, 174.7869);
+        insertAddress(40, "15/286 Mount Wellington Highway, Mount Wellington", -36.9172, 174.8412);
 
-        assertThat(names(placeSearch.search("bassett road", outside90A, 8)))
-                .containsExactly("20A Bassett Road, Remuera", "3/90A Bassett Road, Remuera");
+        // 35 metres apart, and the search is looking from the door of the second one.
+        ReferencePoint outsideUnit15 = new ReferencePoint(-36.9172, 174.8412);
+
+        assertThat(names(placeSearch.search("mount wellington highway", outsideUnit15, 8)))
+                .containsExactly(
+                        "2/286 Mount Wellington Highway, Mount Wellington",
+                        "15/286 Mount Wellington Highway, Mount Wellington");
     }
 
     @Test

@@ -52,17 +52,17 @@ GET /api/v1/places/search?q=new%20world%20remuera
 ```
 
 ```
-GET /api/v1/places/search?q=90a%20bassett%20road
+GET /api/v1/places/search?q=286%20mount%20wellington%20highway&limit=1
 ```
 
 ```json
 [
   {
     "kind": "address",
-    "name": "90A Bassett Road, Remuera, Auckland",
+    "name": "286 Mount Wellington Highway, Mount Wellington, Auckland",
     "detail": null,
-    "latitude": -36.8689416667,
-    "longitude": 174.7832303333
+    "latitude": -36.9145359,
+    "longitude": 174.8391820167
   }
 ]
 ```
