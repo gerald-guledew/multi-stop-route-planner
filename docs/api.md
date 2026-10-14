@@ -520,3 +520,34 @@ Answers **204** with no body. The name is then free to be saved again.
 All three are Problem Details, as above.
 
 Planning takes positions, not ids. To plan a trip through a saved place, send its name and position like any other place.
+
+## The vehicle
+
+The vehicle the planner works out fuel for, saved so it is entered once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The fuel estimate that reads it comes next.
+
+### GET /api/v1/vehicle
+
+```json
+{ "litresPer100Km": 7.5, "size": "medium" }
+```
+
+Answers **204** with no body until a vehicle is saved. Having none is not an error. The answer is marked `Cache-Control: no-store`, so a vehicle changed on one device is not shown as it was on another.
+
+### PUT /api/v1/vehicle
+
+Saves the vehicle in place of the one there was, and answers with it. The same body as above.
+
+| Field | Rules |
+| --- | --- |
+| `litresPer100Km` | Required, 2 to 30. What the dashboard shows |
+| `size` | Required. `small`: a city hatchback. `medium`: a family hatchback or sedan. `large`: a large car, an SUV or a people mover |
+
+The size stands in for the weight, which is what a climb costs, and which few drivers know in kilograms.
+
+### DELETE /api/v1/vehicle
+
+Answers **204** with no body, whether there was a vehicle or not.
+
+### Errors
+
+A missing field, a figure out of range or a size it does not know is a **400**, as Problem Details with the field named.

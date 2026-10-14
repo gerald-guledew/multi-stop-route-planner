@@ -35,6 +35,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | `poi` | Named places from Overture Maps: the table and its importer |
 | `search` | Finds addresses and named places from what was typed. The `PlaceSearch` interface and its PostgreSQL implementation |
 | `saved` | Places somebody saved under a name: the JPA entity, its repository, and the rules about names |
+| `vehicle` | The vehicle the planner works out fuel for: one row, its size and what its dashboard shows |
 
 Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances are calculated.
 
@@ -99,6 +100,12 @@ A third flow, and the first one that writes. A place is saved under a name, list
 **A saved place and a pin are the same spot when their positions match.** One is always copied from the other, so the numbers agree to the last digit. That is how the map screen shows "saved" beside a place, and knows a saved place is already in the trip. Planning is untouched: it still takes positions, and never a saved place's id.
 
 **The list is private.** It is likely to hold a home address, and the app has no login. Its answer is marked not to be stored, and what keeps strangers away from it is the next section.
+
+## The vehicle
+
+The second entity, and a table of one row: one driver, one vehicle. Its id is always 1, and the table checks that, so saving a vehicle replaces the one there was and a second row cannot happen. `Vehicles.save` hands JPA a vehicle with that id, and JPA reads the row first and then inserts or updates it.
+
+It holds what the dashboard shows, in L/100 km, and a size in place of the weight. The ranges are checked three times: on the screen before it is sent, by the API, and by the table.
 
 ## One app
 
