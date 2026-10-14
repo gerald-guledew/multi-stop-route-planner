@@ -20,10 +20,10 @@ class SearchTermTest {
 
     @Test
     void treatsACommaAsASpace() {
-        SearchTerm term = SearchTerm.from("90A Bassett Way, Remuera").orElseThrow();
+        SearchTerm term = SearchTerm.from("Sylvia Park Shopping Centre, Auckland").orElseThrow();
 
-        assertThat(words(term)).containsExactly("90A Bassett Way Remuera");
-        assertThat(term.anySpelling()).isEqualTo("90A.*Bassett.*Way.*Remuera");
+        assertThat(words(term)).containsExactly("Sylvia Park Shopping Centre Auckland");
+        assertThat(term.anySpelling()).isEqualTo("Sylvia.*Park.*Shopping.*Centre.*Auckland");
     }
 
     @Test
@@ -44,8 +44,8 @@ class SearchTermTest {
 
     @Test
     void leavesAloneWhatMeansNothingToAPattern() {
-        assertThat(SearchTerm.from("100% pure_nz 3/90A h&m").orElseThrow().anySpelling())
-                .isEqualTo("100%.*pure_nz.*3/90A.*h&m");
+        assertThat(SearchTerm.from("100% pure_nz 2/286 h&m").orElseThrow().anySpelling())
+                .isEqualTo("100%.*pure_nz.*2/286.*h&m");
     }
 
     @Test

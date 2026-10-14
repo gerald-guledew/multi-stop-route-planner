@@ -44,7 +44,7 @@ class FoundPlaceTest {
 
     @Test
     void givesAnAddressNoDetail() {
-        FoundPlace place = FoundPlace.address("90A Bassett Road, Remuera, Auckland", -36.87, 174.78);
+        FoundPlace place = FoundPlace.address("286 Mount Wellington Highway, Mount Wellington, Auckland", -36.91, 174.84);
 
         assertThat(place.kind()).isEqualTo(FoundPlace.Kind.ADDRESS);
         assertThat(place.detail()).isNull();
