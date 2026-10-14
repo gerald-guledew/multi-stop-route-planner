@@ -21,6 +21,9 @@ import java.util.OptionalDouble;
  *                             roads were read with their heights
  * @param totalDescentMetres   every metre the trip comes down, as a number above zero. Null
  *                             whenever the climb is
+ * @param shortestOrder        what the shortest order comes to, given when the order was chosen
+ *                             for distance and climb together, so the two can be held against
+ *                             each other. Null when the order was chosen for distance alone
  */
 public record OptimizeRouteResponse(
         List<Place> route,
@@ -30,9 +33,14 @@ public record OptimizeRouteResponse(
         Long totalClimbMetres,
         Long totalDescentMetres,
         double enteredOrderDistanceKm,
+        ShortestOrder shortestOrder,
         long ordersChecked) {
 
     public record Place(String name, double latitude, double longitude) {
+    }
+
+    /** The shortest order: how far it is, and how much it climbs and comes down. */
+    public record ShortestOrder(double distanceKm, long climbMetres, long descentMetres) {
     }
 
     /**
@@ -75,6 +83,12 @@ public record OptimizeRouteResponse(
                 wholeMetresUp(plan.totalClimbAndDescent()),
                 wholeMetresDown(plan.totalClimbAndDescent()),
                 roundToTwoDecimals(plan.enteredOrderDistanceKm()),
+                plan.shortestOrder()
+                        .map(shortest -> new ShortestOrder(
+                                roundToTwoDecimals(shortest.distanceKm()),
+                                Math.round(shortest.climbAndDescent().climbMetres()),
+                                Math.round(shortest.climbAndDescent().descentMetres())))
+                        .orElse(null),
                 plan.ordersChecked());
     }
 

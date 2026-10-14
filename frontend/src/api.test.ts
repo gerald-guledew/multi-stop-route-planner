@@ -116,19 +116,34 @@ describe('planning a route', () => {
   it('posts the start, the stops and whether to come back', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, false)
+    await optimizeRoute(start, stops, false, false)
 
     const [url, init] = fetched.mock.calls[0]
     expect(url).toBe('/api/v1/routes/optimize')
     expect(init?.method).toBe('POST')
-    expect(JSON.parse(String(init?.body))).toEqual({ start, stops, returnToStart: false })
+    expect(JSON.parse(String(init?.body))).toEqual({
+      start,
+      stops,
+      returnToStart: false,
+      factorInAltitude: false,
+    })
+  })
+
+  it('asks for altitude to be factored in when told to', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+
+    await optimizeRoute(start, stops, true, true)
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent.factorInAltitude).toBe(true)
+    expect(sent.returnToStart).toBe(true)
   })
 
   it('says which stops have to keep their place', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
     const office = { name: 'Office', latitude: -36.8485, longitude: 174.7621, keepInPlace: true }
 
-    await optimizeRoute(start, [office, ...stops], true)
+    await optimizeRoute(start, [office, ...stops], true, false)
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.stops[0].keepInPlace).toBe(true)
@@ -139,7 +154,7 @@ describe('planning a route', () => {
   it('names the place no road reaches, so the map can point at it', async () => {
     apiThatAnswers(422, { title: 'Unroutable place', detail: 'Cannot route to Airport.', place: 'Airport' })
 
-    const failure = await optimizeRoute(start, stops, true).catch((caught: unknown) => caught)
+    const failure = await optimizeRoute(start, stops, true, false).catch((caught: unknown) => caught)
 
     expect(failure).toBeInstanceOf(ApiError)
     expect((failure as ApiError).place).toBe('Airport')
@@ -158,7 +173,7 @@ describe('planning a route', () => {
       })),
     )
 
-    await expect(optimizeRoute(start, stops, true)).rejects.toThrow('Request failed with status 500')
+    await expect(optimizeRoute(start, stops, true, false)).rejects.toThrow('Request failed with status 500')
   })
 })
 
@@ -285,7 +300,7 @@ describe('a planner that does not answer', () => {
     vi.useFakeTimers()
     apiThatNeverAnswers()
 
-    const planning = optimizeRoute(home, [office], true)
+    const planning = optimizeRoute(home, [office], true, false)
     const outcome = expect(planning).rejects.toBeInstanceOf(NotAnswering)
     await vi.advanceTimersByTimeAsync(8_000)
     expect(await hasSettled(planning)).toBe(false)

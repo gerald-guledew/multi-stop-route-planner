@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, UpIcon } from './icons'
+import { altitudeSaid, differsFromTheShortest, shortestSaid } from '../altitude'
 import { climbSaid } from '../climb'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { canBeSaved, savedAt } from '../savedPlaces'
+import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
 import { anyKeptInPlace, canMove, ordinal, type Direction } from '../stops'
 import { whatNext } from '../whatNext'
@@ -22,6 +24,9 @@ interface Props {
   onToggleKeepInPlace: (index: number) => void
   onChangeTurn: (index: number, direction: Direction) => void
   onReturnToStartChange: (returnToStart: boolean) => void
+  /** Whether the order is to be chosen for distance and climb together. */
+  factorInAltitude: boolean
+  onFactorInAltitudeChange: (factorInAltitude: boolean) => void
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
@@ -143,8 +148,11 @@ export default function RoutePanel(props: Props) {
   const { places, plan, error, planning, returnToStart } = props
   const stopCount = Math.max(places.length - 1, 0)
   const tooManyStops = stopCount > MAX_STOPS
-  const saving = plan ? plan.enteredOrderDistanceKm - plan.totalDistanceKm : 0
+  const saving = plan ? savingSaid(plan.enteredOrderDistanceKm, plan.totalDistanceKm) : null
   const climb = plan ? climbSaid(plan.totalClimbMetres, plan.totalDescentMetres) : null
+  const altitude = plan ? altitudeSaid(props.factorInAltitude, plan) : null
+  // Shown only when it is another order than this one. The same figures twice say nothing.
+  const shortest = plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -361,6 +369,19 @@ export default function RoutePanel(props: Props) {
                 />
                 Return to the start
               </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={props.factorInAltitude}
+                  // A plan on its way was asked for with the box as it stood.
+                  disabled={planning}
+                  onChange={(event) => props.onFactorInAltitudeChange(event.target.checked)}
+                />
+                Factor in altitude
+              </label>
+              {props.factorInAltitude && (
+                <p className="note">The order may come out a little longer, to climb less.</p>
+              )}
 
               <div className="buttons">
                 <button
@@ -404,16 +425,25 @@ export default function RoutePanel(props: Props) {
                     <dd>{climb}</dd>
                   </div>
                 )}
+                {shortest && (
+                  <div>
+                    <dt>The shortest order</dt>
+                    <dd>{shortestSaid(shortest)}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>The order you clicked</dt>
                   <dd>{plan.enteredOrderDistanceKm.toFixed(2)} km</dd>
                 </div>
-                <div>
-                  <dt>Saved</dt>
-                  <dd className={saving > 0 ? 'good' : ''}>{saving.toFixed(2)} km</dd>
-                </div>
+                {saving && (
+                  <div>
+                    <dt>{saving.label}</dt>
+                    <dd className={saving.good ? 'good' : ''}>{saving.figure}</dd>
+                  </div>
+                )}
               </dl>
 
+              {altitude && <p className="note">{altitude}</p>}
               {plan.totalDurationSeconds !== null && (
                 <p className="note">
                   Driving time is for clear roads. It allows nothing for traffic, or for the

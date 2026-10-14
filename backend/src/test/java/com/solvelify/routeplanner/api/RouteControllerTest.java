@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.solvelify.routeplanner.planning.ChosenFor;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
@@ -53,7 +54,7 @@ class RouteControllerTest {
 
     @Test
     void returnsThePlanAsJson() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -69,7 +70,7 @@ class RouteControllerTest {
 
     @Test
     void roundsDistancesToTwoDecimals() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -136,7 +137,7 @@ class RouteControllerTest {
 
     @Test
     void reportsAPlaceWithNoRoadNearItAsUnprocessable() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean()))
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any()))
                 .willThrow(new UnroutablePlaceException("Takapuna", "No road was found near those coordinates."));
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -154,7 +155,7 @@ class RouteControllerTest {
 
     @Test
     void passesOnWhichStopsHaveToKeepTheirPlace() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
         String officeFirst = """
                 {
                   "start": { "name": "Home", "latitude": -36.8689, "longitude": 174.7832 },
@@ -173,24 +174,24 @@ class RouteControllerTest {
                 .andExpect(status().isOk());
 
         // Positions in the list of stops, counting from 0: the first and the fourth.
-        verify(routePlanningService).plan(any(), any(), eq(Set.of(0, 3)), eq(true));
+        verify(routePlanningService).plan(any(), any(), eq(Set.of(0, 3)), eq(true), any());
     }
 
     @Test
     void leavesEveryStopFreeToMoveUnlessToldOtherwise() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_REQUEST))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true));
+        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true), eq(ChosenFor.DISTANCE));
     }
 
     @Test
     void ignoresTheMarkOnTheStartWhichIsAlwaysFirstAnyway() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
         String startMarked = """
                 {
                   "start": { "name": "Home", "latitude": -36.8689, "longitude": 174.7832, "keepInPlace": true },
@@ -205,14 +206,14 @@ class RouteControllerTest {
                         .content(startMarked))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true));
+        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true), eq(ChosenFor.DISTANCE));
     }
 
     // Driving times.
 
     @Test
     void givesDrivingTimesInWholeSeconds() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlanWithTimes());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlanWithTimes());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -225,7 +226,7 @@ class RouteControllerTest {
 
     @Test
     void saysNullAndNotZeroWhenThereAreNoTimesToGive() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -241,7 +242,7 @@ class RouteControllerTest {
 
     @Test
     void givesClimbAndDescentInWholeMetres() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlanWithClimbs());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlanWithClimbs());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -259,7 +260,7 @@ class RouteControllerTest {
 
     @Test
     void keepsTheClimbOfTheTripApartFromItsDescent() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aOneWayPlanUphill());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aOneWayPlanUphill());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -271,7 +272,7 @@ class RouteControllerTest {
 
     @Test
     void saysNoughtAndNotNullForALegThatIsLevel() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aLevelPlan());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aLevelPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -285,7 +286,7 @@ class RouteControllerTest {
 
     @Test
     void saysNullAndNotNoughtWhenTheRoadsHaveNoHeights() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean())).willReturn(aPlanWithTimes());
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlanWithTimes());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -301,6 +302,73 @@ class RouteControllerTest {
                 .andExpect(jsonPath("$.legs[0].descentMetres").value(nullValue()))
                 // The times are still there. Only the heights are missing.
                 .andExpect(jsonPath("$.totalDurationSeconds").value(1556));
+    }
+
+    // An order chosen for distance and climb together.
+
+    @Test
+    void asksForDistanceAndClimbTogetherWhenToldToFactorInAltitude() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInAltitude\": true")))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE_AND_CLIMB));
+    }
+
+    @Test
+    void asksForDistanceAloneWhenToldNotToFactorInAltitude() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInAltitude\": false")))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE));
+    }
+
+    @Test
+    void saysWhatTheShortestOrderComesTo() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any()))
+                .willReturn(aPlanChosenForDistanceAndClimb());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDistanceKm").value(19.29))
+                .andExpect(jsonPath("$.shortestOrder.distanceKm").value(18.94))
+                .andExpect(jsonPath("$.shortestOrder.climbMetres").value(153))
+                .andExpect(jsonPath("$.shortestOrder.descentMetres").value(152));
+    }
+
+    @Test
+    void saysNullForTheShortestOrderWhenThePlanIsTheShortest() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlanWithClimbs());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasKey("shortestOrder")))
+                .andExpect(jsonPath("$.shortestOrder").value(nullValue()));
+    }
+
+    private static RoutePlan aPlanChosenForDistanceAndClimb() {
+        RoutePlan chosen = aPlanWithClimbs();
+
+        return new RoutePlan(
+                chosen.route(),
+                chosen.legs(),
+                chosen.totalDistanceKm(),
+                chosen.totalDurationSeconds(),
+                chosen.totalClimbAndDescent(),
+                chosen.enteredOrderDistanceKm(),
+                chosen.ordersChecked(),
+                Optional.of(new RoutePlan.ShortestOrder(18.936, new ClimbAndDescent(152.6, 152.4))));
     }
 
     private static RoutePlan aPlanWithClimbs() {

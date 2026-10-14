@@ -22,10 +22,20 @@ public record OptimizeRouteRequest(
         @Size(max = 10, message = "at most 10 stops are supported")
         List<@Valid PlaceRequest> stops,
 
-        Boolean returnToStart) {
+        Boolean returnToStart,
+
+        Boolean factorInAltitude) {
 
     /** Defaults to a round trip, as documented in docs/api.md. */
     public boolean returnToStartOrDefault() {
         return returnToStart == null || returnToStart;
+    }
+
+    /**
+     * Whether the order is to be chosen for distance and climb together. Left out, it is chosen
+     * for distance alone.
+     */
+    public boolean factorInAltitudeOrDefault() {
+        return factorInAltitude != null && factorInAltitude;
     }
 }
