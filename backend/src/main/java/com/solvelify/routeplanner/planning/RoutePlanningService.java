@@ -20,24 +20,41 @@ public class RoutePlanningService {
 
     private final TravelMatrixProvider travelMatrixProvider;
     private final RouteSolver routeSolver;
+    private final PlanningProperties properties;
 
-    public RoutePlanningService(TravelMatrixProvider travelMatrixProvider, RouteSolver routeSolver) {
+    public RoutePlanningService(
+            TravelMatrixProvider travelMatrixProvider, RouteSolver routeSolver, PlanningProperties properties) {
         this.travelMatrixProvider = travelMatrixProvider;
         this.routeSolver = routeSolver;
+        this.properties = properties;
     }
 
-    /** Every stop free to move. */
+    /** Every stop free to move, and the order chosen for distance. */
     public RoutePlan plan(Location start, List<Location> stops, boolean returnToStart) {
         return plan(start, stops, Set.of(), returnToStart);
+    }
+
+    /** The order chosen for distance. */
+    public RoutePlan plan(
+            Location start, List<Location> stops, Set<Integer> keptInPlace, boolean returnToStart) {
+        return plan(start, stops, keptInPlace, returnToStart, ChosenFor.DISTANCE);
     }
 
     /**
      * @param keptInPlace positions in {@code stops}, counting from 0, of the stops that must be
      *                    visited at the turn they were entered in. The first stop of the day
      *                    that cannot wait, say. The others are arranged around them
+     * @param chosenFor   what the order is chosen for. Climb can be counted only on roads whose
+     *                    heights are known. On any others the order is chosen for distance,
+     *                    whatever was asked, and the plan gives no shortest order to hold it
+     *                    against
      */
     public RoutePlan plan(
-            Location start, List<Location> stops, Set<Integer> keptInPlace, boolean returnToStart) {
+            Location start,
+            List<Location> stops,
+            Set<Integer> keptInPlace,
+            boolean returnToStart,
+            ChosenFor chosenFor) {
 
         for (int position : keptInPlace) {
             if (position < 0 || position >= stops.size()) {
@@ -52,22 +69,35 @@ public class RoutePlanningService {
         places.addAll(stops);
 
         TravelMatrix matrix = travelMatrixProvider.matrixFor(places);
+        Set<Integer> kept = asMatrixIndices(keptInPlace);
 
-        // Cost is distance today. Step 6 fills this table with litres instead.
-        RouteSolver.Solution solution =
-                routeSolver.solve(matrix.asCostMatrix(), returnToStart, asMatrixIndices(keptInPlace));
+        // The solver is handed a table of costs and keeps the total down. Distances give the
+        // shortest order. Step 6 fills the table with litres instead.
+        RouteSolver.Solution shortest = routeSolver.solve(matrix.asCostMatrix(), returnToStart, kept);
+        int[] shortestPath = pathOf(shortest.order(), returnToStart);
 
-        int[] bestPath = pathOf(solution.order(), returnToStart);
+        // The same search again over a table that counts the climb as well. The shortest order
+        // is still worked out, because it is what this one is held against.
+        Optional<RouteSolver.Solution> countingClimb = chosenFor == ChosenFor.DISTANCE_AND_CLIMB
+                ? matrix.asCostMatrixCountingClimb(properties.roadMetresPerMetreClimbed())
+                        .map(cost -> routeSolver.solve(cost, returnToStart, kept))
+                : Optional.empty();
+
+        int[] bestPath = countingClimb
+                .map(solution -> pathOf(solution.order(), returnToStart))
+                .orElse(shortestPath);
         int[] enteredPath = pathOf(stopsInEnteredOrder(stops.size()), returnToStart);
 
         return new RoutePlan(
                 placesAlong(bestPath, places),
                 legsAlong(bestPath, places, matrix),
-                solution.totalCost(),
+                // Added up along the road, and not the solver's total, which is a cost.
+                distanceAlong(bestPath, matrix),
                 durationAlong(bestPath, matrix),
                 climbAlong(bestPath, matrix),
                 distanceAlong(enteredPath, matrix),
-                solution.ordersChecked());
+                shortest.ordersChecked(),
+                countingClimb.flatMap(counted -> shortestOrderAlong(shortestPath, matrix)));
     }
 
     /** The matrix puts the start at 0, so the stop at position 0 of the list is index 1. */
@@ -118,7 +148,7 @@ public class RoutePlanningService {
 
     /**
      * Driving time for the whole trip, or empty when the matrix has no times. The order was
-     * chosen for distance. This says how long that order takes, not that it is the quickest.
+     * not chosen for time. This says how long that order takes, not that it is the quickest.
      */
     private static OptionalDouble durationAlong(int[] path, TravelMatrix matrix) {
         double total = 0;
@@ -146,6 +176,11 @@ public class RoutePlanningService {
             total = total.plus(leg.get());
         }
         return Optional.of(total);
+    }
+
+    private static Optional<RoutePlan.ShortestOrder> shortestOrderAlong(int[] path, TravelMatrix matrix) {
+        return climbAlong(path, matrix)
+                .map(climb -> new RoutePlan.ShortestOrder(distanceAlong(path, matrix), climb));
     }
 
     private static double distanceAlong(int[] path, TravelMatrix matrix) {

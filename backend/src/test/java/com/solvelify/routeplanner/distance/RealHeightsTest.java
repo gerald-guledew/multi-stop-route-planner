@@ -6,12 +6,18 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.graphhopper.GraphHopper;
 import com.graphhopper.reader.dem.ElevationProvider;
+import com.solvelify.routeplanner.planning.BruteForceRouteSolver;
+import com.solvelify.routeplanner.planning.ChosenFor;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.Location;
+import com.solvelify.routeplanner.planning.PlanningProperties;
+import com.solvelify.routeplanner.planning.RoutePlan;
+import com.solvelify.routeplanner.planning.RoutePlanningService;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -194,6 +200,48 @@ class RealHeightsTest {
         // of the grid included, and comes out 6 seconds longer.
         assertThat(km).isCloseTo(76.91, within(0.01));
         assertThat(seconds).isCloseTo(5057, within(15.0));
+    }
+
+    // The order of the stops, chosen for distance and climb together. Both trips are in
+    // docs/api.md.
+
+    @Test
+    void goesALittleFurtherRoundAucklandToClimbAGoodDealLess() {
+        RoutePlan plan = planner().plan(
+                new Location("Avondale", -36.8990, 174.6990),
+                List.of(
+                        new Location("Glen Eden", -36.9110, 174.6500),
+                        new Location("Blockhouse Bay", -36.9200, 174.7010),
+                        new Location("Takapuna", -36.7870, 174.7740),
+                        new Location("Mission Bay", -36.8490, 174.8310)),
+                Set.of(),
+                true,
+                ChosenFor.DISTANCE_AND_CLIMB);
+
+        // Measured: 62.88 km climbing 561 m, where the shortest order is 62.58 km and climbs
+        // 666 m. Mission Bay and Takapuna change places.
+        RoutePlan.ShortestOrder shortest = plan.shortestOrder().orElseThrow();
+        double climb = plan.totalClimbAndDescent().orElseThrow().climbMetres();
+        assertThat(plan.totalDistanceKm() - shortest.distanceKm()).isBetween(0.1, 0.6);
+        assertThat(shortest.climbAndDescent().climbMetres() - climb).isBetween(70.0, 140.0);
+        assertThat(plan.route()).extracting(Location::name)
+                .containsExactly("Avondale", "Glen Eden", "Blockhouse Bay", "Takapuna", "Mission Bay", "Avondale");
+    }
+
+    @Test
+    void leavesTheFiveStopsInTheirShortestOrder() {
+        RoutePlan plan = planner().plan(
+                THE_ROUND.getFirst(), THE_ROUND.subList(1, THE_ROUND.size()), Set.of(), true,
+                ChosenFor.DISTANCE_AND_CLIMB);
+
+        // Measured: 76.91 km and 478 m either way. No other order climbs enough less.
+        RoutePlan.ShortestOrder shortest = plan.shortestOrder().orElseThrow();
+        assertThat(plan.totalDistanceKm()).isEqualTo(shortest.distanceKm());
+        assertThat(plan.totalClimbAndDescent()).contains(shortest.climbAndDescent());
+    }
+
+    private static RoutePlanningService planner() {
+        return new RoutePlanningService(provider, new BruteForceRouteSolver(), new PlanningProperties(null));
     }
 
     private static ClimbAndDescent aroundTheFiveStops() {

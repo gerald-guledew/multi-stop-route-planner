@@ -23,8 +23,11 @@ class RoutePlanningServiceTest {
 
     private static final List<Location> STOPS = List.of(TAKAPUNA, AIRPORT, DEVONPORT, SYLVIA_PARK);
 
-    private final RoutePlanningService service =
-            new RoutePlanningService(new HaversineTravelMatrixProvider(), new BruteForceRouteSolver());
+    /** The settings as shipped: a metre climbed counts as 10 m of road. */
+    private static final PlanningProperties AS_SHIPPED = new PlanningProperties(null);
+
+    private final RoutePlanningService service = new RoutePlanningService(
+            new HaversineTravelMatrixProvider(), new BruteForceRouteSolver(), AS_SHIPPED);
 
     @Test
     void findsTheShortestRoundTrip() {
@@ -165,7 +168,7 @@ class RoutePlanningServiceTest {
             });
 
     private final RoutePlanningService onRoadsWithTimes =
-            new RoutePlanningService(ROADS_WITH_TIMES, new BruteForceRouteSolver());
+            new RoutePlanningService(ROADS_WITH_TIMES, new BruteForceRouteSolver(), AS_SHIPPED);
 
     @Test
     void saysHowLongEachLegOfTheChosenOrderTakes() {
@@ -235,7 +238,7 @@ class RoutePlanningServiceTest {
             });
 
     private final RoutePlanningService onRoadsWithHeights =
-            new RoutePlanningService(ROADS_WITH_HEIGHTS, new BruteForceRouteSolver());
+            new RoutePlanningService(ROADS_WITH_HEIGHTS, new BruteForceRouteSolver(), AS_SHIPPED);
 
     @Test
     void saysHowMuchEachLegOfTheChosenOrderClimbsAndDescends() {
@@ -297,5 +300,159 @@ class RoutePlanningServiceTest {
 
         assertThat(plan.totalClimbAndDescent()).isEmpty();
         assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.climbAndDescent()).isEmpty());
+    }
+
+    // An order chosen for distance and climb together.
+
+    private static final List<Location> OFFICE_AND_SHOP = List.of(OFFICE, SHOP);
+    private static final Set<Integer> NONE_KEPT = Set.of();
+    private static final boolean ONE_WAY = false;
+    private static final boolean THERE_AND_BACK = true;
+
+    /**
+     * The same three places and the same hills, with the Shop nearer Home. One way, Home,
+     * Office, Shop is 11 + 5 = 16 km and goes over the ridge, climbing 150 m. Home, Shop, Office
+     * is 11.5 + 5 = 16.5 km and climbs 20 + 30 = 50 m. So the shortest order climbs 100 m more
+     * to be half a kilometre shorter.
+     *
+     * <p>There and back is another matter. Home, Office, Shop, Home is 11 + 5 + 12 = 28 km and
+     * the other way round is 11.5 + 5 + 14 = 30.5 km. Both climb 150 m, as a round trip over the
+     * same roads must, whichever way it is driven.
+     */
+    private static final TravelMatrixProvider A_RIDGE_ON_THE_SHORT_WAY = places -> new TravelMatrix(
+            new double[][] {
+                {0, 11, 11.5},
+                {14, 0, 5},
+                {12, 5, 0},
+            },
+            new double[][] {
+                {0, 100, 1500},
+                {600, 0, 100},
+                {100, 300, 0},
+            },
+            new ClimbAndDescent[][] {
+                {ClimbAndDescent.LEVEL, new ClimbAndDescent(150, 100), new ClimbAndDescent(20, 0)},
+                {new ClimbAndDescent(100, 150), ClimbAndDescent.LEVEL, new ClimbAndDescent(0, 30)},
+                {new ClimbAndDescent(0, 20), new ClimbAndDescent(30, 0), ClimbAndDescent.LEVEL},
+            });
+
+    private final RoutePlanningService overTheRidge =
+            new RoutePlanningService(A_RIDGE_ON_THE_SHORT_WAY, new BruteForceRouteSolver(), AS_SHIPPED);
+
+    @Test
+    void goesALittleFurtherToClimbAGoodDealLess() {
+        // The 100 m of climb saved count as a kilometre of road. The way round is half of one.
+        RoutePlan plan = overTheRidge.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office");
+        assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(50, 0));
+    }
+
+    @Test
+    void saysHowFarTheOrderGoesAndNotWhatItCameToWithTheClimbCounted() {
+        RoutePlan plan = overTheRidge.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
+
+        // 16.5 km of road. With the climb counted it came to 17.
+        assertThat(plan.totalDistanceKm()).isEqualTo(16.5);
+        assertThat(plan.legs()).extracting(RoutePlan.Leg::distanceKm).containsExactly(11.5, 5.0);
+    }
+
+    @Test
+    void saysWhatTheShortestOrderWouldHaveComeTo() {
+        RoutePlan plan = overTheRidge.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(plan.shortestOrder())
+                .contains(new RoutePlan.ShortestOrder(16, new ClimbAndDescent(150, 130)));
+    }
+
+    @Test
+    void takesTheShortestOrderUnlessAskedToCountTheClimb() {
+        RoutePlan forDistance = overTheRidge.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE);
+        RoutePlan nothingSaid = overTheRidge.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY);
+
+        assertThat(names(forDistance)).containsExactly("Home", "Office", "Shop");
+        assertThat(forDistance.totalDistanceKm()).isEqualTo(16);
+        // Nothing to hold it against. It is the shortest order.
+        assertThat(forDistance.shortestOrder()).isEmpty();
+        assertThat(nothingSaid).isEqualTo(forDistance);
+    }
+
+    @Test
+    void countsTheClimbOfTheDriveHomeAsWell() {
+        // There and back both orders climb 150 m, so the shorter one stands. Judged on the way
+        // out alone, the order would have changed.
+        RoutePlan plan = overTheRidge.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.totalDistanceKm()).isEqualTo(28);
+    }
+
+    @Test
+    void givesTheSameFiguresTwiceWhenTheShortestOrderStands() {
+        RoutePlan plan = overTheRidge.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(150, 150));
+        assertThat(plan.shortestOrder())
+                .contains(new RoutePlan.ShortestOrder(28, new ClimbAndDescent(150, 150)));
+    }
+
+    @Test
+    void doesNotGoFarOutOfItsWayForTheClimb() {
+        // On the roads further up, going by the Shop first is 9 km longer. The 100 m of climb
+        // it saves count as one.
+        RoutePlan plan = onRoadsWithHeights.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+        assertThat(plan.totalDistanceKm()).isEqualTo(16);
+    }
+
+    @Test
+    void leavesAKeptStopAtItsTurnWhenCountingTheClimb() {
+        // With the Office kept first there is one order, and it goes over the ridge.
+        RoutePlan plan = overTheRidge.plan(
+                HOME, OFFICE_AND_SHOP, Set.of(0), ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+        assertThat(plan.ordersChecked()).isEqualTo(1);
+    }
+
+    @Test
+    void countsAMetreClimbedAsManyMetresOfRoadAsItIsSetTo() {
+        // At 4 m of road each, the 100 m saved count as 400 m. The way round is 500 m.
+        RoutePlanningService countingLessForTheClimb = new RoutePlanningService(
+                A_RIDGE_ON_THE_SHORT_WAY, new BruteForceRouteSolver(), new PlanningProperties(4.0));
+
+        RoutePlan plan = countingLessForTheClimb.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+        // The climb was counted, though it changed nothing, so the shortest order is given.
+        assertThat(plan.shortestOrder()).isPresent();
+    }
+
+    @Test
+    void choosesForDistanceWhenTheRoadsHaveNoHeights() {
+        RoutePlan plan = onRoadsWithTimes.plan(
+                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+        assertThat(plan.totalDistanceKm()).isEqualTo(16);
+        // No climb was counted, and giving no shortest order is how the plan says so.
+        assertThat(plan.shortestOrder()).isEmpty();
+    }
+
+    @Test
+    void choosesForDistanceOnStraightLinesWhateverWasAsked() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(plan.totalDistanceKm()).isCloseTo(51.76, within(0.01));
+        assertThat(plan.shortestOrder()).isEmpty();
     }
 }
