@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.search;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -175,8 +176,24 @@ public class PostgresPlaceSearch implements PlaceSearch {
         this.properties = properties;
     }
 
+    /**
+     * An address typed with a flat in front of it can find nothing though the building is
+     * there, because LINZ lists the flats of some buildings and not of others. So when the
+     * words as typed find nothing, {@link Unit} says what else to look for. Never otherwise:
+     * what holds everything typed is the better answer.
+     */
     @Override
     public List<FoundPlace> search(String typed, ReferencePoint near, int limit) {
+        List<FoundPlace> found = find(typed, near, limit);
+
+        Iterator<String> otherWays = Unit.otherWaysToFind(typed).iterator();
+        while (found.isEmpty() && otherWays.hasNext()) {
+            found = find(otherWays.next(), near, limit);
+        }
+        return found;
+    }
+
+    private List<FoundPlace> find(String typed, ReferencePoint near, int limit) {
         Optional<SearchTerm> term = SearchTerm.from(typed);
         if (term.isEmpty()) {
             return List.of();

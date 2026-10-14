@@ -30,6 +30,7 @@ class PostgresPlaceSearchTest {
     private static final ReferencePoint PAPAKURA = new ReferencePoint(-37.0650, 174.9430);
     private static final ReferencePoint REEFTON = new ReferencePoint(-42.1100, 171.8600);
     private static final ReferencePoint INVERCARGILL = new ReferencePoint(-46.4130, 168.3540);
+    private static final ReferencePoint PALMERSTON_NORTH = new ReferencePoint(-40.3560, 175.6110);
 
     @Autowired
     private PlaceSearch placeSearch;
@@ -601,6 +602,73 @@ class PostgresPlaceSearchTest {
         ReferencePoint atTheWarehouse = new ReferencePoint(-36.8720, 174.7770);
         assertThat(names(capped.search("newmarket", atTheWarehouse, 8)))
                 .containsExactlyInAnyOrder("100 Broadway, Newmarket", "The Warehouse");
+    }
+
+    // A flat typed in front of the street number.
+
+    @Test
+    void findsTheBuildingWhenItsFlatsAreNotListed() {
+        // LINZ lists the flats of some buildings and not of others.
+        assertThat(names(placeSearch.search("5/100 broadway", 8))).containsExactly("100 Broadway, Newmarket");
+    }
+
+    @Test
+    void findsTheFlatItselfWhenItIsListed() {
+        insertAddress(40, "5/100 Broadway, Newmarket", -36.8700, 174.7770);
+
+        // What holds everything typed is the answer. The building is not offered beside it.
+        assertThat(names(placeSearch.search("5/100 broadway", 8)))
+                .containsExactly("5/100 Broadway, Newmarket");
+    }
+
+    @Test
+    void doesNotLookForTheBuildingWhenSomethingElseHoldsWhatWasTyped() {
+        insertPoi("cf", "Corner Cafe", "5/100 Broadway", "Newmarket", "Auckland", 0.99, -36.8700, 174.7770);
+
+        assertThat(names(placeSearch.search("5/100 broadway", 8))).containsExactly("Corner Cafe");
+    }
+
+    @Test
+    void readsAFlatTypedInWordsTheWayLinzWritesIt() {
+        insertAddress(40, "5/100 Broadway, Newmarket", -36.8700, 174.7770);
+
+        assertThat(names(placeSearch.search("Unit 5, 100 Broadway", 8)))
+                .containsExactly("5/100 Broadway, Newmarket");
+    }
+
+    @Test
+    void findsTheBuildingFromAFlatTypedInWords() {
+        assertThat(names(placeSearch.search("Flat 5, 100 Broadway", 8)))
+                .containsExactly("100 Broadway, Newmarket");
+    }
+
+    @Test
+    void stillFindsNothingWhenTheBuildingIsNotThereEither() {
+        assertThat(placeSearch.search("5/999 broadway", 8)).isEmpty();
+    }
+
+    @Test
+    void looksForTheBuildingWithEverythingElseASearchDoes() {
+        // Without the macron, and with the street typed short.
+        assertThat(names(placeSearch.search("2/12 bank st whangarei", 8)))
+                .containsExactly("12 Bank Street, Whangārei");
+    }
+
+    @Test
+    void looksFromTheSamePlaceWhenItLooksForTheBuilding() {
+        insertAddress(40, "100 Broadway, Palmerston North", -40.3520, 175.6120);
+
+        assertThat(names(placeSearch.search("5/100 broadway", PALMERSTON_NORTH, 8)))
+                .containsExactly("100 Broadway, Palmerston North", "100 Broadway, Newmarket");
+        assertThat(names(placeSearch.search("5/100 broadway", REMUERA, 8)))
+                .containsExactly("100 Broadway, Newmarket", "100 Broadway, Palmerston North");
+    }
+
+    @Test
+    void listsNoMoreBuildingsThanWereAskedFor() {
+        insertAddress(40, "100 Broadway, Palmerston North", -40.3520, 175.6120);
+
+        assertThat(placeSearch.search("5/100 broadway", REMUERA, 1)).hasSize(1);
     }
 
     @Test
