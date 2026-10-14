@@ -52,17 +52,17 @@ GET /api/v1/places/search?q=new%20world%20remuera
 ```
 
 ```
-GET /api/v1/places/search?q=90a%20bassett%20road
+GET /api/v1/places/search?q=286%20mount%20wellington%20highway&limit=1
 ```
 
 ```json
 [
   {
     "kind": "address",
-    "name": "90A Bassett Road, Remuera, Auckland",
+    "name": "286 Mount Wellington Highway, Mount Wellington, Auckland",
     "detail": null,
-    "latitude": -36.8689416667,
-    "longitude": 174.7832303333
+    "latitude": -36.9145359,
+    "longitude": 174.8391820167
   }
 ]
 ```
@@ -138,7 +138,7 @@ Between equal scores, the name the words account for most of comes first, then t
 
 - A word typed in full is read as its abbreviation only beside another word of three letters or more. "saint he" finds what is written Saint. From "saint hel" on, what is written St Heliers is found too.
 - Other abbreviations are not read. "ter" finds Terrace, being the beginning of the word, but "terrace" does not find a place that writes "Ter".
-- A unit number LINZ does not hold finds nothing. "3/90A Bassett Road" fails where "90A Bassett Road" works.
+- A unit number LINZ does not hold finds nothing. "7/205 Queen Street" fails where "205 Queen Street" works.
 - Near means in a straight line, not by road. Across a harbour, the nearest branch to drive to can be a different one.
 - Words are matched as a run. "auckland hospital" lists "Auckland Hospital Foundation" before "Auckland City Hospital", because "City" interrupts the run. Typing the name in full finds it.
 - A word that matches more than 20,000 rows of a table, such as "road" or "auckland" alone, is ranked from the first 20,000 found, not the nearest. A second word fixes it.
