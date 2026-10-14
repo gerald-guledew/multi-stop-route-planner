@@ -167,7 +167,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `returnToStart` | boolean | Optional, defaults to `true` |
 | `factorInRoadClimbs` | boolean | Optional, defaults to `false`. See "Factoring in road climbs" below |
 | `vehicle` | object | Optional. The vehicle to work out the fuel for. See "Fuel" below |
-| `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows |
+| `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows, or the register's figure for a car found there |
 
 ```json
 {
@@ -378,7 +378,7 @@ Send the vehicle with the request and every leg says how much fuel it takes, and
 
 For the five stops above that is 3.88 L: 51.76 km at 7.5 L for every 100 km. Without a `vehicle` both fields are `null`.
 
-- **It is the dashboard's figure for every kilometre.** A dashboard average already holds the hills and the town driving the car usually does, so for a trip like the usual ones it is close.
+- **It is the vehicle's figure for every kilometre.** A dashboard average already holds the hills and the town driving the car usually does, so for a trip like the usual ones it is close. A car found in the register goes by its laboratory figure unless the dashboard's is given, and real driving uses more than that, see "Cars" below.
 - **Hills and speed do not change it yet.** A trip that climbs more than usual, or keeps to the motorway, takes more or less than this says.
 - **The order is chosen as it would be without a vehicle.** Fuel is worked out for the order chosen, not used to choose it.
 - **Rounded to a hundredth of a litre**, as distances are to a hundredth of a kilometre. The legs can add up to a hundredth more or less than the total.
@@ -545,26 +545,59 @@ Planning takes positions, not ids. To plan a trip through a saved place, send it
 
 ## The vehicle
 
-The vehicle the planner works out fuel for, saved so it is entered once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The screen sends its fuel use with every plan, see "Fuel" above.
+The vehicle the planner works out fuel for, saved so it is given once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The screen sends its fuel use with every plan, see "Fuel" above.
+
+It is given one of two ways. Entered by hand: its size and what its dashboard shows. Or found in NZTA's vehicle register, see "Cars" below: its make, model, year and engine, which bring the register's figure, and what its dashboard shows if the driver knows it.
 
 ### GET /api/v1/vehicle
 
+Entered by hand:
+
 ```json
-{ "litresPer100Km": 7.5, "size": "medium" }
+{ "litresPer100Km": 7.5, "figureFrom": "dashboard", "size": "medium", "car": null }
 ```
+
+Found in the register, and going by the register's figure:
+
+```json
+{
+  "litresPer100Km": 4.2,
+  "figureFrom": "register",
+  "size": null,
+  "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": true }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `litresPer100Km` | The fuel use plans go by, 2 to 30 |
+| `figureFrom` | `dashboard`: what the dashboard shows. `register`: the register's laboratory figure, which real driving exceeds |
+| `size` | For a vehicle entered by hand. `null` for a car found in the register |
+| `car` | For a car found in the register, as it describes it. `null` for a vehicle entered by hand |
 
 Answers **204** with no body until a vehicle is saved. Having none is not an error. The answer is marked `Cache-Control: no-store`, so a vehicle changed on one device is not shown as it was on another.
 
 ### PUT /api/v1/vehicle
 
-Saves the vehicle in place of the one there was, and answers with it. The same body as above.
+Saves the vehicle in place of the one there was, and answers with it as above. Entered by hand:
+
+```json
+{ "litresPer100Km": 7.5, "size": "medium" }
+```
+
+Found in the register, sent back as `/api/v1/cars/variants` gave it. With `litresPer100Km` too, that figure is used instead of the register's:
+
+```json
+{ "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": true } }
+```
 
 | Field | Rules |
 | --- | --- |
-| `litresPer100Km` | Required, 2 to 30. What the dashboard shows |
-| `size` | Required. `small`: a city hatchback. `medium`: a family hatchback or sedan. `large`: a large car, an SUV or a people mover |
+| `litresPer100Km` | 2 to 30. What the dashboard shows. Required with `size`, and may be left out with `car` |
+| `size` | `small`: a city hatchback. `medium`: a family hatchback or sedan. `large`: a large car, an SUV or a people mover |
+| `car` | `make`, `model`, `year`, `engineLitres` and `importedUsed`, all required, as the register lists the car |
 
-The size stands in for the weight, which is what a climb costs, and which few drivers know in kilograms.
+Send a `size` or a `car`, not both. The size stands in for the weight, which is what a climb costs, and which few drivers know in kilograms. A car found in the register keeps its description when the register is imported again.
 
 ### DELETE /api/v1/vehicle
 
@@ -572,4 +605,42 @@ Answers **204** with no body, whether there was a vehicle or not.
 
 ### Errors
 
-A missing field, a figure out of range or a size it does not know is a **400**, as Problem Details with the field named.
+| Status | When |
+| --- | --- |
+| 400 | A missing field, a figure out of range or a size it does not know, as Problem Details with the field named. A size and a car together, or neither, is named `sizeOrCar`, and a size with no figure `litresPer100KmWithSize` |
+| 422 | A car the register does not list. The detail says which, such as "NZTA's register has no 2018 SUZUKI SWIFT 1.3 L imported used." |
+
+## Cars
+
+The petrol cars of NZTA's Motor Vehicle Register, for a driver to find theirs in four steps: the make, the model, the year, then the engine. Each step answers with the choices for the next, given the ones made so far. A choice the register does not list gets an empty list, and so does every step until the cars are imported, see the README.
+
+| Request | Answers |
+| --- | --- |
+| `GET /api/v1/cars/makes` | `["ALFA ROMEO", "ASTON MARTIN", "AUDI", ...]`, in alphabetical order, as the register writes them |
+| `GET /api/v1/cars/models?make=SUZUKI` | `["ALTO", "BALENO", ...]`, in alphabetical order |
+| `GET /api/v1/cars/years?make=SUZUKI&model=SWIFT` | `[2026, 2025, ...]`, newest first |
+| `GET /api/v1/cars/variants?make=SUZUKI&model=SWIFT&year=2018` | Each engine with its figure, smallest first, and sold new before imported used |
+
+```json
+[
+  { "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": false }, "litresPer100Km": 4.8, "cars": 1344 },
+  { "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": true }, "litresPer100Km": 4.2, "cars": 552 }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `car.engineLitres` | To the nearest tenth of a litre, as drivers say it: 1,242 cc is 1.2 |
+| `car.importedUsed` | `true` for a used import, `false` for a car sold new in New Zealand |
+| `litresPer100Km` | The combined figure of the laboratory test the car was approved with: the middle one of these cars |
+| `cars` | How many of these cars are registered |
+
+A missing `make`, `model` or `year` is a **400**.
+
+### What the figures are
+
+- **Laboratory figures, which real driving exceeds.** NZTA's road tests of 26 light vehicles found real use from 9% lower to 40% higher than the official figures. A dashboard figure is closer, so the screen asks for one too.
+- **A used import keeps the figure of the country it came from.** For the same car and engine it reads 1 to 13% lower than one sold new here. A 2018 Swift 1.2 reads 4.2 imported used and 4.8 sold new.
+- **The makers' own.** A 2020 Corolla GX 2.0 reads 6.0 and a Swift GLX 1.2 4.8, as Toyota and Suzuki published them.
+- **A car listed fewer than ten times is left out.** That is where the register's mistakes are, such as a 2005 Mondeo at 2.0 L/100 km or a Corolla with a 57.6 L engine. It leaves 9,342 makes, models, years and engines, for 2,061,242 cars: 74% of the country's petrol cars. Most of the rest are older: under half the cars made before 2004 have a figure at all.
+- **Some hybrids are listed as petrol.** An Aqua or a Prius imported used reads 2.6 or 2.7. That is its own figure.

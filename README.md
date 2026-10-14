@@ -29,7 +29,7 @@ Develop an application that can accept a starting point and a list of places. It
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and the first thing a fuel estimate will read
 - An order that factors in road climbs when asked: a little longer, to climb less. Off unless ticked
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
-- Your vehicle saved once, and the fuel each leg and the whole trip takes, from the figure its dashboard shows
+- Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
 
@@ -116,6 +116,22 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner
 
 Import the addresses first, because each place takes its suburb from the nearest address. Overture publishes every month. Run both commands again to pick up a new release: places are updated, added and removed to match the file.
 
+### Finding a car
+
+Finding a car by its make, model, year and engine needs NZTA's Motor Vehicle Register, which is free and needs no account. Export New Zealand's petrol cars, about 9,300 makes, models, years and engines in a 0.5 MB file. It needs curl and jq, and takes a few minutes:
+
+```bash
+cd backend && scripts/export-nzta-cars.sh
+```
+
+Load it:
+
+```bash
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner.cars.import-enabled=true"
+```
+
+Without it everything still works, and the vehicle is entered by hand. NZTA updates the register every month. Run both commands again to pick that up.
+
 ### One app, to use it from a phone
 
 The two halves above are for working on the code. To use the planner, build the map screen into the API, so that one program serves both on one port:
@@ -165,4 +181,5 @@ Copyright 2026 Gerald Guledew. Apache License 2.0, see [LICENSE](LICENSE).
 - Map and roads: © OpenStreetMap contributors, Open Database License
 - NZ addresses: Toitū Te Whenua Land Information New Zealand, CC BY 4.0
 - Heights of the ground, fetched only when heights are switched on: [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), kept by Mapzen at the Linux Foundation. New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New Zealand and the New Zealand Government (All rights reserved). Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration. Global GMTED2010 and SRTM terrain data courtesy of the U.S. Geological Survey
+- Petrol cars and their fuel figures: NZ Transport Agency Waka Kotahi, Motor Vehicle Register, CC BY 4.0
 - Business names: Overture Maps Foundation, overturemaps.org. Places from Meta and Microsoft under CDLA Permissive 2.0, from Foursquare under Apache 2.0 (Copyright 2024 Foursquare Labs, Inc.) and from AllThePlaces under CC0
