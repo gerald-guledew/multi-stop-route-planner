@@ -82,6 +82,8 @@ Dotted lines happen at import time, not on a search.
 
 **In a suburb is not the same as named for it.** A place takes its suburb from LINZ, so everything in Saint Heliers matches "st heliers" once that is read as Saint. A place with a word in its name that begins with the first word typed keeps its whole score, and one found only by its suburb or its street keeps four fifths, the same step down as an address that merely contains the words.
 
+**A flat that is not listed falls back to its building.** LINZ lists the flats of some buildings and not of others, always before a slash. An address typed with a flat that finds nothing is searched again: as LINZ would write it, if the flat was typed in words, and then without the flat. It is another search and not a looser pattern, so a place that holds everything typed is never pushed down by one that holds part of it.
+
 **The work for one search is bounded.** Each table hands over at most 5,000 matches to be ranked. "road" matches 850,000 addresses, and scoring them all took over four seconds. A search specific enough to be useful matches far fewer rows than the cap. When a search says where it is looking from, those 5,000 should be the nearest ones, so up to 20,000 matches are measured for distance first. Measuring is cheap. Scoring is what costs.
 
 ## Saved places

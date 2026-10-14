@@ -123,6 +123,8 @@ GET /api/v1/places/search?q=new%20world&near=-36.871,174.787&limit=2
 
 Five more words find their abbreviation when they are typed in full: street, avenue, drive, place and crescent, written `st`, `ave`, `dr`, `pl` and `cres`. So "42 nuffield street" finds the shop that gives its address as "42 Nuffield St". Typed short these need no help. Each is the beginning of its word, and is found the way any unfinished word is.
 
+An address can be typed with a flat in front of it. LINZ writes a flat before a slash, as in "M/205 Queen Street", and lists the flats of some buildings and not of others. So when an address with a flat finds nothing, it is looked for again without the flat: "7/205 queen street" finds 205 Queen Street. A flat typed in words, "Unit 7, 205 Queen Street", is first looked for as LINZ writes it and then without it. The words read this way are unit, flat, apartment, apt, shop, suite and villa. None of this happens while the words as typed find something.
+
 ### How results are ordered
 
 Each match gets a score, and the highest comes first. The score is these multiplied together.
@@ -138,7 +140,6 @@ Between equal scores, the name the words account for most of comes first, then t
 
 - A word typed in full is read as its abbreviation only beside another word of three letters or more. "saint he" finds what is written Saint. From "saint hel" on, what is written St Heliers is found too.
 - Other abbreviations are not read. "ter" finds Terrace, being the beginning of the word, but "terrace" does not find a place that writes "Ter".
-- A unit number LINZ does not hold finds nothing. "3/90A Bassett Road" fails where "90A Bassett Road" works.
 - Near means in a straight line, not by road. Across a harbour, the nearest branch to drive to can be a different one.
 - Words are matched as a run. "auckland hospital" lists "Auckland Hospital Foundation" before "Auckland City Hospital", because "City" interrupts the run. Typing the name in full finds it.
 - A word that matches more than 20,000 rows of a table, such as "road" or "auckland" alone, is ranked from the first 20,000 found, not the nearest. A second word fixes it.
