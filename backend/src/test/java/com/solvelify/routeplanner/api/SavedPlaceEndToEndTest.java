@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class SavedPlaceEndToEndTest {
 
     private static final String HOME = """
-            { "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 }
+            { "name": "Home", "latitude": -36.9146416667, "longitude": 174.8392303333 }
             """;
 
     @Autowired
@@ -57,8 +57,8 @@ class SavedPlaceEndToEndTest {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(id))
                 .andExpect(jsonPath("$[0].name").value("Home"))
-                .andExpect(jsonPath("$[0].latitude").value(-36.8689416667))
-                .andExpect(jsonPath("$[0].longitude").value(174.7832303333));
+                .andExpect(jsonPath("$[0].latitude").value(-36.9146416667))
+                .andExpect(jsonPath("$[0].longitude").value(174.8392303333));
 
         mockMvc.perform(delete("/api/v1/saved-places/" + id))
                 .andExpect(status().isNoContent());

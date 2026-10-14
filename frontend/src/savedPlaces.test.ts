@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { asPlace, canBeSaved, isInTrip, isTheStart, savedAt, startingFrom } from './savedPlaces'
 import type { Place, SavedPlace } from './types'
 
-const home: SavedPlace = { id: 7, name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 }
+const home: SavedPlace = { id: 7, name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 }
 const office: SavedPlace = { id: 9, name: 'The office', latitude: -36.8485, longitude: 174.7621 }
 
-const guess: Place = { name: 'My location', latitude: -36.8701, longitude: 174.7845 }
+const guess: Place = { name: 'My location', latitude: -36.9158, longitude: 174.8405 }
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const shop: Place = { name: 'Corner dairy', latitude: -36.9, longitude: 174.8, keepInPlace: true }
 
@@ -67,7 +67,7 @@ describe('whether the trip already goes to a saved place', () => {
 
 describe('a saved place as a place in the trip', () => {
   it('carries its name and its position', () => {
-    expect(asPlace(home)).toEqual({ name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 })
+    expect(asPlace(home)).toEqual({ name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 })
   })
 
   it('leaves its id behind, which the planner knows nothing about', () => {

@@ -4,8 +4,8 @@ import type { DevicePosition } from './location'
 import type { Place } from './types'
 
 /** What a laptop's browser said: this spot, good to about 90 metres. */
-const guess: DevicePosition = { latitude: -36.86877, longitude: 174.78173, accuracyMetres: 93 }
-const startOnTheGuess: Place = { name: 'My location', latitude: -36.86877, longitude: 174.78173 }
+const guess: DevicePosition = { latitude: -36.91447, longitude: 174.83773, accuracyMetres: 93 }
+const startOnTheGuess: Place = { name: 'My location', latitude: -36.91447, longitude: 174.83773 }
 const office: Place = { name: 'Office', latitude: -36.8485, longitude: 174.7621 }
 
 describe('a place sitting on a position', () => {
@@ -14,8 +14,8 @@ describe('a place sitting on a position', () => {
   })
 
   it('is not on it once either coordinate differs', () => {
-    expect(sitsOn({ ...startOnTheGuess, latitude: -36.8688 }, guess)).toBe(false)
-    expect(sitsOn({ ...startOnTheGuess, longitude: 174.7818 }, guess)).toBe(false)
+    expect(sitsOn({ ...startOnTheGuess, latitude: -36.9145 }, guess)).toBe(false)
+    expect(sitsOn({ ...startOnTheGuess, longitude: 174.8378 }, guess)).toBe(false)
   })
 
   it('is not on it when either is missing', () => {
@@ -69,7 +69,7 @@ describe('saying a distance the way a person would', () => {
 })
 
 describe('dragging a pin', () => {
-  const home = { latitude: -36.86896, longitude: 174.78316 }
+  const home = { latitude: -36.91466, longitude: 174.83916 }
 
   it('moves the pin and keeps its name and its place in the list', () => {
     const moved = afterDragging([startOnTheGuess, office], null, 1, -36.85, 174.77)
@@ -114,7 +114,7 @@ describe('dragging a pin', () => {
 
 describe('a better answer from the browser', () => {
   /** The same laptop a few seconds on, now sure to about 30 metres, and somewhere else. */
-  const better: DevicePosition = { latitude: -36.86896, longitude: 174.78316, accuracyMetres: 30 }
+  const better: DevicePosition = { latitude: -36.91466, longitude: 174.83916, accuracyMetres: 30 }
 
   it('takes the place of the earlier answer', () => {
     expect(afterABetterAnswer([office], guess, better).devicePosition).toBe(better)
