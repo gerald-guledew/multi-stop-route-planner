@@ -38,21 +38,21 @@ class SavedPlacesTest {
 
     @Test
     void keepsWhatWasSaved() {
-        SavedPlace saved = savedPlaces.save("Home", -36.8689416667, 174.7832303333);
+        SavedPlace saved = savedPlaces.save("Home", -36.9146416667, 174.8392303333);
 
         assertThat(saved.getId()).isNotNull();
         assertThat(savedPlaces.all()).singleElement().satisfies(place -> {
             assertThat(place.getId()).isEqualTo(saved.getId());
             assertThat(place.getName()).isEqualTo("Home");
             // To the last digit. The map screen tells a saved place from a pin by its position.
-            assertThat(place.getLatitude()).isEqualTo(-36.8689416667);
-            assertThat(place.getLongitude()).isEqualTo(174.7832303333);
+            assertThat(place.getLatitude()).isEqualTo(-36.9146416667);
+            assertThat(place.getLongitude()).isEqualTo(174.8392303333);
         });
     }
 
     @Test
     void theDatabaseNotesWhenAPlaceWasSaved() {
-        SavedPlace saved = savedPlaces.save("Home", -36.8689, 174.7832);
+        SavedPlace saved = savedPlaces.save("Home", -36.9146, 174.8392);
 
         OffsetDateTime createdAt = jdbc.sql("SELECT created_at FROM saved_place WHERE id = :id")
                 .param("id", saved.getId())
@@ -74,14 +74,14 @@ class SavedPlacesTest {
 
     @Test
     void trimsTheSpacesAroundAName() {
-        savedPlaces.save("  Home \t", -36.8689, 174.7832);
+        savedPlaces.save("  Home \t", -36.9146, 174.8392);
 
         assertThat(names(savedPlaces.all())).containsExactly("Home");
     }
 
     @Test
     void refusesANameThatIsTaken() {
-        savedPlaces.save("Home", -36.8689, 174.7832);
+        savedPlaces.save("Home", -36.9146, 174.8392);
 
         assertThatThrownBy(() -> savedPlaces.save("Home", -36.9000, 174.8000))
                 .isInstanceOf(PlaceNameTakenException.class)
@@ -90,7 +90,7 @@ class SavedPlacesTest {
 
     @Test
     void refusesATakenNameWhateverTheCapitalsOrSpaces() {
-        savedPlaces.save("Home", -36.8689, 174.7832);
+        savedPlaces.save("Home", -36.9146, 174.8392);
 
         assertThatThrownBy(() -> savedPlaces.save(" HOME ", -36.9000, 174.8000))
                 .isInstanceOf(PlaceNameTakenException.class)
@@ -100,14 +100,14 @@ class SavedPlacesTest {
 
     @Test
     void keepsTheFirstPlaceWhenASecondOfThatNameIsRefused() {
-        savedPlaces.save("Home", -36.8689, 174.7832);
+        savedPlaces.save("Home", -36.9146, 174.8392);
 
         assertThatThrownBy(() -> savedPlaces.save("home", -36.9000, 174.8000))
                 .isInstanceOf(PlaceNameTakenException.class);
 
         assertThat(savedPlaces.all()).singleElement().satisfies(place -> {
             assertThat(place.getName()).isEqualTo("Home");
-            assertThat(place.getLatitude()).isEqualTo(-36.8689);
+            assertThat(place.getLatitude()).isEqualTo(-36.9146);
         });
     }
 
@@ -121,7 +121,7 @@ class SavedPlacesTest {
 
     @Test
     void removesAPlace() {
-        SavedPlace home = savedPlaces.save("Home", -36.8689, 174.7832);
+        SavedPlace home = savedPlaces.save("Home", -36.9146, 174.8392);
         savedPlaces.save("The office", -36.8485, 174.7621);
 
         savedPlaces.remove(home.getId());
@@ -131,7 +131,7 @@ class SavedPlacesTest {
 
     @Test
     void freesTheNameOfARemovedPlace() {
-        SavedPlace home = savedPlaces.save("Home", -36.8689, 174.7832);
+        SavedPlace home = savedPlaces.save("Home", -36.9146, 174.8392);
         savedPlaces.remove(home.getId());
 
         SavedPlace again = savedPlaces.save("Home", -36.9000, 174.8000);
@@ -143,7 +143,7 @@ class SavedPlacesTest {
 
     @Test
     void saysSoWhenThereIsNoSuchPlaceToRemove() {
-        SavedPlace home = savedPlaces.save("Home", -36.8689, 174.7832);
+        SavedPlace home = savedPlaces.save("Home", -36.9146, 174.8392);
         long noSuchId = home.getId() + 1000;
 
         assertThatThrownBy(() -> savedPlaces.remove(noSuchId))

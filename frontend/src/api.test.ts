@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
+  heightAt,
   listSavedPlaces,
   NotAnswering,
   optimizeRoute,
@@ -74,9 +75,9 @@ describe('searching for a place', () => {
   it('says where it is looking from, to about a hundred metres and no closer', async () => {
     const fetched = apiThatAnswers(200, [])
 
-    await searchPlaces('new world', { latitude: -36.868955, longitude: 174.783159 }, notCancelled)
+    await searchPlaces('new world', { latitude: -36.914655, longitude: 174.839159 }, notCancelled)
 
-    expect(fetched.mock.calls[0][0]).toBe('/api/v1/places/search?q=new+world&limit=8&near=-36.869%2C174.783')
+    expect(fetched.mock.calls[0][0]).toBe('/api/v1/places/search?q=new+world&limit=8&near=-36.915%2C174.839')
   })
 
   it('can be cancelled, so a slow answer cannot overwrite a newer one', async () => {
@@ -106,6 +107,33 @@ describe('searching for a place', () => {
     await expect(searchPlaces('new world', null, notCancelled)).rejects.toThrow(
       "Failed to convert 'near' with value: 'here'",
     )
+  })
+})
+
+describe('asking how high a spot is', () => {
+  const maungawhau = { latitude: -36.8778, longitude: 174.7639 }
+
+  it('sends the spot in the body, where logs do not keep it', async () => {
+    const fetched = apiThatAnswers(200, { heightMetres: 195 })
+
+    await expect(heightAt(maungawhau)).resolves.toBe(195)
+
+    const [url, init] = fetched.mock.calls[0]
+    expect(url).toBe('/api/v1/heights/lookup')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual(maungawhau)
+  })
+
+  it('gives null when the planner knows no height there', async () => {
+    apiThatAnswers(200, { heightMetres: null })
+
+    await expect(heightAt(maungawhau)).resolves.toBeNull()
+  })
+
+  it('fails with what the API said was wrong', async () => {
+    apiThatAnswers(400, { title: 'Bad Request', detail: 'Invalid request content.' })
+
+    await expect(heightAt(maungawhau)).rejects.toThrow('Invalid request content.')
   })
 })
 
@@ -178,7 +206,7 @@ describe('planning a route', () => {
 })
 
 describe('saved places', () => {
-  const home = { id: 7, name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 }
+  const home = { id: 7, name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 }
 
   it('asks for the list', async () => {
     const fetched = apiThatAnswers(200, [home])
@@ -206,7 +234,7 @@ describe('saved places', () => {
     const fetched = apiThatAnswers(201, home)
 
     await expect(
-      savePlace({ name: 'Home', latitude: -36.8689416667, longitude: 174.7832303333 }),
+      savePlace({ name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 }),
     ).resolves.toEqual(home)
 
     const [url, request] = fetched.mock.calls[0]
@@ -215,8 +243,8 @@ describe('saved places', () => {
     expect(request?.headers).toEqual({ 'Content-Type': 'application/json' })
     expect(JSON.parse(request?.body as string)).toEqual({
       name: 'Home',
-      latitude: -36.8689416667,
-      longitude: 174.7832303333,
+      latitude: -36.9146416667,
+      longitude: 174.8392303333,
     })
   })
 

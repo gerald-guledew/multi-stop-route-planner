@@ -151,6 +151,27 @@ export async function optimizeRoute(
 }
 
 /**
+ * How high the ground is at a spot, in whole metres above sea level. Null when the planner has
+ * nothing to go on there: it was started without heights, or the spot is outside the height
+ * files it holds.
+ *
+ * <p>A POST, so the exact spot travels in the body and not in the URL, which is what logs keep.
+ */
+export async function heightAt(at: Position): Promise<number | null> {
+  const response = await ask('/api/v1/heights/lookup', A_QUICK_ANSWER_MS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude: at.latitude, longitude: at.longitude }),
+  })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  return ((await response.json()) as { heightMetres: number | null }).heightMetres
+}
+
+/**
  * The places saved so far, in name order.
  *
  * <p>Takes an AbortSignal so that leaving the page while the list is on its way does not end

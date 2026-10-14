@@ -5,6 +5,7 @@ import com.graphhopper.config.CHProfile;
 import com.graphhopper.config.Profile;
 import com.graphhopper.reader.dem.ElevationProvider;
 import com.graphhopper.reader.dem.SkadiProvider;
+import com.graphhopper.reader.dem.TileBasedElevationProvider;
 import com.graphhopper.util.GHUtility;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -103,8 +104,11 @@ class GraphHopperConfiguration {
      *
      * <p>Between four grid points the height is worked out from all four. The nearest one alone
      * would turn an even slope into steps, and every step would count as climbing.
+     *
+     * <p>{@link HeightFiles} reads a pin's height with this same reader, so a pin and the roads
+     * around it are read alike.
      */
-    private static ElevationProvider heightsOfTheGround(String folder) {
+    static TileBasedElevationProvider heightsOfTheGround(String folder) {
         return new SkadiProvider(folder).setInterpolate(true);
     }
 }

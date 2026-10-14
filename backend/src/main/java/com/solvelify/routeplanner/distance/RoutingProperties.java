@@ -10,7 +10,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param osmFile     the OpenStreetMap extract to route on, ignored by haversine
  * @param graphCache  where GraphHopper keeps the prepared graph between runs
  * @param profile     the GraphHopper profile name, {@code car} for now
- * @param heights     whether the roads are read with their heights, ignored by haversine
+ * @param heights     whether heights are read: of the roads, which haversine ignores, and of the
+ *                    ground at a pin
  */
 @ConfigurationProperties(prefix = "routeplanner.routing")
 public record RoutingProperties(
@@ -24,7 +25,8 @@ public record RoutingProperties(
     public static final String HAVERSINE = "haversine";
 
     /**
-     * How high the roads are, which is what lets a plan say how much a leg climbs.
+     * How high the roads are, which is what lets a plan say how much a leg climbs, and how high
+     * the ground is where a pin stands.
      *
      * @param enabled     off unless asked for, because switching it on fetches height files
      * @param files       where the height files are kept once fetched

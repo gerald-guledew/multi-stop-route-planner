@@ -20,7 +20,7 @@ function aBrowser() {
     watchPosition,
     clearWatch,
     /** The browser reports a position it rates as good to this many metres. */
-    says: (accuracy: number, latitude = -36.8688, longitude = 174.7817) =>
+    says: (accuracy: number, latitude = -36.9145, longitude = 174.8377) =>
       answer({ coords: { latitude, longitude, accuracy } }),
     refuses: () => failure({ code: 1, PERMISSION_DENIED: 1 }),
     cannotTell: () => failure({ code: 2, PERMISSION_DENIED: 1 }),
@@ -56,9 +56,9 @@ describe('asking the browser where the device is', () => {
     const positions: DevicePosition[] = []
 
     followPosition((position) => positions.push(position), () => {})
-    browser.says(93, -36.86877, 174.78173)
+    browser.says(93, -36.91447, 174.83773)
 
-    expect(positions).toEqual([{ latitude: -36.86877, longitude: 174.78173, accuracyMetres: 93 }])
+    expect(positions).toEqual([{ latitude: -36.91447, longitude: 174.83773, accuracyMetres: 93 }])
   })
 
   it('asks for the best the device can do', () => {

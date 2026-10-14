@@ -418,6 +418,41 @@ A 422 names the place that cannot be reached, so the caller knows which pin to m
 
 This is easy to hit in practice. A pin dropped on an airfield, inside a shopping centre or in the middle of a park has no street beside it. Moving it to the nearest road fixes it: the Auckland Airport pin at `-37.0082, 174.7850` fails, while the terminal forecourt at `-37.0070, 174.7830` works.
 
+## POST /api/v1/heights/lookup
+
+How high the ground is at a spot. The map screen asks when a pin's popup opens, and shows the answer under the pin's position.
+
+```json
+{ "latitude": -36.8778, "longitude": 174.7639 }
+```
+
+```json
+{ "heightMetres": 194 }
+```
+
+That spot is the top of Maungawhau, Mount Eden, published as 196 m.
+
+| Field | Rules |
+| --- | --- |
+| `latitude` | Required, -90 to 90 |
+| `longitude` | Required, -180 to 180 |
+
+`heightMetres` is in whole metres, below zero below sea level. It is `null` where nothing is known: heights are off, or the spot is outside the height files on this computer. The sea is known, and reads `0`.
+
+It needs heights on, as in "Climb and descent" above, with either provider. It reads the files the roads were read from, in the same way: from the four nearest points of a grid about 30 m apart. It never fetches a file.
+
+Summits read low. The heights are LINZ's 8 m model of 2012, made from 20 m contours, and a summit between two contours is cut short. Measured on 2026-10-15:
+
+| Summit | Published | Read |
+| --- | --- | --- |
+| Maungawhau, Mount Eden | 196 m | 194 m |
+| Maungakiekie, One Tree Hill | 182 m | 173 m |
+| Rangitoto | 260 m | 251 m |
+
+A POST and not a GET, so the exact spot travels in the body. A URL is what logs keep. Search rounds its `near` for the same reason, and a height cannot be rounded that far.
+
+A missing field or a coordinate out of range is a 400, with the same body as the other endpoints.
+
 ## Saved places
 
 Places somebody named so they can pick them again without typing: home, the office, a shop the map data does not know about. They live in the database, so they are still there after a restart.
@@ -430,7 +465,7 @@ Every saved place, in name order. Capitals and macrons do not change the order.
 
 ```json
 [
-  { "id": 7, "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 },
+  { "id": 7, "name": "Home", "latitude": -36.9146416667, "longitude": 174.8392303333 },
   { "id": 9, "name": "The office", "latitude": -36.8485, "longitude": 174.7621 }
 ]
 ```
@@ -446,13 +481,13 @@ The answer is marked `Cache-Control: no-store`, so neither the browser nor anyth
 | `longitude` | number | Required, between -180 and 180 |
 
 ```json
-{ "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 }
+{ "name": "Home", "latitude": -36.9146416667, "longitude": 174.8392303333 }
 ```
 
 Answers **201** with the place as saved. The `id` is what to remove it by.
 
 ```json
-{ "id": 7, "name": "Home", "latitude": -36.8689416667, "longitude": 174.7832303333 }
+{ "id": 7, "name": "Home", "latitude": -36.9146416667, "longitude": 174.8392303333 }
 ```
 
 A name can be saved once, whatever the capitals. Saving "HOME" while "Home" is there answers **409**, and the place that was there stays as it was:

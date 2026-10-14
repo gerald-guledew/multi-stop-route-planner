@@ -139,6 +139,8 @@ The map has no heights in it. GraphHopper can read them off a grid of the ground
 
 **Distance is still measured on the map.** With heights the engine measures every road along its slope, wobble of the grid included, which lengthened a gorge road by 1.3% over what it measures on the map. Distance is what the solver minimises, so it is taken off the map either way and switching heights on does not move it. Driving time is left as the engine gives it, and comes out a fraction longer.
 
+**A pin knows how high it stands.** With heights on, a pin's popup says how high the ground is there. `HeightFiles` reads the height files with the reader the engine used for the roads, so a pin and the road beside it are read alike. That reader fetches a file it does not find, so `HeightFiles` looks for the file first, and hands the reader a downloader that refuses. It keeps the heights it unpacks in memory, at most four files of 26 MB, where the reader would write them to disk beside each file.
+
 ## Deliberately absent
 
 Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication. Saved places are private, and what keeps them so is that the app answers only the machine it runs on, so anything put in front of it has to bring a lock of its own. Turn by turn navigation, which is handed to Google Maps or Waze.

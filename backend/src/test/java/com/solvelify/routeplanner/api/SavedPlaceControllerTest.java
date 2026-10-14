@@ -35,7 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class SavedPlaceControllerTest {
 
     private static final String HOME = """
-            { "name": "Home", "latitude": -36.8689, "longitude": 174.7832 }
+            { "name": "Home", "latitude": -36.9146, "longitude": 174.8392 }
             """;
 
     @Autowired
@@ -49,7 +49,7 @@ class SavedPlaceControllerTest {
     @Test
     void listsSavedPlacesAsJson() throws Exception {
         given(savedPlaces.all()).willReturn(List.of(
-                saved(7, "Home", -36.8689, 174.7832),
+                saved(7, "Home", -36.9146, 174.8392),
                 saved(9, "The office", -36.8485, 174.7621)));
 
         mockMvc.perform(get("/api/v1/saved-places"))
@@ -57,8 +57,8 @@ class SavedPlaceControllerTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(7))
                 .andExpect(jsonPath("$[0].name").value("Home"))
-                .andExpect(jsonPath("$[0].latitude").value(-36.8689))
-                .andExpect(jsonPath("$[0].longitude").value(174.7832))
+                .andExpect(jsonPath("$[0].latitude").value(-36.9146))
+                .andExpect(jsonPath("$[0].longitude").value(174.8392))
                 .andExpect(jsonPath("$[1].name").value("The office"));
     }
 
@@ -83,14 +83,14 @@ class SavedPlaceControllerTest {
 
     @Test
     void savesAPlaceAndAnswersWithItsId() throws Exception {
-        given(savedPlaces.save("Home", -36.8689, 174.7832)).willReturn(saved(7, "Home", -36.8689, 174.7832));
+        given(savedPlaces.save("Home", -36.9146, 174.8392)).willReturn(saved(7, "Home", -36.9146, 174.8392));
 
         mockMvc.perform(post("/api/v1/saved-places").contentType(MediaType.APPLICATION_JSON).content(HOME))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.name").value("Home"))
-                .andExpect(jsonPath("$.latitude").value(-36.8689))
-                .andExpect(jsonPath("$.longitude").value(174.7832));
+                .andExpect(jsonPath("$.latitude").value(-36.9146))
+                .andExpect(jsonPath("$.longitude").value(174.8392));
     }
 
     @Test
@@ -111,7 +111,7 @@ class SavedPlaceControllerTest {
     @Test
     void rejectsAPlaceWithNoName() throws Exception {
         String nameless = """
-                { "name": "  ", "latitude": -36.8689, "longitude": 174.7832 }
+                { "name": "  ", "latitude": -36.9146, "longitude": 174.8392 }
                 """;
 
         mockMvc.perform(post("/api/v1/saved-places").contentType(MediaType.APPLICATION_JSON).content(nameless))
@@ -126,7 +126,7 @@ class SavedPlaceControllerTest {
     @Test
     void rejectsANameTooLongToBeALabel() throws Exception {
         String longName = """
-                { "name": "%s", "latitude": -36.8689, "longitude": 174.7832 }
+                { "name": "%s", "latitude": -36.9146, "longitude": 174.8392 }
                 """.formatted("x".repeat(101));
 
         mockMvc.perform(post("/api/v1/saved-places").contentType(MediaType.APPLICATION_JSON).content(longName))
@@ -138,7 +138,7 @@ class SavedPlaceControllerTest {
     @Test
     void rejectsACoordinateThatCannotExist() throws Exception {
         String impossibleLatitude = """
-                { "name": "Nowhere", "latitude": 95.0, "longitude": 174.7832 }
+                { "name": "Nowhere", "latitude": 95.0, "longitude": 174.8392 }
                 """;
 
         mockMvc.perform(post("/api/v1/saved-places").contentType(MediaType.APPLICATION_JSON).content(impossibleLatitude))
