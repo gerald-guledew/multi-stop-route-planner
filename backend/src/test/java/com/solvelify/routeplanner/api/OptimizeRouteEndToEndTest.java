@@ -73,16 +73,16 @@ class OptimizeRouteEndToEndTest {
     }
 
     @Test
-    void choosesForDistanceWhenAskedToFactorInAltitudeOnStraightLines() throws Exception {
+    void choosesForDistanceWhenAskedToFactorInRoadClimbsOnStraightLines() throws Exception {
         // Straight lines have no heights, so there is no climb to count and the answer is the
         // shortest order, as if nothing had been asked.
-        String factoringInAltitude = AUCKLAND_ERRANDS
+        String factoringInRoadClimbs = AUCKLAND_ERRANDS
                 .formatted("true")
-                .replace("\"returnToStart\": true", "\"returnToStart\": true, \"factorInAltitude\": true");
+                .replace("\"returnToStart\": true", "\"returnToStart\": true, \"factorInRoadClimbs\": true");
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(factoringInAltitude))
+                        .content(factoringInRoadClimbs))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalDistanceKm").value(51.76))
                 .andExpect(jsonPath("$.ordersChecked").value(24))

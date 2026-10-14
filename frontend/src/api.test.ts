@@ -153,17 +153,17 @@ describe('planning a route', () => {
       start,
       stops,
       returnToStart: false,
-      factorInAltitude: false,
+      factorInRoadClimbs: false,
     })
   })
 
-  it('asks for altitude to be factored in when told to', async () => {
+  it('asks for road climbs to be factored in when told to', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
     await optimizeRoute(start, stops, true, true)
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
-    expect(sent.factorInAltitude).toBe(true)
+    expect(sent.factorInRoadClimbs).toBe(true)
     expect(sent.returnToStart).toBe(true)
   })
 

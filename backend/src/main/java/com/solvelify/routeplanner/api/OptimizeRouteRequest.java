@@ -24,7 +24,7 @@ public record OptimizeRouteRequest(
 
         Boolean returnToStart,
 
-        Boolean factorInAltitude) {
+        Boolean factorInRoadClimbs) {
 
     /** Defaults to a round trip, as documented in docs/api.md. */
     public boolean returnToStartOrDefault() {
@@ -35,7 +35,7 @@ public record OptimizeRouteRequest(
      * Whether the order is to be chosen for distance and climb together. Left out, it is chosen
      * for distance alone.
      */
-    public boolean factorInAltitudeOrDefault() {
-        return factorInAltitude != null && factorInAltitude;
+    public boolean factorInRoadClimbsOrDefault() {
+        return factorInRoadClimbs != null && factorInRoadClimbs;
     }
 }

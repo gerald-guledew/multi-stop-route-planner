@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { altitudeSaid, differsFromTheShortest, shortestSaid } from './altitude'
+import { differsFromTheShortest, roadClimbsSaid, shortestSaid } from './roadClimbs'
 import type { RoutePlan } from './types'
 
 /** A round trip of 62.88 km that climbs 561 m, and whatever else is said of it. */
@@ -21,9 +21,9 @@ function aPlan(more: Partial<RoutePlan> = {}): RoutePlan {
 const SHORTER_AND_HILLIER = { distanceKm: 62.58, climbMetres: 666, descentMetres: 666 }
 const THE_SAME = { distanceKm: 62.88, climbMetres: 561, descentMetres: 561 }
 
-describe('saying what factoring in altitude came to', () => {
+describe('saying what factoring in road climbs came to', () => {
   it('says how much longer the order is than the shortest, and how much less it climbs', () => {
-    expect(altitudeSaid(true, aPlan({ shortestOrder: SHORTER_AND_HILLIER }))).toBe(
+    expect(roadClimbsSaid(true, aPlan({ shortestOrder: SHORTER_AND_HILLIER }))).toBe(
       'This order is 0.30 km longer than the shortest and climbs 105 m less.',
     )
   })
@@ -37,34 +37,34 @@ describe('saying what factoring in altitude came to', () => {
       shortestOrder: { distanceKm: 66.16, climbMetres: 678, descentMetres: 634 },
     })
 
-    expect(altitudeSaid(true, oneWay)).toBe(
+    expect(roadClimbsSaid(true, oneWay)).toBe(
       'This order is 0.55 km longer than the shortest and climbs 103 m less.',
     )
   })
 
   it('says so when the shortest order stands, or the box would seem to have done nothing', () => {
-    expect(altitudeSaid(true, aPlan({ shortestOrder: THE_SAME }))).toBe(
-      'With altitude factored in, the shortest order still comes out best.',
+    expect(roadClimbsSaid(true, aPlan({ shortestOrder: THE_SAME }))).toBe(
+      'With road climbs factored in, the shortest order still comes out best.',
     )
   })
 
-  it('says nothing when altitude was not asked for', () => {
-    expect(altitudeSaid(false, aPlan())).toBeNull()
-    expect(altitudeSaid(false, aPlan({ shortestOrder: SHORTER_AND_HILLIER }))).toBeNull()
+  it('says nothing when road climbs were not asked for', () => {
+    expect(roadClimbsSaid(false, aPlan())).toBeNull()
+    expect(roadClimbsSaid(false, aPlan({ shortestOrder: SHORTER_AND_HILLIER }))).toBeNull()
   })
 
   it('says so when the planner had no heights to go on', () => {
     const withoutHeights = aPlan({ totalClimbMetres: null, totalDescentMetres: null })
 
-    expect(altitudeSaid(true, withoutHeights)).toBe(
-      'Altitude was not factored in. This planner has no heights to go on, so this is the shortest order.',
+    expect(roadClimbsSaid(true, withoutHeights)).toBe(
+      'Road climbs were not factored in. This planner has no heights to go on, so this is the shortest order.',
     )
   })
 
   it('calls an order as long as the shortest no longer', () => {
     const asLong = { distanceKm: 62.88, climbMetres: 600, descentMetres: 600 }
 
-    expect(altitudeSaid(true, aPlan({ shortestOrder: asLong }))).toBe(
+    expect(roadClimbsSaid(true, aPlan({ shortestOrder: asLong }))).toBe(
       'This order is no longer than the shortest and climbs 39 m less.',
     )
   })
@@ -72,7 +72,7 @@ describe('saying what factoring in altitude came to', () => {
   it('puts a comma in the thousands', () => {
     const farHillier = { distanceKm: 60.08, climbMetres: 1761, descentMetres: 1761 }
 
-    expect(altitudeSaid(true, aPlan({ shortestOrder: farHillier }))).toBe(
+    expect(roadClimbsSaid(true, aPlan({ shortestOrder: farHillier }))).toBe(
       'This order is 2.80 km longer than the shortest and climbs 1,200 m less.',
     )
   })
@@ -80,7 +80,7 @@ describe('saying what factoring in altitude came to', () => {
   it('does not say less than nought for a metre lost in rounding', () => {
     const aMetreTheWrongWay = { distanceKm: 62.87, climbMetres: 560, descentMetres: 560 }
 
-    expect(altitudeSaid(true, aPlan({ shortestOrder: aMetreTheWrongWay }))).toBe(
+    expect(roadClimbsSaid(true, aPlan({ shortestOrder: aMetreTheWrongWay }))).toBe(
       'This order is 0.01 km longer than the shortest and climbs 0 m less.',
     )
   })

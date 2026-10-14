@@ -34,7 +34,7 @@ export function shortestSaid(shortest: ShortestOrder): string {
 }
 
 /**
- * What factoring in altitude came to for this plan, in a sentence. Null when it was not asked
+ * What factoring in road climbs came to for this plan, in a sentence. Null when it was not asked
  * for, and then nothing is shown.
  *
  * The planner counts every metre climbed as so many metres of road, so the order can come out
@@ -44,15 +44,15 @@ export function shortestSaid(shortest: ShortestOrder): string {
  * A planner started without heights cannot count any climb. It answers with the shortest order
  * and gives nothing to hold it against, which is how this knows.
  */
-export function altitudeSaid(askedFor: boolean, plan: RoutePlan): string | null {
+export function roadClimbsSaid(askedFor: boolean, plan: RoutePlan): string | null {
   if (!askedFor) {
     return null
   }
   if (plan.shortestOrder === null) {
-    return 'Altitude was not factored in. This planner has no heights to go on, so this is the shortest order.'
+    return 'Road climbs were not factored in. This planner has no heights to go on, so this is the shortest order.'
   }
   if (!differsFromTheShortest(plan)) {
-    return 'With altitude factored in, the shortest order still comes out best.'
+    return 'With road climbs factored in, the shortest order still comes out best.'
   }
 
   const { furtherKm, lessMetres } = against(plan.shortestOrder, plan)

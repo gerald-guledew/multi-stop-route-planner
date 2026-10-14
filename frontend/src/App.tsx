@@ -25,7 +25,7 @@ export default function App() {
   const [places, setPlaces] = useState<Place[]>([])
   const [returnToStart, setReturnToStart] = useState(true)
   // Off unless ticked: the order is then chosen for distance alone.
-  const [factorInAltitude, setFactorInAltitude] = useState(false)
+  const [factorInRoadClimbs, setFactorInRoadClimbs] = useState(false)
   const [plan, setPlan] = useState<RoutePlan | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [unroutablePlace, setUnroutablePlace] = useState<string | undefined>()
@@ -223,8 +223,8 @@ export default function App() {
     setPlan(null)
   }
 
-  function changeFactorInAltitude(factorIn: boolean) {
-    setFactorInAltitude(factorIn)
+  function changeFactorInRoadClimbs(factorIn: boolean) {
+    setFactorInRoadClimbs(factorIn)
     // A plan chosen for distance alone is not the plan for distance and climb together.
     setPlan(null)
   }
@@ -244,7 +244,7 @@ export default function App() {
     setUnroutablePlace(undefined)
 
     try {
-      setPlan(await optimizeRoute(start, stops, returnToStart, factorInAltitude))
+      setPlan(await optimizeRoute(start, stops, returnToStart, factorInRoadClimbs))
     } catch (caught) {
       setPlan(null)
       if (caught instanceof ApiError) {
@@ -273,8 +273,8 @@ export default function App() {
         onToggleKeepInPlace={toggleKeepInPlace}
         onChangeTurn={changeTurn}
         onReturnToStartChange={changeReturnToStart}
-        factorInAltitude={factorInAltitude}
-        onFactorInAltitudeChange={changeFactorInAltitude}
+        factorInRoadClimbs={factorInRoadClimbs}
+        onFactorInRoadClimbsChange={changeFactorInRoadClimbs}
         onPlan={planRoute}
         onClear={clearAll}
         onPickPlace={addSearchedPlace}

@@ -128,19 +128,19 @@ export async function searchPlaces(
 }
 
 /**
- * `factorInAltitude` asks for an order chosen for distance and climb together. A planner with
+ * `factorInRoadClimbs` asks for an order chosen for distance and climb together. A planner with
  * no heights to go on answers with the shortest order all the same.
  */
 export async function optimizeRoute(
   start: Place,
   stops: Place[],
   returnToStart: boolean,
-  factorInAltitude: boolean,
+  factorInRoadClimbs: boolean,
 ): Promise<RoutePlan> {
   const response = await ask('/api/v1/routes/optimize', A_PLAN_MS, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ start, stops, returnToStart, factorInAltitude }),
+    body: JSON.stringify({ start, stops, returnToStart, factorInRoadClimbs }),
   })
 
   if (!response.ok) {

@@ -27,7 +27,7 @@ Develop an application that can accept a starting point and a list of places. It
 - Save the places you go to often, such as home, and pick them again with one press
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and the first thing a fuel estimate will read
-- An order that factors in altitude when asked: a little longer, to climb less. Off unless ticked
+- An order that factors in road climbs when asked: a little longer, to climb less. Off unless ticked
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
@@ -87,7 +87,7 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner
 
 The first start with heights on fetches the height of the ground for New Zealand, 70 files and 480 MB, into `backend/data/heights`, and builds a second graph beside the first. Later starts fetch nothing. Switching heights off again goes back to the first graph, which is left as it was. The climb is an estimate, and [docs/api.md](docs/api.md) says how it is counted and where it is wrong.
 
-With heights on, ticking "Factor in altitude" on the screen has the order chosen for distance and climb together. Without them the box changes nothing, and the screen says so.
+With heights on, ticking "Factor in road climbs" on the screen has the order chosen for distance and climb together. Without them the box changes nothing, and the screen says so.
 
 ### Address search
 

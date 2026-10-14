@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, UpIcon } from './icons'
-import { altitudeSaid, differsFromTheShortest, shortestSaid } from '../altitude'
+import { differsFromTheShortest, roadClimbsSaid, shortestSaid } from '../roadClimbs'
 import { climbSaid } from '../climb'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
@@ -25,8 +25,8 @@ interface Props {
   onChangeTurn: (index: number, direction: Direction) => void
   onReturnToStartChange: (returnToStart: boolean) => void
   /** Whether the order is to be chosen for distance and climb together. */
-  factorInAltitude: boolean
-  onFactorInAltitudeChange: (factorInAltitude: boolean) => void
+  factorInRoadClimbs: boolean
+  onFactorInRoadClimbsChange: (factorInRoadClimbs: boolean) => void
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
@@ -150,7 +150,7 @@ export default function RoutePanel(props: Props) {
   const tooManyStops = stopCount > MAX_STOPS
   const saving = plan ? savingSaid(plan.enteredOrderDistanceKm, plan.totalDistanceKm) : null
   const climb = plan ? climbSaid(plan.totalClimbMetres, plan.totalDescentMetres) : null
-  const altitude = plan ? altitudeSaid(props.factorInAltitude, plan) : null
+  const roadClimbs = plan ? roadClimbsSaid(props.factorInRoadClimbs, plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
   const shortest = plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
 
@@ -372,14 +372,14 @@ export default function RoutePanel(props: Props) {
               <label>
                 <input
                   type="checkbox"
-                  checked={props.factorInAltitude}
+                  checked={props.factorInRoadClimbs}
                   // A plan on its way was asked for with the box as it stood.
                   disabled={planning}
-                  onChange={(event) => props.onFactorInAltitudeChange(event.target.checked)}
+                  onChange={(event) => props.onFactorInRoadClimbsChange(event.target.checked)}
                 />
-                Factor in altitude
+                Factor in road climbs
               </label>
-              {props.factorInAltitude && (
+              {props.factorInRoadClimbs && (
                 <p className="note">The order may come out a little longer, to climb less.</p>
               )}
 
@@ -443,7 +443,7 @@ export default function RoutePanel(props: Props) {
                 )}
               </dl>
 
-              {altitude && <p className="note">{altitude}</p>}
+              {roadClimbs && <p className="note">{roadClimbs}</p>}
               {plan.totalDurationSeconds !== null && (
                 <p className="note">
                   Driving time is for clear roads. It allows nothing for traffic, or for the

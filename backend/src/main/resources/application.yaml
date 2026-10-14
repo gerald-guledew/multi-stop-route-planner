@@ -56,7 +56,7 @@ routeplanner:
       # setting.
       graph-cache: data/graph-cache-heights
   planning:
-    # Read only when a plan is asked to factor in altitude. The order is then chosen for
+    # Read only when a plan is asked to factor in road climbs. The order is then chosen for
     # distance and climb together, and this is how many metres of level road a metre of climb
     # counts as. At 10, an order that is 1 km longer comes out ahead when it climbs more than
     # 100 m less. Coming down counts for nothing.
