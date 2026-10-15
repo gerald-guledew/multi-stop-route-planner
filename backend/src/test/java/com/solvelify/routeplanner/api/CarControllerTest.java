@@ -56,8 +56,8 @@ class CarControllerTest {
 
     @Test
     void answersWithEachEngineAndItsFigure() throws Exception {
-        Car usedSwift = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"), true);
-        given(register.variants("SUZUKI", "SWIFT", 2018)).willReturn(List.of(new CarVariant(usedSwift, 4.2, 552)));
+        Car swift = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"));
+        given(register.variants("SUZUKI", "SWIFT", 2018)).willReturn(List.of(new CarVariant(swift, 4.8, 1896)));
 
         mockMvc.perform(get("/api/v1/cars/variants").param("make", "SUZUKI").param("model", "SWIFT").param("year", "2018"))
                 .andExpect(status().isOk())
@@ -65,9 +65,9 @@ class CarControllerTest {
                 .andExpect(jsonPath("$[0].car.model").value("SWIFT"))
                 .andExpect(jsonPath("$[0].car.year").value(2018))
                 .andExpect(jsonPath("$[0].car.engineLitres").value(1.2))
-                .andExpect(jsonPath("$[0].car.importedUsed").value(true))
-                .andExpect(jsonPath("$[0].litresPer100Km").value(4.2))
-                .andExpect(jsonPath("$[0].cars").value(552));
+                .andExpect(jsonPath("$[0].car.importedUsed").doesNotExist())
+                .andExpect(jsonPath("$[0].litresPer100Km").value(4.8))
+                .andExpect(jsonPath("$[0].cars").value(1896));
     }
 
     @Test

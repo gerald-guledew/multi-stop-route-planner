@@ -103,17 +103,15 @@ public class VehicleController {
      * A car as the register describes it, copied from what {@code /api/v1/cars/variants} answered.
      *
      * @param engineLitres such as 1.2
-     * @param importedUsed true for a used import, false for a car sold new in New Zealand
      */
     public record CarRequest(
             @NotBlank String make,
             @NotBlank String model,
             @NotNull @Min(1900) @Max(2100) Integer year,
-            @NotNull @DecimalMin("0.5") @DecimalMax("9.9") BigDecimal engineLitres,
-            @NotNull Boolean importedUsed) {
+            @NotNull @DecimalMin("0.5") @DecimalMax("9.9") BigDecimal engineLitres) {
 
         Car toCar() {
-            return new Car(make, model, year, engineLitres, importedUsed);
+            return new Car(make, model, year, engineLitres);
         }
     }
 

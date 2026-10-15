@@ -378,7 +378,7 @@ Send the vehicle with the request and every leg says how much fuel it takes, and
 
 For the five stops above that is 3.88 L: 51.76 km at 7.5 L for every 100 km. Without a `vehicle` both fields are `null`.
 
-- **It is the vehicle's figure for every kilometre.** A dashboard average already holds the hills and the town driving the car usually does, so for a trip like the usual ones it is close. A car found in the register goes by its laboratory figure unless the dashboard's is given, and real driving uses more than that, see "Cars" below.
+- **It is the vehicle's figure for every kilometre.** A dashboard average already holds the hills and the town driving the car usually does, so for a trip like the usual ones it is close. A car found in the register goes by its official figure unless the dashboard's is given. That comes from a laboratory test, and real driving uses more, see "Cars" below.
 - **Hills and speed do not change it yet.** A trip that climbs more than usual, or keeps to the motorway, takes more or less than this says.
 - **The order is chosen as it would be without a vehicle.** Fuel is worked out for the order chosen, not used to choose it.
 - **Rounded to a hundredth of a litre**, as distances are to a hundredth of a kilometre. The legs can add up to a hundredth more or less than the total.
@@ -561,17 +561,17 @@ Found in the register, and going by the register's figure:
 
 ```json
 {
-  "litresPer100Km": 4.2,
+  "litresPer100Km": 4.8,
   "figureFrom": "register",
   "size": null,
-  "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": true }
+  "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 }
 }
 ```
 
 | Field | Meaning |
 | --- | --- |
 | `litresPer100Km` | The fuel use plans go by, 2 to 30 |
-| `figureFrom` | `dashboard`: what the dashboard shows. `register`: the register's laboratory figure, which real driving exceeds |
+| `figureFrom` | `dashboard`: what the dashboard shows. `register`: the register's official figure, which real driving exceeds |
 | `size` | For a vehicle entered by hand. `null` for a car found in the register |
 | `car` | For a car found in the register, as it describes it. `null` for a vehicle entered by hand |
 
@@ -588,14 +588,14 @@ Saves the vehicle in place of the one there was, and answers with it as above. E
 Found in the register, sent back as `/api/v1/cars/variants` gave it. With `litresPer100Km` too, that figure is used instead of the register's:
 
 ```json
-{ "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": true } }
+{ "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 } }
 ```
 
 | Field | Rules |
 | --- | --- |
 | `litresPer100Km` | 2 to 30. What the dashboard shows. Required with `size`, and may be left out with `car` |
 | `size` | `small`: a city hatchback. `medium`: a family hatchback or sedan. `large`: a large car, an SUV or a people mover |
-| `car` | `make`, `model`, `year`, `engineLitres` and `importedUsed`, all required, as the register lists the car |
+| `car` | `make`, `model`, `year` and `engineLitres`, all required, as the register lists the car |
 
 Send a `size` or a `car`, not both. The size stands in for the weight, which is what a climb costs, and which few drivers know in kilograms. A car found in the register keeps its description when the register is imported again.
 
@@ -608,7 +608,7 @@ Answers **204** with no body, whether there was a vehicle or not.
 | Status | When |
 | --- | --- |
 | 400 | A missing field, a figure out of range or a size it does not know, as Problem Details with the field named. A size and a car together, or neither, is named `sizeOrCar`, and a size with no figure `litresPer100KmWithSize` |
-| 422 | A car the register does not list. The detail says which, such as "NZTA's register has no 2018 SUZUKI SWIFT 1.3 L imported used." |
+| 422 | A car the register does not list. The detail says which, such as "NZTA's register has no 2018 SUZUKI SWIFT 1.3 L." |
 
 ## Cars
 
@@ -619,28 +619,28 @@ The petrol cars of NZTA's Motor Vehicle Register, for a driver to find theirs in
 | `GET /api/v1/cars/makes` | `["ALFA ROMEO", "ASTON MARTIN", "AUDI", ...]`, in alphabetical order, as the register writes them |
 | `GET /api/v1/cars/models?make=SUZUKI` | `["ALTO", "BALENO", ...]`, in alphabetical order |
 | `GET /api/v1/cars/years?make=SUZUKI&model=SWIFT` | `[2026, 2025, ...]`, newest first |
-| `GET /api/v1/cars/variants?make=SUZUKI&model=SWIFT&year=2018` | Each engine with its figure, smallest first, and sold new before imported used |
+| `GET /api/v1/cars/variants?make=SUZUKI&model=SWIFT&year=2018` | Each engine with its figure, smallest first |
 
 ```json
 [
-  { "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": false }, "litresPer100Km": 4.8, "cars": 1344 },
-  { "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": true }, "litresPer100Km": 4.2, "cars": 552 }
+  { "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.0 }, "litresPer100Km": 5.1, "cars": 545 },
+  { "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 }, "litresPer100Km": 4.8, "cars": 1896 },
+  { "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.4 }, "litresPer100Km": 6.1, "cars": 967 }
 ]
 ```
 
 | Field | Meaning |
 | --- | --- |
 | `car.engineLitres` | To the nearest tenth of a litre, as drivers say it: 1,242 cc is 1.2 |
-| `car.importedUsed` | `true` for a used import, `false` for a car sold new in New Zealand |
-| `litresPer100Km` | The combined figure of the laboratory test the car was approved with: the middle one of these cars |
-| `cars` | How many of these cars are registered |
+| `litresPer100Km` | The official figure: the combined figure of the laboratory test the car was approved with, the one most of these cars carry |
+| `cars` | How many of these cars are registered, sold new here and imported used together |
 
 A missing `make`, `model` or `year` is a **400**.
 
 ### What the figures are
 
 - **Laboratory figures, which real driving exceeds.** NZTA's road tests of 26 light vehicles found real use from 9% lower to 40% higher than the official figures. A dashboard figure is closer, so the screen asks for one too.
-- **A used import keeps the figure of the country it came from.** For the same car and engine it reads 1 to 13% lower than one sold new here. A 2018 Swift 1.2 reads 4.2 imported used and 4.8 sold new.
+- **A used import keeps the figure of the country it came from.** For the same car and engine it reads 1 to 13% lower than one sold new here. A 2018 Swift 1.2 reads 4.2 imported used and 4.8 sold new. A driver is not asked which theirs is, so each engine goes by the figure of whichever has more cars: 4.8 for that Swift, of which 1,344 were sold new and 552 imported used.
 - **The makers' own.** A 2020 Corolla GX 2.0 reads 6.0 and a Swift GLX 1.2 4.8, as Toyota and Suzuki published them.
 - **A car listed fewer than ten times is left out.** That is where the register's mistakes are, such as a 2005 Mondeo at 2.0 L/100 km or a Corolla with a 57.6 L engine. It leaves 9,342 makes, models, years and engines, for 2,061,242 cars: 74% of the country's petrol cars. Most of the rest are older: under half the cars made before 2004 have a figure at all.
 - **Some hybrids are listed as petrol.** An Aqua or a Prius imported used reads 2.6 or 2.7. That is its own figure.

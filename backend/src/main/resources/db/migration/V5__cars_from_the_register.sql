@@ -5,7 +5,8 @@
 --
 -- litres_per_100_km is the combined figure of the laboratory test the car was approved with.
 -- Real driving uses more. A used import keeps the figure of the country it came from, which
--- usually reads lower than the same car sold new here, so the two are told apart.
+-- usually reads lower than the same car sold new here, so the two are told apart. A driver is
+-- not asked which theirs is: a car goes by the figures of whichever of the two has more cars.
 --
 -- The urban and extra-urban figures, the gross mass and the seats are kept for working out
 -- speed and hills. Most used imports have no urban figure. The gross mass of a used import
@@ -26,18 +27,17 @@ CREATE TABLE car_variant (
 );
 
 -- A vehicle is now entered by hand, with its size, or found in that table, with its make,
--- model, year, engine size and origin. A car found there goes by the register's figure,
--- unless the driver also typed what the dashboard shows.
+-- model, year and engine size. A car found there goes by the register's figure, unless the
+-- driver also typed what the dashboard shows.
 ALTER TABLE vehicle
     ALTER COLUMN size DROP NOT NULL,
     ADD COLUMN make text,
     ADD COLUMN model text,
     ADD COLUMN year smallint,
     ADD COLUMN engine_litres numeric(3, 1),
-    ADD COLUMN imported_used boolean,
     ADD COLUMN figure_from text NOT NULL DEFAULT 'DASHBOARD' CHECK (figure_from IN ('DASHBOARD', 'REGISTER')),
     ADD CONSTRAINT vehicle_entered_or_found CHECK (
         (size IS NOT NULL AND make IS NULL AND model IS NULL AND year IS NULL
-            AND engine_litres IS NULL AND imported_used IS NULL AND figure_from = 'DASHBOARD')
+            AND engine_litres IS NULL AND figure_from = 'DASHBOARD')
         OR (size IS NULL AND make IS NOT NULL AND model IS NOT NULL AND year IS NOT NULL
-            AND engine_litres IS NOT NULL AND imported_used IS NOT NULL));
+            AND engine_litres IS NOT NULL));

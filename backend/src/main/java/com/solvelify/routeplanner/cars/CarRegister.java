@@ -11,13 +11,26 @@ import org.springframework.stereotype.Repository;
  * The petrol cars of NZTA's Motor Vehicle Register, as {@link CarImporter} loaded them. A driver
  * finds theirs one step at a time: the make, the model, the year, then the engine. Each list
  * comes in the order it is shown in.
+ *
+ * <p>The register tells a car sold new here from the same car imported used, and their figures
+ * differ by up to 13%. A driver is not asked which theirs is, so each engine is listed once,
+ * with the figure of whichever of the two has more cars: the figure most of those cars carry.
  */
 @Repository
 public class CarRegister {
 
-    private static final String SELECT_VARIANTS = """
-            SELECT make, model, year, engine_litres, imported_used, litres_per_100_km, cars
+    // One row for each engine of a model and year, counting the cars of both origins.
+    private static final String ONE_ROW_AN_ENGINE = """
+            SELECT DISTINCT ON (engine_litres) make, model, year, engine_litres, litres_per_100_km,
+                   sum(cars) OVER (PARTITION BY engine_litres) AS all_cars
             FROM car_variant
+            WHERE make = ? AND model = ? AND year = ?
+            """;
+
+    // The row kept for each engine is the first: the origin with more cars, and in a tie the
+    // car sold new here.
+    private static final String LARGER_ORIGIN_FIRST = """
+            ORDER BY engine_litres, cars DESC, imported_used
             """;
 
     private final JdbcClient jdbc;
@@ -49,12 +62,9 @@ public class CarRegister {
                 .list();
     }
 
-    /** The engines of one model and year, smallest first, and sold new before imported used. */
+    /** The engines of one model and year, smallest first. */
     public List<CarVariant> variants(String make, String model, int year) {
-        return jdbc.sql(SELECT_VARIANTS + """
-                        WHERE make = ? AND model = ? AND year = ?
-                        ORDER BY engine_litres, imported_used
-                        """)
+        return jdbc.sql(ONE_ROW_AN_ENGINE + LARGER_ORIGIN_FIRST)
                 .params(make, model, year)
                 .query(CarRegister::variantOf)
                 .list();
@@ -62,17 +72,15 @@ public class CarRegister {
 
     /** The register's figure for this car. Empty when it does not list the car. */
     public Optional<CarVariant> find(Car car) {
-        return jdbc.sql(SELECT_VARIANTS + """
-                        WHERE make = ? AND model = ? AND year = ? AND engine_litres = ? AND imported_used = ?
-                        """)
-                .params(car.make(), car.model(), car.year(), car.engineLitres(), car.importedUsed())
+        return jdbc.sql(ONE_ROW_AN_ENGINE + "AND engine_litres = ?\n" + LARGER_ORIGIN_FIRST)
+                .params(car.make(), car.model(), car.year(), car.engineLitres())
                 .query(CarRegister::variantOf)
                 .optional();
     }
 
     private static CarVariant variantOf(ResultSet row, int index) throws SQLException {
         Car car = new Car(row.getString("make"), row.getString("model"), row.getInt("year"),
-                row.getBigDecimal("engine_litres"), row.getBoolean("imported_used"));
-        return new CarVariant(car, row.getDouble("litres_per_100_km"), row.getInt("cars"));
+                row.getBigDecimal("engine_litres"));
+        return new CarVariant(car, row.getDouble("litres_per_100_km"), row.getInt("all_cars"));
     }
 }

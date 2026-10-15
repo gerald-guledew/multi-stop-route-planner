@@ -106,7 +106,7 @@ A third flow, and the first one that writes. A place is saved under a name, list
 
 The second entity, and a table of one row: one driver, one vehicle. Its id is always 1, and the table checks that, so saving a vehicle replaces the one there was and a second row cannot happen. `Vehicles` hands JPA a vehicle with that id, and JPA reads the row first and then inserts or updates it.
 
-It is entered by hand, with its size in place of the weight and what its dashboard shows in L/100 km, or found in the register below, with its make, model, year, engine and origin. The table refuses a vehicle that is both or neither. A car found there goes by the register's figure unless the dashboard's is given, and the row says which with `figure_from`, so the screen can call a laboratory figure one. The ranges are checked three times: on the screen before it is sent, by the API, and by the table.
+It is entered by hand, with its size in place of the weight and what its dashboard shows in L/100 km, or found in the register below, with its make, model, year and engine. The table refuses a vehicle that is both or neither. A car found there goes by the register's figure unless the dashboard's is given, and the row says which with `figure_from`, so the screen can say when the figure is the official one. The ranges are checked three times: on the screen before it is sent, by the API, and by the table.
 
 A saved car keeps its own copy of how the register describes it, not a link to a row there. Each import replaces the register's table whole, and the vehicle is not touched.
 
@@ -114,7 +114,7 @@ A saved car keeps its own copy of how the register describes it, not a link to a
 
 NZTA's Motor Vehicle Register lists every vehicle in the country, about six million, with the fuel figures of the test each was approved with. `scripts/export-nzta-cars.sh` asks NZTA's own service to add up the petrol cars by make, model, year, engine to the tenth of a litre, and whether each was sold new here or imported used, and to give the middle figure of each. The whole register at once is more than the service adds up before it gives up, so it goes one make at a time. A car listed fewer than ten times is left out, which is where the register's mistakes are. The file holds about 9,300 rows.
 
-`CarImporter` loads that file into `car_variant` when asked, in one transaction, as the other importers do. `CarRegister` reads it through `JdbcClient`, one list per step a driver takes: the makes, the models of a make, the years of a model, the engines of a year.
+`CarImporter` loads that file into `car_variant` when asked, in one transaction, as the other importers do. `CarRegister` reads it through `JdbcClient`, one list per step a driver takes: the makes, the models of a make, the years of a model, the engines of a year. A driver is not asked whether the car was sold new here or imported used, so each engine is listed once, with the figure of whichever of the two has more cars.
 
 The table also keeps the urban and extra-urban figures, the gross mass and the seats, for the hills and speed still to come. A used import's gross mass is the car and 55 kg a seat, where a car sold new here has the most its maker allows loaded, so the two need reading differently.
 

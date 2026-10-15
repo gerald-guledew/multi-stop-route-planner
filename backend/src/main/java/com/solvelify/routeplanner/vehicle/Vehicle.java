@@ -55,8 +55,6 @@ public class Vehicle {
     private Short year;
     @Column(name = "engine_litres")
     private BigDecimal engineLitres;
-    @Column(name = "imported_used")
-    private Boolean importedUsed;
 
     /** For JPA, which makes an empty one and then fills it in from the row. */
     protected Vehicle() {
@@ -91,7 +89,6 @@ public class Vehicle {
         this.model = car.model();
         this.year = (short) car.year();
         this.engineLitres = car.engineLitres();
-        this.importedUsed = car.importedUsed();
     }
 
     private static double checked(double litresPer100Km) {
@@ -120,6 +117,6 @@ public class Vehicle {
     public Optional<Car> getCar() {
         return make == null
                 ? Optional.empty()
-                : Optional.of(new Car(make, model, year, engineLitres, importedUsed));
+                : Optional.of(new Car(make, model, year, engineLitres));
     }
 }

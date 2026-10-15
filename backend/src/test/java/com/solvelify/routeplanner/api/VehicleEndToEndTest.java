@@ -70,13 +70,16 @@ class VehicleEndToEndTest {
         jdbc.sql("DELETE FROM car_variant").update();
         jdbc.sql("""
                 INSERT INTO car_variant (make, model, year, engine_litres, imported_used, cars, litres_per_100_km)
-                VALUES ('SUZUKI', 'SWIFT', 2018, 1.2, false, 1344, 4.8)
+                VALUES ('SUZUKI', 'SWIFT', 2018, 1.2, false, 1344, 4.8), ('SUZUKI', 'SWIFT', 2018, 1.2, true, 552, 4.2)
                 """).update();
         try {
+            // Sold new here and imported used, the same engine is one car.
             String car = mockMvc.perform(get("/api/v1/cars/variants")
                             .param("make", "SUZUKI").param("model", "SWIFT").param("year", "2018"))
                     .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
                     .andExpect(jsonPath("$[0].litresPer100Km").value(4.8))
+                    .andExpect(jsonPath("$[0].cars").value(1896))
                     .andReturn().getResponse().getContentAsString()
                     .replaceAll("^\\[\\{\"car\":(\\{[^}]*\\}).*$", "$1");
 
@@ -91,7 +94,7 @@ class VehicleEndToEndTest {
                     .andExpect(jsonPath("$.litresPer100Km").value(4.8))
                     .andExpect(jsonPath("$.figureFrom").value("register"))
                     .andExpect(jsonPath("$.car.model").value("SWIFT"))
-                    .andExpect(jsonPath("$.car.importedUsed").value(false));
+                    .andExpect(jsonPath("$.car.engineLitres").value(1.2));
         } finally {
             jdbc.sql("DELETE FROM car_variant").update();
         }

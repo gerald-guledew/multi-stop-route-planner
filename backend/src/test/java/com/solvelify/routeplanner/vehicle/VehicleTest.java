@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 
 class VehicleTest {
 
-    private static final Car USED_SWIFT = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"), true);
-    private static final CarVariant USED_SWIFT_FOUND = new CarVariant(USED_SWIFT, 4.2, 552);
+    private static final Car SWIFT = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"));
+    private static final CarVariant SWIFT_FOUND = new CarVariant(SWIFT, 4.8, 1896);
 
     @Test
     void takesAnyFigureFromTwoToThirtyLitres() {
@@ -43,26 +43,26 @@ class VehicleTest {
 
     @Test
     void aCarFromTheRegisterGoesByTheRegistersFigure() {
-        Vehicle found = new Vehicle(USED_SWIFT_FOUND, null);
+        Vehicle found = new Vehicle(SWIFT_FOUND, null);
 
-        assertThat(found.getLitresPer100Km()).isEqualTo(4.2);
+        assertThat(found.getLitresPer100Km()).isEqualTo(4.8);
         assertThat(found.getFigureFrom()).isEqualTo(FigureFrom.REGISTER);
-        assertThat(found.getCar()).contains(USED_SWIFT);
+        assertThat(found.getCar()).contains(SWIFT);
         assertThat(found.getSize()).isNull();
     }
 
     @Test
     void aCarFromTheRegisterGoesByItsDashboardWhenThatIsGiven() {
-        Vehicle found = new Vehicle(USED_SWIFT_FOUND, 5.6);
+        Vehicle found = new Vehicle(SWIFT_FOUND, 5.6);
 
         assertThat(found.getLitresPer100Km()).isEqualTo(5.6);
         assertThat(found.getFigureFrom()).isEqualTo(FigureFrom.DASHBOARD);
-        assertThat(found.getCar()).contains(USED_SWIFT);
+        assertThat(found.getCar()).contains(SWIFT);
     }
 
     @Test
     void refusesADashboardFigureNoPetrolCarShowsForACarFromTheRegister() {
-        assertThatThrownBy(() -> new Vehicle(USED_SWIFT_FOUND, 45.0))
+        assertThatThrownBy(() -> new Vehicle(SWIFT_FOUND, 45.0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("between 2.0 and 30.0");
     }

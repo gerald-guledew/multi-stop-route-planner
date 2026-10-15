@@ -37,10 +37,10 @@ class VehicleControllerTest {
             { "litresPer100Km": 7.5, "size": "medium" }
             """;
 
-    private static final Car USED_SWIFT = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"), true);
+    private static final Car SWIFT = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"));
 
-    private static final String THE_USED_SWIFT = """
-            { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2, "importedUsed": true }
+    private static final String THE_SWIFT = """
+            { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 }
             """;
 
     @Autowired
@@ -72,18 +72,18 @@ class VehicleControllerTest {
 
     @Test
     void givesTheCarFoundInTheRegister() throws Exception {
-        given(vehicles.current()).willReturn(Optional.of(new Vehicle(new CarVariant(USED_SWIFT, 4.2, 552), null)));
+        given(vehicles.current()).willReturn(Optional.of(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null)));
 
         mockMvc.perform(get("/api/v1/vehicle"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.litresPer100Km").value(4.2))
+                .andExpect(jsonPath("$.litresPer100Km").value(4.8))
                 .andExpect(jsonPath("$.figureFrom").value("register"))
                 .andExpect(jsonPath("$.size").value(nullValue()))
                 .andExpect(jsonPath("$.car.make").value("SUZUKI"))
                 .andExpect(jsonPath("$.car.model").value("SWIFT"))
                 .andExpect(jsonPath("$.car.year").value(2018))
                 .andExpect(jsonPath("$.car.engineLitres").value(1.2))
-                .andExpect(jsonPath("$.car.importedUsed").value(true));
+                .andExpect(jsonPath("$.car.importedUsed").doesNotExist());
     }
 
     @Test
@@ -108,30 +108,30 @@ class VehicleControllerTest {
 
     @Test
     void savesACarFoundInTheRegister() throws Exception {
-        given(vehicles.saveFromRegister(any(), any())).willReturn(new Vehicle(new CarVariant(USED_SWIFT, 4.2, 552), null));
+        given(vehicles.saveFromRegister(any(), any())).willReturn(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null));
 
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"car\": " + THE_USED_SWIFT + " }"))
+                        .content("{ \"car\": " + THE_SWIFT + " }"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.figureFrom").value("register"))
                 .andExpect(jsonPath("$.car.model").value("SWIFT"));
 
-        verify(vehicles).saveFromRegister(USED_SWIFT, null);
+        verify(vehicles).saveFromRegister(SWIFT, null);
     }
 
     @Test
     void savesACarFoundInTheRegisterWithItsDashboardsFigure() throws Exception {
-        given(vehicles.saveFromRegister(any(), any())).willReturn(new Vehicle(new CarVariant(USED_SWIFT, 4.2, 552), 5.6));
+        given(vehicles.saveFromRegister(any(), any())).willReturn(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), 5.6));
 
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"car\": " + THE_USED_SWIFT + ", \"litresPer100Km\": 5.6 }"))
+                        .content("{ \"car\": " + THE_SWIFT + ", \"litresPer100Km\": 5.6 }"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.litresPer100Km").value(5.6))
                 .andExpect(jsonPath("$.figureFrom").value("dashboard"));
 
-        verify(vehicles).saveFromRegister(USED_SWIFT, 5.6);
+        verify(vehicles).saveFromRegister(SWIFT, 5.6);
     }
 
     @Test
@@ -148,7 +148,7 @@ class VehicleControllerTest {
     void refusesAVehicleWithASizeAndACar() throws Exception {
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"litresPer100Km\": 7.5, \"size\": \"medium\", \"car\": " + THE_USED_SWIFT + " }"))
+                        .content("{ \"litresPer100Km\": 7.5, \"size\": \"medium\", \"car\": " + THE_SWIFT + " }"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("sizeOrCar"))
                 .andExpect(jsonPath("$.errors[0].message").value("must be a size or a car, one of the two"));
@@ -169,7 +169,7 @@ class VehicleControllerTest {
     void refusesACarWithoutItsEngine() throws Exception {
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"car\": { \"make\": \"SUZUKI\", \"model\": \"SWIFT\", \"year\": 2018, \"importedUsed\": true } }"))
+                        .content("{ \"car\": { \"make\": \"SUZUKI\", \"model\": \"SWIFT\", \"year\": 2018 } }"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("car.engineLitres"));
 
@@ -197,14 +197,14 @@ class VehicleControllerTest {
 
     @Test
     void saysSoWhenTheRegisterDoesNotListTheCar() throws Exception {
-        given(vehicles.saveFromRegister(any(), any())).willThrow(new CarNotInRegisterException(USED_SWIFT));
+        given(vehicles.saveFromRegister(any(), any())).willThrow(new CarNotInRegisterException(SWIFT));
 
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"car\": " + THE_USED_SWIFT + " }"))
+                        .content("{ \"car\": " + THE_SWIFT + " }"))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.title").value("Car not in the register"))
-                .andExpect(jsonPath("$.detail").value("NZTA's register has no 2018 SUZUKI SWIFT 1.2 L imported used."));
+                .andExpect(jsonPath("$.detail").value("NZTA's register has no 2018 SUZUKI SWIFT 1.2 L."));
     }
 
     @Test

@@ -21,7 +21,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @SpringBootTest
 class VehiclesTest {
 
-    private static final Car USED_SWIFT = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"), true);
+    private static final Car SWIFT = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"));
 
     @Autowired
     private Vehicles vehicles;
@@ -73,10 +73,10 @@ class VehiclesTest {
 
     @Test
     void keepsACarFoundInTheRegisterWithTheRegistersFigure() {
-        vehicles.saveFromRegister(USED_SWIFT, null);
+        vehicles.saveFromRegister(SWIFT, null);
 
         Vehicle saved = vehicles.current().orElseThrow();
-        assertThat(saved.getCar()).contains(USED_SWIFT);
+        assertThat(saved.getCar()).contains(SWIFT);
         assertThat(saved.getLitresPer100Km()).isEqualTo(4.2);
         assertThat(saved.getFigureFrom()).isEqualTo(FigureFrom.REGISTER);
         assertThat(saved.getSize()).isNull();
@@ -84,7 +84,7 @@ class VehiclesTest {
 
     @Test
     void keepsTheDashboardsFigureForACarFoundInTheRegister() {
-        vehicles.saveFromRegister(USED_SWIFT, 5.6);
+        vehicles.saveFromRegister(SWIFT, 5.6);
 
         Vehicle saved = vehicles.current().orElseThrow();
         assertThat(saved.getLitresPer100Km()).isEqualTo(5.6);
@@ -94,17 +94,17 @@ class VehiclesTest {
     @Test
     void refusesACarTheRegisterDoesNotListAndKeepsTheVehicleThereWas() {
         vehicles.save(7.5, VehicleSize.MEDIUM);
-        Car newSwift = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"), false);
+        Car swiftSport = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.4"));
 
-        assertThatThrownBy(() -> vehicles.saveFromRegister(newSwift, null))
+        assertThatThrownBy(() -> vehicles.saveFromRegister(swiftSport, null))
                 .isInstanceOf(CarNotInRegisterException.class)
-                .hasMessage("NZTA's register has no 2018 SUZUKI SWIFT 1.2 L sold new in New Zealand.");
+                .hasMessage("NZTA's register has no 2018 SUZUKI SWIFT 1.4 L.");
         assertThat(vehicles.current().orElseThrow().getSize()).isEqualTo(VehicleSize.MEDIUM);
     }
 
     @Test
     void forgetsTheCarWhenAVehicleIsEnteredByHandInItsPlace() {
-        vehicles.saveFromRegister(USED_SWIFT, null);
+        vehicles.saveFromRegister(SWIFT, null);
 
         vehicles.save(7.5, VehicleSize.MEDIUM);
 
@@ -142,15 +142,15 @@ class VehiclesTest {
     @Test
     void theTableRefusesAVehicleThatIsBothEnteredAndFoundOrNeither() {
         assertThatThrownBy(() -> jdbc.sql("""
-                INSERT INTO vehicle (litres_per_100_km, size, make, model, year, engine_litres, imported_used)
-                VALUES (7.5, 'SMALL', 'SUZUKI', 'SWIFT', 2018, 1.2, true)
+                INSERT INTO vehicle (litres_per_100_km, size, make, model, year, engine_litres)
+                VALUES (7.5, 'SMALL', 'SUZUKI', 'SWIFT', 2018, 1.2)
                 """).update()).isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.sql("INSERT INTO vehicle (litres_per_100_km) VALUES (7.5)").update())
                 .isInstanceOf(DataIntegrityViolationException.class);
         // A car with no year is not a car the register lists.
         assertThatThrownBy(() -> jdbc.sql("""
-                INSERT INTO vehicle (litres_per_100_km, make, model, engine_litres, imported_used)
-                VALUES (7.5, 'SUZUKI', 'SWIFT', 1.2, true)
+                INSERT INTO vehicle (litres_per_100_km, make, model, engine_litres)
+                VALUES (7.5, 'SUZUKI', 'SWIFT', 1.2)
                 """).update()).isInstanceOf(DataIntegrityViolationException.class);
         // A size is entered by hand, and only the dashboard gives a figure then.
         assertThatThrownBy(() -> jdbc.sql(
