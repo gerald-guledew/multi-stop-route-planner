@@ -70,6 +70,11 @@ routeplanner:
     # after every new export: it updates, adds and removes to match the file.
     import-enabled: false
     csv: data/overture-nz-places.csv
+  cars:
+    # Set to true with the NZTA export in place to load the cars a driver finds theirs among.
+    # Safe to repeat after every new export: the cars are replaced with what the file holds.
+    import-enabled: false
+    csv: data/nzta-cars.csv
   search:
     # Overture scores each place from 0 to 1 for how likely it is to exist. Places below this
     # are left out of results. Raise it for fewer doubtful places, lower it for more small ones.

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { litresFrom, SIZES, vehicleSaid } from '../vehicle'
-import type { Vehicle, VehicleSize } from '../types'
+import { SIZES, vehicleSaid, vehicleToSave, type Way } from '../vehicle'
+import CarFinder from './CarFinder'
+import type { CarVariant, Vehicle, VehicleSize, VehicleToSave } from '../types'
 
 interface Props {
   /** The vehicle saved in the planner. Null until one is saved. */
@@ -10,36 +11,59 @@ interface Props {
   /** True while a change is on its way to the API, so nothing is pressed twice. */
   busy: boolean
   /** Says whether the vehicle was saved, so the form closes only when it was. */
-  onSave: (vehicle: Vehicle) => Promise<boolean>
+  onSave: (vehicle: VehicleToSave) => Promise<boolean>
   onRemove: () => void
 }
 
 /**
- * The vehicle the planner works out fuel for. It is saved in the planner, so it is entered
- * once and not for every trip. One line while it stands, a short form while it is entered.
+ * The vehicle the planner works out fuel for. It is saved in the planner, so it is given once
+ * and not for every trip. One line while it stands, a short form while it is given.
+ *
+ * A driver finds the car in the register by make, model, year and engine, and may type the
+ * fuel use its dashboard shows, which is used instead of the register's. A car the register
+ * does not list is entered by hand, with its size and the dashboard's figure.
  */
 export default function VehicleSection(props: Props) {
   const { vehicle, problem, busy } = props
   const [entering, setEntering] = useState(false)
+  const [way, setWay] = useState<Way>('find')
+  // False once the planner turns out to hold no cars, as when they were never imported.
+  const [carsListed, setCarsListed] = useState(true)
+  const [found, setFound] = useState<CarVariant | null>(null)
   const [size, setSize] = useState<VehicleSize>('medium')
   const [typed, setTyped] = useState('')
   const [typingProblem, setTypingProblem] = useState<string | null>(null)
 
   function startEntering() {
+    // Opened the way the saved vehicle was given, so changing it starts from what it is.
+    setWay(!carsListed || (vehicle !== null && vehicle.car === null) ? 'enter' : 'find')
+    setFound(null)
     setSize(vehicle?.size ?? 'medium')
-    setTyped(vehicle ? String(vehicle.litresPer100Km) : '')
+    setTyped(vehicle?.figureFrom === 'dashboard' ? String(vehicle.litresPer100Km) : '')
     setTypingProblem(null)
     setEntering(true)
   }
 
+  function chooseWay(chosen: Way) {
+    setWay(chosen)
+    setTypingProblem(null)
+  }
+
+  function listed(anyCars: boolean) {
+    setCarsListed(anyCars)
+    if (!anyCars) {
+      chooseWay('enter')
+    }
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault()
-    const read = litresFrom(typed)
-    if ('problem' in read) {
-      setTypingProblem(read.problem)
+    const toSave = vehicleToSave(way, { size, found, typed })
+    if ('problem' in toSave) {
+      setTypingProblem(toSave.problem)
       return
     }
-    if (await props.onSave({ litresPer100Km: read.litres, size })) {
+    if (await props.onSave(toSave)) {
       setEntering(false)
     }
   }
@@ -74,21 +98,41 @@ export default function VehicleSection(props: Props) {
     <section className="vehicle">
       <h2>Your vehicle</h2>
       <form onSubmit={save}>
+        {/* Both ways stay in the form while it is open, so going back to one finds it as it was left. */}
+        <div hidden={way !== 'find'}>
+          <CarFinder saved={vehicle?.car ?? null} onPick={setFound} onListed={listed} />
+          <p className="note">
+            Can't find your car?{' '}
+            <button type="button" className="link" onClick={() => chooseWay('enter')}>
+              Enter it yourself
+            </button>
+          </p>
+        </div>
+        <div hidden={way !== 'enter'}>
+          <label>
+            Size
+            <select value={size} onChange={(event) => setSize(event.target.value as VehicleSize)}>
+              {SIZES.map((choice) => (
+                <option key={choice.size} value={choice.size}>
+                  {choice.says}
+                </option>
+              ))}
+            </select>
+          </label>
+          {carsListed && (
+            <p className="note">
+              <button type="button" className="link" onClick={() => chooseWay('find')}>
+                Find your car instead
+              </button>
+            </p>
+          )}
+        </div>
         <label>
-          Size
-          <select value={size} onChange={(event) => setSize(event.target.value as VehicleSize)}>
-            {SIZES.map((choice) => (
-              <option key={choice.size} value={choice.size}>
-                {choice.says}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Fuel use, L/100 km
+          {way === 'find' ? 'Dashboard figure, L/100 km, if you know it' : 'Fuel use, L/100 km'}
           <input
             inputMode="decimal"
-            placeholder="7.5"
+            // An example figure in a box that may be left empty would look filled in.
+            placeholder={way === 'enter' ? '7.5' : undefined}
             value={typed}
             onChange={(event) => {
               setTyped(event.target.value)
@@ -96,7 +140,7 @@ export default function VehicleSection(props: Props) {
             }}
           />
         </label>
-        <p className="note">As your dashboard shows it. Petrol cars only, for now.</p>
+        {way === 'enter' && <p className="note">As your dashboard shows it. Petrol cars only, for now.</p>}
         {typingProblem && <p className="warning">{typingProblem}</p>}
         {problem && <p className="warning">{problem}</p>}
         <div className="buttons">

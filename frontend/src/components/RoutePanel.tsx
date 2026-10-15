@@ -3,7 +3,7 @@ import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, UpIcon } from './icons'
 import { differsFromTheShortest, roadClimbsSaid, shortestSaid } from '../roadClimbs'
 import { climbSaid } from '../climb'
-import { litresSaid } from '../fuel'
+import { fuelNote, litresSaid } from '../fuel'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { canBeSaved, savedAt } from '../savedPlaces'
@@ -12,7 +12,7 @@ import { useNarrowScreen } from '../screen'
 import { anyKeptInPlace, canMove, ordinal, type Direction } from '../stops'
 import { whatNext } from '../whatNext'
 import type { DevicePosition, LocationProblem, Position } from '../location'
-import type { Place, RoutePlan, SavedPlace } from '../types'
+import type { FigureFrom, Place, RoutePlan, SavedPlace } from '../types'
 
 interface Props {
   places: Place[]
@@ -45,6 +45,8 @@ interface Props {
   savedList: ReactNode
   /** The vehicle saved in the planner, drawn under the saved places. */
   vehicleSection: ReactNode
+  /** Where the fuel use of that vehicle comes from. Null when there is no vehicle. */
+  vehicleFigureFrom: FigureFrom | null
 }
 
 const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
@@ -469,10 +471,7 @@ export default function RoutePanel(props: Props) {
                 </p>
               )}
               {fuel ? (
-                <p className="note">
-                  Fuel is your vehicle's figure for every kilometre. Hills and speed do not change
-                  it yet.
-                </p>
+                <p className="note">{fuelNote(props.vehicleFigureFrom ?? 'dashboard')}</p>
               ) : (
                 <p className="note">Add your vehicle above to see the fuel this trip takes.</p>
               )}

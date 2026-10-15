@@ -1,5 +1,6 @@
 package com.solvelify.routeplanner.api;
 
+import com.solvelify.routeplanner.cars.CarNotInRegisterException;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import com.solvelify.routeplanner.saved.PlaceNameTakenException;
 import com.solvelify.routeplanner.saved.SavedPlaceNotFoundException;
@@ -79,6 +80,19 @@ class ValidationExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Name already saved");
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("name", exception.name());
+        return problem;
+    }
+
+    /**
+     * A car the register does not list. Like a place with no road near it, the request is
+     * understood but cannot be carried out, so 422.
+     */
+    @ExceptionHandler(CarNotInRegisterException.class)
+    ProblemDetail handleCarNotInRegister(CarNotInRegisterException exception, HttpServletRequest request) {
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+        problem.setTitle("Car not in the register");
+        problem.setInstance(URI.create(request.getRequestURI()));
         return problem;
     }
 

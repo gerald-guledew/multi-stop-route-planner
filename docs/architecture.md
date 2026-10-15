@@ -35,7 +35,8 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | `poi` | Named places from Overture Maps: the table and its importer |
 | `search` | Finds addresses and named places from what was typed. The `PlaceSearch` interface and its PostgreSQL implementation |
 | `saved` | Places somebody saved under a name: the JPA entity, its repository, and the rules about names |
-| `vehicle` | The vehicle the planner works out fuel for: one row, its size and what its dashboard shows |
+| `vehicle` | The vehicle the planner works out fuel for: one row, entered by hand or found in the register |
+| `cars` | Petrol cars from NZTA's Motor Vehicle Register: the table, its importer, and the lists a driver finds a car in |
 
 Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances are calculated.
 
@@ -103,9 +104,19 @@ A third flow, and the first one that writes. A place is saved under a name, list
 
 ## The vehicle
 
-The second entity, and a table of one row: one driver, one vehicle. Its id is always 1, and the table checks that, so saving a vehicle replaces the one there was and a second row cannot happen. `Vehicles.save` hands JPA a vehicle with that id, and JPA reads the row first and then inserts or updates it.
+The second entity, and a table of one row: one driver, one vehicle. Its id is always 1, and the table checks that, so saving a vehicle replaces the one there was and a second row cannot happen. `Vehicles` hands JPA a vehicle with that id, and JPA reads the row first and then inserts or updates it.
 
-It holds what the dashboard shows, in L/100 km, and a size in place of the weight. The ranges are checked three times: on the screen before it is sent, by the API, and by the table.
+It is entered by hand, with its size in place of the weight and what its dashboard shows in L/100 km, or found in the register below, with its make, model, year and engine. The table refuses a vehicle that is both or neither. A car found there goes by the register's figure unless the dashboard's is given, and the row says which with `figure_from`, so the screen can say when the figure is the official one. The ranges are checked three times: on the screen before it is sent, by the API, and by the table.
+
+A saved car keeps its own copy of how the register describes it, not a link to a row there. Each import replaces the register's table whole, and the vehicle is not touched.
+
+## Cars from the register
+
+NZTA's Motor Vehicle Register lists every vehicle in the country, about six million, with the fuel figures of the test each was approved with. `scripts/export-nzta-cars.sh` asks NZTA's own service to add up the petrol cars by make, model, year, engine to the tenth of a litre, and whether each was sold new here or imported used, and to give the middle figure of each. The whole register at once is more than the service adds up before it gives up, so it goes one make at a time. A car listed fewer than ten times is left out, which is where the register's mistakes are. The file holds about 9,300 rows.
+
+`CarImporter` loads that file into `car_variant` when asked, in one transaction, as the other importers do. `CarRegister` reads it through `JdbcClient`, one list per step a driver takes: the makes, the models of a make, the years of a model, the engines of a year. A driver is not asked whether the car was sold new here or imported used, so each engine is listed once, with the figure of whichever of the two has more cars.
+
+The table also keeps the urban and extra-urban figures, the gross mass and the seats, for the hills and speed still to come. A used import's gross mass is the car and 55 kg a seat, where a car sold new here has the most its maker allows loaded, so the two need reading differently.
 
 ## One app
 
@@ -159,5 +170,5 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | 2 | **Done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. Saved places are a JPA entity behind three endpoints. The planning flow above was untouched by both |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length, and with heights switched on how much it climbs and descends. The order is chosen for distance unless the request asks otherwise |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
-| 5 | **Begun.** The vehicle is saved in the planner: what its dashboard shows, and its size. Its fuel use arrives with the request. It does not reach the matrix provider yet, because nothing there reads it |
+| 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use arrives with the request. It does not reach the matrix provider yet, because nothing there reads it |
 | 6 | **Begun.** A second way to fill the cost matrix: distance with the climb counted as extra road, when the request asks to factor in road climbs. The fuel each leg takes is worked out after the order is chosen, by `FuelEstimate`, at the dashboard's figure for every kilometre. Hills and speed in the fuel, and fuel instead of distance in the cost matrix, are still to come |

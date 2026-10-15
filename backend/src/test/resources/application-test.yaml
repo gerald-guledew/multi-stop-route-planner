@@ -8,3 +8,5 @@ routeplanner:
     import-enabled: false
   poi:
     import-enabled: false
+  cars:
+    import-enabled: false
