@@ -595,7 +595,7 @@ button:disabled {
 }
 
 .vehicle select,
-.vehicle input:not([type='radio']) {
+.vehicle input {
   border: 1px solid var(--line);
   border-radius: 6px;
   font: inherit;
@@ -603,23 +603,8 @@ button:disabled {
   padding: 6px 8px;
 }
 
-.vehicle input:not([type='radio']) {
+.vehicle input {
   max-width: 6em;
-}
-
-/* The two ways to give the vehicle, side by side, each a radio button and its words. */
-.vehicle .ways {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 0 0 8px;
-}
-
-.vehicle .ways label {
-  align-items: center;
-  flex-direction: row;
-  gap: 6px;
-  margin: 0;
 }
 
 .vehicle .note,
@@ -685,7 +670,7 @@ button:disabled {
      zoom back out. 16 pixels is the size at which it leaves the page alone. */
   .search input,
   .places input,
-  .vehicle input:not([type='radio']),
+  .vehicle input,
   .vehicle select {
     font-size: 16px;
   }

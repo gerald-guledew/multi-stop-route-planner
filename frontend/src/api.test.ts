@@ -146,24 +146,24 @@ describe('asking how high a spot is', () => {
 
 describe('the vehicle saved in the planner', () => {
   const car = { litresPer100Km: 7.5, size: 'medium' as const }
-  const usedSwift = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2, importedUsed: true }
-  const foundSwift = { litresPer100Km: 4.2, figureFrom: 'register', size: null, car: usedSwift }
+  const swift = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2 }
+  const foundSwift = { litresPer100Km: 4.8, figureFrom: 'register', size: null, car: swift }
 
   it('is saved as the register describes it when it was found there', async () => {
     const fetched = apiThatAnswers(200, foundSwift)
 
-    await expect(saveVehicle({ car: usedSwift, litresPer100Km: null })).resolves.toEqual(foundSwift)
+    await expect(saveVehicle({ car: swift, litresPer100Km: null })).resolves.toEqual(foundSwift)
 
     // No figure is sent, so the register's is used.
-    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: usedSwift })
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: swift })
   })
 
   it("is saved with the dashboard's figure when one was typed for a car found in the register", async () => {
     const fetched = apiThatAnswers(200, foundSwift)
 
-    await saveVehicle({ car: usedSwift, litresPer100Km: 5.6 })
+    await saveVehicle({ car: swift, litresPer100Km: 5.6 })
 
-    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: usedSwift, litresPer100Km: 5.6 })
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: swift, litresPer100Km: 5.6 })
   })
 
   it('is none until one is saved', async () => {
@@ -229,11 +229,11 @@ describe('finding a car in the register', () => {
   })
 
   it('lists the engines of a year, each with its figure', async () => {
-    const swift = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2, importedUsed: false }
-    const fetched = apiThatAnswers(200, [{ car: swift, litresPer100Km: 4.8, cars: 1344 }])
+    const swift = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2 }
+    const fetched = apiThatAnswers(200, [{ car: swift, litresPer100Km: 4.8, cars: 1896 }])
 
     await expect(listVariants('SUZUKI', 'SWIFT', 2018)).resolves.toEqual([
-      { car: swift, litresPer100Km: 4.8, cars: 1344 },
+      { car: swift, litresPer100Km: 4.8, cars: 1896 },
     ])
     expect(fetched.mock.calls[0][0]).toBe('/api/v1/cars/variants?make=SUZUKI&model=SWIFT&year=2018')
   })

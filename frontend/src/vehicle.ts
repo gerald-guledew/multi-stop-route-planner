@@ -22,36 +22,26 @@ export function engineSaid(litres: number): string {
   return `${litres.toFixed(1)} L`
 }
 
-/** Where the car was first registered, which is why two of the same car carry different figures. */
-export function originSaid(car: Car): string {
-  return car.importedUsed ? 'imported used' : 'sold new in NZ'
-}
-
-/** A car as the register describes it: "2018 SUZUKI SWIFT 1.2 L, imported used". */
+/** A car as the register describes it: "2018 SUZUKI SWIFT 1.2 L". */
 export function carSaid(car: Car): string {
-  return `${car.year} ${car.make} ${car.model} ${engineSaid(car.engineLitres)}, ${originSaid(car)}`
-}
-
-/** One engine in the list to pick from, with its figure: "1.2 L, sold new in NZ: 4.8 L/100 km". */
-export function variantSaid(found: CarVariant): string {
-  return `${engineSaid(found.car.engineLitres)}, ${originSaid(found.car)}: ${found.litresPer100Km} L/100 km`
+  return `${car.year} ${car.make} ${car.model} ${engineSaid(car.engineLitres)}`
 }
 
 /**
  * The vehicle in a few words: "Medium car, 7.5 L/100 km" when entered by hand. A car found in
- * the register is named, and its figure called a lab figure unless it is the dashboard's.
+ * the register is named, and its figure called the official one unless it is the dashboard's.
  */
 export function vehicleSaid(vehicle: Vehicle): string {
   if (vehicle.car === null) {
     return `${SIZE_IN_SHORT[vehicle.size ?? 'medium']}, ${vehicle.litresPer100Km} L/100 km`
   }
-  const figure = vehicle.figureFrom === 'register' ? ' lab figure' : ''
+  const figure = vehicle.figureFrom === 'register' ? ' (official figure)' : ''
   return `${carSaid(vehicle.car)}, ${vehicle.litresPer100Km} L/100 km${figure}`
 }
 
-/** Tells the engines of one year apart, as a list's value: the size and where it was registered. */
+/** Tells the engines of one year apart, as a list's value. */
 export function variantKey(found: CarVariant): string {
-  return `${found.car.engineLitres}|${found.car.importedUsed}`
+  return String(found.car.engineLitres)
 }
 
 /**
@@ -65,8 +55,7 @@ export function variantToPick(variants: CarVariant[], saved: Car | null): CarVar
       found.car.make === saved.make &&
       found.car.model === saved.model &&
       found.car.year === saved.year &&
-      found.car.engineLitres === saved.engineLitres &&
-      found.car.importedUsed === saved.importedUsed,
+      found.car.engineLitres === saved.engineLitres,
   )
   return theSavedOne ?? (variants.length === 1 ? variants[0] : null)
 }
@@ -98,7 +87,7 @@ export function dashboardLitresFrom(typed: string): { litres: number | null } | 
   return typed.trim() === '' ? { litres: null } : litresFrom(typed)
 }
 
-/** The two ways to give the vehicle: found in NZTA's register, or entered by hand. */
+/** The two ways to give the vehicle: found in NZTA's register, or, for a car it does not list, entered by hand. */
 export type Way = 'find' | 'enter'
 
 /**

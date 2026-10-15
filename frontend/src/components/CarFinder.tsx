@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import { listMakes, listModels, listVariants, listYears } from '../api'
-import { variantKey, variantSaid, variantToPick } from '../vehicle'
+import { engineSaid, variantKey, variantToPick } from '../vehicle'
 import type { Car, CarVariant } from '../types'
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
   saved: Car | null
   /** Told of the engine picked, or of null while the car is not picked down to its engine. */
   onPick: (found: CarVariant | null) => void
+  /** Told whether the planner holds any cars, once the makes arrive. */
+  onListed: (anyCars: boolean) => void
 }
 
 /**
@@ -15,7 +17,7 @@ interface Props {
  * the engine. Each list is asked for once the step before it is picked, and picking again
  * further up empties the lists below.
  */
-export default function CarFinder({ saved, onPick }: Props) {
+export default function CarFinder({ saved, onPick, onListed }: Props) {
   // A list is null while it is on its way.
   const [makes, setMakes] = useState<string[] | null>(null)
   const [make, setMake] = useState(saved?.make ?? '')
@@ -36,9 +38,14 @@ export default function CarFinder({ saved, onPick }: Props) {
     }
   }
 
+  const onMakesArrived = useEffectEvent((arrived: string[]) => {
+    setMakes(arrived)
+    onListed(arrived.length > 0)
+  })
+
   useEffect(() => {
     const leaving = new AbortController()
-    listMakes(leaving.signal).then(setMakes).catch(sayWhenNotRead(leaving))
+    listMakes(leaving.signal).then(onMakesArrived).catch(sayWhenNotRead(leaving))
     return () => leaving.abort()
   }, [])
 
@@ -110,8 +117,9 @@ export default function CarFinder({ saved, onPick }: Props) {
     onPick(variants?.find((found) => variantKey(found) === key) ?? null)
   }
 
+  // A planner the cars were never imported into has nothing to find. The form enters it by hand.
   if (makes !== null && makes.length === 0) {
-    return <p className="note">No cars are loaded in this planner yet. Enter your vehicle yourself.</p>
+    return null
   }
 
   return (
@@ -161,7 +169,7 @@ export default function CarFinder({ saved, onPick }: Props) {
           </option>
           {variants?.map((found) => (
             <option key={variantKey(found)} value={variantKey(found)}>
-              {variantSaid(found)}
+              {engineSaid(found.car.engineLitres)}
             </option>
           ))}
         </select>

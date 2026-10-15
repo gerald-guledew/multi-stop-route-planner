@@ -15,14 +15,10 @@ export function litresSaid(litres: number): string {
 }
 
 /**
- * What the fuel of a plan rests on, said under it. A dashboard average holds the hills and
- * town driving a car usually does. A figure from the register comes from a laboratory test,
- * and real driving uses more, so the plan says so.
+ * What the fuel of a plan rests on, said under it: the dashboard's figure, or the official one
+ * from the register when none was typed.
  */
 export function fuelNote(figureFrom: FigureFrom): string {
-  const figure =
-    figureFrom === 'register'
-      ? "Fuel is your car's lab figure for every kilometre, and real driving uses more."
-      : "Fuel is your vehicle's figure for every kilometre."
-  return `${figure} Hills and speed do not change it yet.`
+  const figure = figureFrom === 'register' ? "your car's official figure" : "your vehicle's figure"
+  return `Fuel is ${figure} for every kilometre. Hills and speed do not change it yet.`
 }

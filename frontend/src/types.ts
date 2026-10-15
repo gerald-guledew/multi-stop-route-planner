@@ -39,20 +39,18 @@ export interface Car {
   year: number
   /** To the nearest tenth of a litre, such as 1.2. */
   engineLitres: number
-  /** True for a used import, false for a car sold new in New Zealand. */
-  importedUsed: boolean
 }
 
 /** One car the register lists, with the figure most cars like it carry. */
 export interface CarVariant {
   car: Car
-  /** The combined figure of the laboratory test the car was approved with. Real driving uses more. */
+  /** The official figure: the combined figure of the test the car was approved with. */
   litresPer100Km: number
   /** How many of these cars are registered. */
   cars: number
 }
 
-/** Where a vehicle's fuel use comes from: its dashboard, or the register's laboratory figure. */
+/** Where a vehicle's fuel use comes from: its dashboard, or the register's official figure. */
 export type FigureFrom = 'dashboard' | 'register'
 
 /**

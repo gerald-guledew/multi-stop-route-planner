@@ -8,9 +8,9 @@ describe('saying what the fuel rests on', () => {
     )
   })
 
-  it('says a figure from the register is a lab figure, which real driving exceeds', () => {
+  it('says a figure from the register is the official one', () => {
     expect(fuelNote('register')).toBe(
-      "Fuel is your car's lab figure for every kilometre, and real driving uses more. Hills and speed do not change it yet.",
+      "Fuel is your car's official figure for every kilometre. Hills and speed do not change it yet.",
     )
   })
 })

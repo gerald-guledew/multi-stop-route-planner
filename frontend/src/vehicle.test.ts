@@ -6,16 +6,14 @@ import {
   litresFrom,
   SIZES,
   variantKey,
-  variantSaid,
   variantToPick,
   vehicleSaid,
   vehicleToSave,
 } from './vehicle'
 import type { Car, CarVariant } from './types'
 
-const USED_SWIFT: Car = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2, importedUsed: true }
-const NEW_SWIFT: Car = { ...USED_SWIFT, importedUsed: false }
-const SWIFT_SPORT: Car = { ...NEW_SWIFT, engineLitres: 1.4 }
+const SWIFT: Car = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2 }
+const SWIFT_SPORT: Car = { ...SWIFT, engineLitres: 1.4 }
 
 const found = (car: Car, litresPer100Km: number): CarVariant => ({ car, litresPer100Km, cars: 100 })
 
@@ -27,15 +25,15 @@ describe('saying what the vehicle is', () => {
     expect(vehicleSaid({ ...entered, litresPer100Km: 5.2, size: 'small' })).toBe('Small car, 5.2 L/100 km')
   })
 
-  it('names a car found in the register, and calls its figure a lab figure', () => {
-    expect(vehicleSaid({ litresPer100Km: 4.2, figureFrom: 'register', size: null, car: USED_SWIFT })).toBe(
-      '2018 SUZUKI SWIFT 1.2 L, imported used, 4.2 L/100 km lab figure',
+  it('names a car found in the register, and calls its figure the official one', () => {
+    expect(vehicleSaid({ litresPer100Km: 4.8, figureFrom: 'register', size: null, car: SWIFT })).toBe(
+      '2018 SUZUKI SWIFT 1.2 L, 4.8 L/100 km (official figure)',
     )
   })
 
-  it('does not call the dashboard figure of a car found in the register a lab figure', () => {
-    expect(vehicleSaid({ litresPer100Km: 5.6, figureFrom: 'dashboard', size: null, car: NEW_SWIFT })).toBe(
-      '2018 SUZUKI SWIFT 1.2 L, sold new in NZ, 5.6 L/100 km',
+  it('does not call the dashboard figure of a car found in the register the official one', () => {
+    expect(vehicleSaid({ litresPer100Km: 5.6, figureFrom: 'dashboard', size: null, car: SWIFT })).toBe(
+      '2018 SUZUKI SWIFT 1.2 L, 5.6 L/100 km',
     )
   })
 
@@ -51,25 +49,19 @@ describe('saying a car from the register', () => {
   })
 
   it('names the car as the register does', () => {
-    expect(carSaid(USED_SWIFT)).toBe('2018 SUZUKI SWIFT 1.2 L, imported used')
+    expect(carSaid(SWIFT)).toBe('2018 SUZUKI SWIFT 1.2 L')
   })
 
-  it('lists each engine with where it was registered and its figure', () => {
-    expect(variantSaid(found(NEW_SWIFT, 4.8))).toBe('1.2 L, sold new in NZ: 4.8 L/100 km')
-    expect(variantSaid(found(USED_SWIFT, 4.2))).toBe('1.2 L, imported used: 4.2 L/100 km')
-  })
-
-  it('tells two engines of the same size apart by where they were registered', () => {
-    expect(variantKey(found(NEW_SWIFT, 4.8))).not.toBe(variantKey(found(USED_SWIFT, 4.2)))
-    expect(variantKey(found(NEW_SWIFT, 4.8))).not.toBe(variantKey(found(SWIFT_SPORT, 6.1)))
+  it('tells the engines of one year apart', () => {
+    expect(variantKey(found(SWIFT, 4.8))).not.toBe(variantKey(found(SWIFT_SPORT, 6.1)))
   })
 })
 
 describe('picking an engine when the list arrives', () => {
-  const swifts = [found(NEW_SWIFT, 4.8), found(USED_SWIFT, 4.2), found(SWIFT_SPORT, 6.1)]
+  const swifts = [found(SWIFT, 4.8), found(SWIFT_SPORT, 6.1)]
 
   it('picks the one saved, when the saved car is being changed', () => {
-    expect(variantToPick(swifts, USED_SWIFT)).toEqual(found(USED_SWIFT, 4.2))
+    expect(variantToPick(swifts, SWIFT_SPORT)).toEqual(found(SWIFT_SPORT, 6.1))
   })
 
   it('picks the only one there is', () => {
@@ -81,7 +73,7 @@ describe('picking an engine when the list arrives', () => {
   })
 
   it('leaves it to the driver when the saved car is another year', () => {
-    expect(variantToPick(swifts, { ...USED_SWIFT, year: 2017 })).toBeNull()
+    expect(variantToPick(swifts, { ...SWIFT, year: 2017 })).toBeNull()
   })
 })
 
@@ -115,7 +107,7 @@ describe('reading the fuel use as it was typed', () => {
 })
 
 describe("reading the dashboard's figure for a car found in the register", () => {
-  it('takes nothing typed as no figure, so the lab figure is used', () => {
+  it('takes nothing typed as no figure, so the official figure is used', () => {
     expect(dashboardLitresFrom('')).toEqual({ litres: null })
     expect(dashboardLitresFrom('  ')).toEqual({ litres: null })
   })
@@ -127,7 +119,7 @@ describe("reading the dashboard's figure for a car found in the register", () =>
 })
 
 describe('what the form saves', () => {
-  const picked = found(USED_SWIFT, 4.2)
+  const picked = found(SWIFT, 4.8)
 
   it("saves a vehicle entered by hand with its size and the dashboard's figure", () => {
     expect(vehicleToSave('enter', { size: 'small', found: picked, typed: '5,2' })).toEqual({
@@ -144,14 +136,14 @@ describe('what the form saves', () => {
 
   it("saves a car found in the register with no figure when none was typed, so the register's is used", () => {
     expect(vehicleToSave('find', { size: 'medium', found: picked, typed: ' ' })).toEqual({
-      car: USED_SWIFT,
+      car: SWIFT,
       litresPer100Km: null,
     })
   })
 
   it("saves the dashboard's figure with a car found in the register when one was typed", () => {
     expect(vehicleToSave('find', { size: 'medium', found: picked, typed: '5.6' })).toEqual({
-      car: USED_SWIFT,
+      car: SWIFT,
       litresPer100Km: 5.6,
     })
   })

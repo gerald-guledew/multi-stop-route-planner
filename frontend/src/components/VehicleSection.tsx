@@ -19,14 +19,16 @@ interface Props {
  * The vehicle the planner works out fuel for. It is saved in the planner, so it is given once
  * and not for every trip. One line while it stands, a short form while it is given.
  *
- * A driver finds the car in the register by make, model, year and engine, or enters its size
- * and the fuel use its dashboard shows. The dashboard's figure is the better one, so it can be
- * typed for a car found in the register too, and it is used instead of the register's.
+ * A driver finds the car in the register by make, model, year and engine, and may type the
+ * fuel use its dashboard shows, which is used instead of the register's. A car the register
+ * does not list is entered by hand, with its size and the dashboard's figure.
  */
 export default function VehicleSection(props: Props) {
   const { vehicle, problem, busy } = props
   const [entering, setEntering] = useState(false)
   const [way, setWay] = useState<Way>('find')
+  // False once the planner turns out to hold no cars, as when they were never imported.
+  const [carsListed, setCarsListed] = useState(true)
   const [found, setFound] = useState<CarVariant | null>(null)
   const [size, setSize] = useState<VehicleSize>('medium')
   const [typed, setTyped] = useState('')
@@ -34,7 +36,7 @@ export default function VehicleSection(props: Props) {
 
   function startEntering() {
     // Opened the way the saved vehicle was given, so changing it starts from what it is.
-    setWay(vehicle !== null && vehicle.car === null ? 'enter' : 'find')
+    setWay(!carsListed || (vehicle !== null && vehicle.car === null) ? 'enter' : 'find')
     setFound(null)
     setSize(vehicle?.size ?? 'medium')
     setTyped(vehicle?.figureFrom === 'dashboard' ? String(vehicle.litresPer100Km) : '')
@@ -45,6 +47,13 @@ export default function VehicleSection(props: Props) {
   function chooseWay(chosen: Way) {
     setWay(chosen)
     setTypingProblem(null)
+  }
+
+  function listed(anyCars: boolean) {
+    setCarsListed(anyCars)
+    if (!anyCars) {
+      chooseWay('enter')
+    }
   }
 
   async function save(event: FormEvent) {
@@ -89,28 +98,14 @@ export default function VehicleSection(props: Props) {
     <section className="vehicle">
       <h2>Your vehicle</h2>
       <form onSubmit={save}>
-        <div className="ways" role="radiogroup" aria-label="How to give your vehicle">
-          <label>
-            <input type="radio" name="way" value="find" checked={way === 'find'} onChange={() => chooseWay('find')} />
-            Find your car
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="way"
-              value="enter"
-              checked={way === 'enter'}
-              onChange={() => chooseWay('enter')}
-            />
-            Enter it yourself
-          </label>
-        </div>
         {/* Both ways stay in the form while it is open, so going back to one finds it as it was left. */}
         <div hidden={way !== 'find'}>
-          <CarFinder saved={vehicle?.car ?? null} onPick={setFound} />
+          <CarFinder saved={vehicle?.car ?? null} onPick={setFound} onListed={listed} />
           <p className="note">
-            Lab figures from NZTA's vehicle register. Real driving uses more, so type what your
-            dashboard shows if you know it.
+            Can't find your car?{' '}
+            <button type="button" className="link" onClick={() => chooseWay('enter')}>
+              Enter it yourself
+            </button>
           </p>
         </div>
         <div hidden={way !== 'enter'}>
@@ -124,6 +119,13 @@ export default function VehicleSection(props: Props) {
               ))}
             </select>
           </label>
+          {carsListed && (
+            <p className="note">
+              <button type="button" className="link" onClick={() => chooseWay('find')}>
+                Find your car instead
+              </button>
+            </p>
+          )}
         </div>
         <label>
           {way === 'find' ? 'Dashboard figure, L/100 km, if you know it' : 'Fuel use, L/100 km'}
