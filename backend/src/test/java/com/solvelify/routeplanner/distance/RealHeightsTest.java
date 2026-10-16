@@ -9,14 +9,17 @@ import com.graphhopper.reader.dem.ElevationProvider;
 import com.solvelify.routeplanner.planning.BruteForceRouteSolver;
 import com.solvelify.routeplanner.planning.ChosenFor;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
+import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.PlanningProperties;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
 import com.solvelify.routeplanner.planning.TravelMatrix;
+import com.solvelify.routeplanner.vehicle.VehicleSize;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -181,6 +184,31 @@ class RealHeightsTest {
         // Measured: 478 m each way. The engine's own totals came to 1,345 m.
         assertThat(round.climbMetres()).isBetween(430.0, 530.0);
         assertThat(round.descentMetres()).isCloseTo(round.climbMetres(), within(1.0));
+    }
+
+    @Test
+    void costsARoundTripNextToNothingMoreForItsHills() {
+        // A medium car at 7.5 L/100 km. Measured: 5.768 L on the level and 5.769 L with the
+        // hills, where the legs ran from 3.5% less, down to the airport, to 5.5% more, up from
+        // Devonport. The descents are gentle enough to give back nearly all the climbs cost.
+        FuelUse mediumCar = new FuelUse(7.5, OptionalDouble.of(VehicleSize.MEDIUM.kilograms()));
+        TravelMatrix matrix = provider.matrixFor(THE_ROUND);
+
+        double level = 0;
+        double withHills = 0;
+        double[] eachLeg = new double[THE_ROUND.size()];
+        for (int stop = 0; stop < THE_ROUND.size(); stop++) {
+            int next = (stop + 1) % THE_ROUND.size();
+            double onTheLevel = mediumCar.litresFor(matrix.distanceKm(stop, next));
+            double counted = mediumCar.litresFor(matrix.distanceKm(stop, next), matrix.climbAndDescent(stop, next));
+            level += onTheLevel;
+            withHills += counted;
+            eachLeg[stop] = counted / onTheLevel;
+        }
+
+        assertThat(withHills / level).isCloseTo(1, within(0.005));
+        assertThat(eachLeg[0]).as("down to the airport").isBetween(0.94, 0.99);
+        assertThat(eachLeg[4]).as("up from Devonport").isBetween(1.03, 1.08);
     }
 
     @Test

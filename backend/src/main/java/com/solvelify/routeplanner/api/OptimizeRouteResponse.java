@@ -25,6 +25,9 @@ import java.util.stream.IntStream;
  *                             whenever the climb is
  * @param totalFuelLitres      the fuel the trip takes, for the vehicle sent with the request.
  *                             Null when none was sent
+ * @param fuelCountsHills      whether the fuel counts the hills. False when the roads were read
+ *                             without heights or the vehicle came without its weight. Null when
+ *                             no vehicle was sent
  * @param shortestOrder        what the shortest order comes to, given when the order was chosen
  *                             for distance and climb together, so the two can be held against
  *                             each other. Null when the order was chosen for distance alone
@@ -37,6 +40,7 @@ public record OptimizeRouteResponse(
         Long totalClimbMetres,
         Long totalDescentMetres,
         Double totalFuelLitres,
+        Boolean fuelCountsHills,
         double enteredOrderDistanceKm,
         ShortestOrder shortestOrder,
         long ordersChecked) {
@@ -99,6 +103,7 @@ public record OptimizeRouteResponse(
                 wholeMetresUp(plan.totalClimbAndDescent()),
                 wholeMetresDown(plan.totalClimbAndDescent()),
                 fuel.map(litres -> roundToTwoDecimals(litres.totalLitres())).orElse(null),
+                fuel.map(FuelEstimate::countsHills).orElse(null),
                 roundToTwoDecimals(plan.enteredOrderDistanceKm()),
                 plan.shortestOrder()
                         .map(shortest -> new ShortestOrder(

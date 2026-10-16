@@ -103,7 +103,63 @@ class RouteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasKey("totalFuelLitres")))
                 .andExpect(jsonPath("$.totalFuelLitres").value(nullValue()))
+                .andExpect(jsonPath("$.fuelCountsHills").value(nullValue()))
                 .andExpect(jsonPath("$.legs[0].fuelLitres").value(nullValue()));
+    }
+
+    @Test
+    void countsTheHillsInTheFuelWhenTheWeightIsSent() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlanWithClimbs());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5, \"kilograms\": 1225 }")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fuelCountsHills").value(true))
+                // Up 86 m and down 41 m to Takapuna, the other way back. 0.71 L and 0.74 L on
+                // the level, and the way there is the one that climbs.
+                .andExpect(jsonPath("$.legs[0].fuelLitres").value(0.76))
+                .andExpect(jsonPath("$.legs[1].fuelLitres").value(0.68))
+                // The descents are gentle enough to give back what the climbs cost.
+                .andExpect(jsonPath("$.totalFuelLitres").value(1.45));
+    }
+
+    @Test
+    void doesNotCountTheHillsWithoutTheWeight() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlanWithClimbs());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5 }")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fuelCountsHills").value(false))
+                .andExpect(jsonPath("$.legs[0].fuelLitres").value(0.71));
+    }
+
+    @Test
+    void doesNotCountTheHillsOfRoadsReadWithoutHeights() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5, \"kilograms\": 1225 }")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fuelCountsHills").value(false))
+                .andExpect(jsonPath("$.totalFuelLitres").value(1.04));
+    }
+
+    @Test
+    void refusesAWeightNoCarHas() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5, \"kilograms\": 120 }")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("vehicle.kilograms"))
+                .andExpect(jsonPath("$.errors[0].message").value("must be between 400 and 4000"));
     }
 
     @Test

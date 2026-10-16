@@ -26,10 +26,10 @@ Develop an application that can accept a starting point and a list of places. It
 - Type an address or a business name and have it found, nearest first, instead of hunting for it on the map
 - Save the places you go to often, such as home, and pick them again with one press
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
-- How much each leg climbs and descends, worked out from the height of the ground. An estimate, and the first thing a fuel estimate will read
+- How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
 - An order that factors in road climbs when asked: a little longer, to climb less. Off unless ticked
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
-- Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes
+- Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes, with what each climb costs and each descent gives back
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
 

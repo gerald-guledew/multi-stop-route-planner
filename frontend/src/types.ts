@@ -65,6 +65,8 @@ export interface Vehicle {
   size: VehicleSize | null
   /** Null for a vehicle entered by hand. */
   car: Car | null
+  /** What it weighs empty, to the nearest 10 kg. Null when the register no longer lists the car. */
+  kilograms: number | null
 }
 
 /**
@@ -112,6 +114,11 @@ export interface RoutePlan {
   totalDescentMetres: number | null
   /** The fuel the whole trip takes, for the vehicle sent with the plan. Null when none was sent. */
   totalFuelLitres: number | null
+  /**
+   * Whether the fuel counts the hills: not without heights, nor for a vehicle sent without its
+   * weight. Null when no vehicle was sent.
+   */
+  fuelCountsHills: boolean | null
   enteredOrderDistanceKm: number
   /**
    * Set when the order was chosen for distance and climb together, so that it can be held

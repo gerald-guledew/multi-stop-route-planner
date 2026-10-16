@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import org.junit.jupiter.api.Test;
 
 class FuelEstimateTest {
@@ -32,6 +34,41 @@ class FuelEstimateTest {
                 second -> assertThat(second).isCloseTo(0.6, within(1e-9)),
                 third -> assertThat(third).isCloseTo(1.5, within(1e-9)));
         assertThat(estimate.totalLitres()).isCloseTo(3.0, within(1e-9));
+    }
+
+    @Test
+    void doesNotCountTheHillsOfRoadsReadWithoutHeights() {
+        FuelEstimate estimate = FuelEstimate.of(ROUND_TRIP, new FuelUse(7.5, OptionalDouble.of(1225)));
+
+        assertThat(estimate.countsHills()).isFalse();
+        assertThat(estimate.totalLitres()).isCloseTo(3.0, within(1e-9));
+    }
+
+    @Test
+    void countsTheHillsOfEachLegWhenTheWeightIsKnown() {
+        // Up 100 m to the office, level to the shop, and the 100 m down again on the way home,
+        // gently enough to get back what the climb cost.
+        RoutePlan hilly = new RoutePlan(
+                List.of(HOME, OFFICE, SHOP, HOME),
+                List.of(
+                        leg("Home", "Office", 12, new ClimbAndDescent(100, 0)),
+                        leg("Office", "Shop", 8, ClimbAndDescent.LEVEL),
+                        leg("Shop", "Home", 20, new ClimbAndDescent(0, 100, List.of(new ClimbAndDescent.Descent(100, 5000))))),
+                40, OptionalDouble.empty(), Optional.of(new ClimbAndDescent(100, 100)), 40, 2);
+        double hundredMetresUp = 1300 * 9.81 * 100 / (0.30 * 33e6);
+
+        FuelEstimate estimate = FuelEstimate.of(hilly, new FuelUse(7.5, OptionalDouble.of(1225)));
+
+        assertThat(estimate.countsHills()).isTrue();
+        assertThat(estimate.legLitres()).satisfiesExactly(
+                first -> assertThat(first).isCloseTo(0.9 + hundredMetresUp, within(1e-9)),
+                second -> assertThat(second).isCloseTo(0.6, within(1e-9)),
+                third -> assertThat(third).isCloseTo(1.5 - hundredMetresUp, within(1e-9)));
+        assertThat(estimate.totalLitres()).isCloseTo(3.0, within(1e-9));
+    }
+
+    private static RoutePlan.Leg leg(String from, String to, double distanceKm, ClimbAndDescent hills) {
+        return new RoutePlan.Leg(from, to, distanceKm, OptionalDouble.empty(), Optional.of(hills), List.of());
     }
 
     @Test

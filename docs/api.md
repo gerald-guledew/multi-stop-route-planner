@@ -168,6 +168,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `factorInRoadClimbs` | boolean | Optional, defaults to `false`. See "Factoring in road climbs" below |
 | `vehicle` | object | Optional. The vehicle to work out the fuel for. See "Fuel" below |
 | `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows, or the register's figure for a car found there |
+| `vehicle.kilograms` | number | Optional, 400 to 4,000. What the vehicle weighs empty. Without it the fuel does not count the hills |
 
 ```json
 {
@@ -199,6 +200,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `totalClimbMetres` | integer | Climb of the whole trip. `null` unless the roads were read with their heights |
 | `totalDescentMetres` | integer | Descent of the whole trip. `null` whenever the climb is |
 | `totalFuelLitres` | number | The fuel the whole trip takes. `null` when no `vehicle` was sent |
+| `fuelCountsHills` | boolean | Whether the fuel counts the hills. `false` when the roads were read without heights or the `vehicle` came without `kilograms`. `null` when no `vehicle` was sent |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
 | `shortestOrder` | object | Only when road climbs were factored in: the `distanceKm`, `climbMetres` and `descentMetres` of the shortest order, to hold this one against. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
@@ -225,6 +227,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
   "totalClimbMetres": null,
   "totalDescentMetres": null,
   "totalFuelLitres": null,
+  "fuelCountsHills": null,
   "enteredOrderDistanceKm": 71.61,
   "shortestOrder": null,
   "ordersChecked": 24
@@ -373,17 +376,25 @@ It is a round figure, and not a fuel estimate. A [study that simulated cars on g
 Send the vehicle with the request and every leg says how much fuel it takes, and the plan says the same for the whole trip, in litres:
 
 ```json
-"vehicle": { "litresPer100Km": 7.5 }
+"vehicle": { "litresPer100Km": 7.5, "kilograms": 1270 }
 ```
 
-For the five stops above that is 3.88 L: 51.76 km at 7.5 L for every 100 km. Without a `vehicle` both fields are `null`.
+For the five stops above that is 3.88 L: 51.76 km at 7.5 L for every 100 km, on straight lines, which have no hills. Without a `vehicle`, `totalFuelLitres`, `fuelCountsHills` and each leg's `fuelLitres` are `null`.
 
-- **It is the vehicle's figure for every kilometre.** A dashboard average already holds the hills and the town driving the car usually does, so for a trip like the usual ones it is close. A car found in the register goes by its official figure unless the dashboard's is given. That comes from a laboratory test, and real driving uses more, see "Cars" below.
-- **Hills and speed do not change it yet.** A trip that climbs more than usual, or keeps to the motorway, takes more or less than this says.
+On roads read with their heights, and with `kilograms`, the fuel counts the hills and `fuelCountsHills` is `true`:
+
+- **A climb costs the work of lifting the car and the driver.** That is their weight times the height, with 75 kg for the driver. The engine turns 30% of the extra fuel into that work, and a litre of petrol gives 33 MJ. So a 1,270 kg car takes about 0.13 L more for every 100 m up. Checked against a measurement on the road: a car climbing an average of 4% uses 1.5 to 2 times its fuel on the level. This gives 1.8 for cars from 1,000 to 1,800 kg.
+- **A descent gives that back, but never more than the same stretch takes on the level.** Once the slope does all the pulling, the engine burns next to nothing, and anything steeper is braked away. So a gentle hill gives back on the way down what it cost on the way up, and a steep one costs more than it gives. Measured on the road, descents of 1 to 3% made up for their climbs, and steeper ones did not. Each descent is counted on its own, from one turn of the road to the next, with the road it falls over.
+- **A round trip's hills cost little.** It comes down as far as it went up, and most descents are gentle. Measured over 142 drives across Auckland, the hills add 0.2% to the fuel. In Wellington, whose descents are steeper, they add 3%, and in Christchurch 0.1%. On real roads the five stops above take 5.77 L in a medium car at 7.5 L/100 km either way, while the legs run from 3.5% less, down to the airport, to 5.5% more, up from Devonport.
+- **A dashboard figure is taken as the figure for level road.** It is an average over the driving the car has done, hills included, and those hills add so little over time that this trip's are counted on top.
+
+The rest:
+
+- **Speed does not change it yet.** A trip that keeps to the motorway takes more or less than this says.
 - **The order is chosen as it would be without a vehicle.** Fuel is worked out for the order chosen, not used to choose it.
 - **Rounded to a hundredth of a litre**, as distances are to a hundredth of a kilometre. The legs can add up to a hundredth more or less than the total.
 
-The screen sends the vehicle saved in the planner, see "The vehicle" below.
+The screen sends the vehicle saved in the planner and its weight, see "The vehicle" below.
 
 ### Keeping a stop in its place
 
@@ -545,7 +556,7 @@ Planning takes positions, not ids. To plan a trip through a saved place, send it
 
 ## The vehicle
 
-The vehicle the planner works out fuel for, saved so it is given once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The screen sends its fuel use with every plan, see "Fuel" above.
+The vehicle the planner works out fuel for, saved so it is given once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The screen sends its fuel use and its weight with every plan, see "Fuel" above.
 
 It is given one of two ways. Entered by hand: its size and what its dashboard shows. Or found in NZTA's vehicle register, see "Cars" below: its make, model, year and engine, which bring the register's figure, and what its dashboard shows if the driver knows it.
 
@@ -554,7 +565,7 @@ It is given one of two ways. Entered by hand: its size and what its dashboard sh
 Entered by hand:
 
 ```json
-{ "litresPer100Km": 7.5, "figureFrom": "dashboard", "size": "medium", "car": null }
+{ "litresPer100Km": 7.5, "figureFrom": "dashboard", "size": "medium", "car": null, "kilograms": 1270 }
 ```
 
 Found in the register, and going by the register's figure:
@@ -564,7 +575,8 @@ Found in the register, and going by the register's figure:
   "litresPer100Km": 4.8,
   "figureFrom": "register",
   "size": null,
-  "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 }
+  "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 },
+  "kilograms": 890
 }
 ```
 
@@ -574,6 +586,7 @@ Found in the register, and going by the register's figure:
 | `figureFrom` | `dashboard`: what the dashboard shows. `register`: the register's official figure, which real driving exceeds |
 | `size` | For a vehicle entered by hand. `null` for a car found in the register |
 | `car` | For a car found in the register, as it describes it. `null` for a vehicle entered by hand |
+| `kilograms` | What it weighs empty, to the nearest 10 kg, see "The weight" below. `null` when the register no longer lists the car |
 
 Answers **204** with no body until a vehicle is saved. Having none is not an error. The answer is marked `Cache-Control: no-store`, so a vehicle changed on one device is not shown as it was on another.
 
@@ -598,6 +611,16 @@ Found in the register, sent back as `/api/v1/cars/variants` gave it. With `litre
 | `car` | `make`, `model`, `year` and `engineLitres`, all required, as the register lists the car |
 
 Send a `size` or a `car`, not both. The size stands in for the weight, which is what a climb costs, and which few drivers know in kilograms. A car found in the register keeps its description when the register is imported again.
+
+### The weight
+
+What a climb costs, see "Fuel" above. Few drivers know it, so it is worked out.
+
+- **Entered by hand, from the size.** Small 1,020 kg, medium 1,270, large 1,570: the middle weight in the register of the cars each size names, counted by how many are on the road. Small is the Swift, Demio, Fit, Vitz, Aqua and their like, medium the Corolla, Axela, Civic, Impreza and Golf, large the RAV4, CX-5, Outlander, Commodore, Camry and Odyssey.
+- **Found in the register, from its gross mass.** The register gives no empty weight, and its gross mass is on two bases. A used import from Japan carries Japan's gross weight, the car and 55 kg a seat, so the seats come off. A car sold new here carries the most its maker allows it to weigh loaded. Over the 890 engines the register weighs both ways, that is the car and 36% more in the middle, and half come within 5% of the import's weight. An import rated no more than 200 kg lighter than the same engine sold new is taken to carry its maker's rating too, as a 2015 Hyundai i30 1.8 does at 1,840 kg either way.
+- **An engine the register does not weigh** takes the middle weight of the cars with the same engine size. Half the weighed engines come within 6% of what that gives them. 1.3% of the cars listed are such engines, such as the 2011 and 2012 Swift 1.4.
+
+Checked against what makers publish: a 2013 Aqua S comes to 1,065 kg, where Japan's catalogue gives 1,080. A 2019 RAV4 2.5 comes to 1,629, where its maker gives 1,650 with two-wheel drive and 1,695 with four. A 2018 Kia Rio 1.4 comes to 1,176, where its maker gives 1,137 to 1,172. A 2012 Camry 2.5 comes to 1,540, where its maker gives 1,465.
 
 ### DELETE /api/v1/vehicle
 

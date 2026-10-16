@@ -3,14 +3,23 @@ import { fuelNote, litresSaid } from './fuel'
 
 describe('saying what the fuel rests on', () => {
   it('says a dashboard figure is the figure for every kilometre', () => {
-    expect(fuelNote('dashboard')).toBe(
+    expect(fuelNote('dashboard', false)).toBe(
       "Fuel is your vehicle's figure for every kilometre. Hills and speed do not change it yet.",
     )
   })
 
   it('says a figure from the register is the official one', () => {
-    expect(fuelNote('register')).toBe(
+    expect(fuelNote('register', false)).toBe(
       "Fuel is your car's official figure for every kilometre. Hills and speed do not change it yet.",
+    )
+  })
+
+  it('says when the hills were counted', () => {
+    expect(fuelNote('dashboard', true)).toBe(
+      "Fuel is your vehicle's figure for every kilometre, with more uphill and less downhill. Speed does not change it yet.",
+    )
+    expect(fuelNote('register', true)).toBe(
+      "Fuel is your car's official figure for every kilometre, with more uphill and less downhill. Speed does not change it yet.",
     )
   })
 })

@@ -108,6 +108,8 @@ The second entity, and a table of one row: one driver, one vehicle. Its id is al
 
 It is entered by hand, with its size in place of the weight and what its dashboard shows in L/100 km, or found in the register below, with its make, model, year and engine. The table refuses a vehicle that is both or neither. A car found there goes by the register's figure unless the dashboard's is given, and the row says which with `figure_from`, so the screen can say when the figure is the official one. The ranges are checked three times: on the screen before it is sent, by the API, and by the table.
 
+Its weight is not stored. It is worked out when the vehicle is read: from the size for a vehicle entered by hand, and for a car found in the register from the gross mass the register gives it, by `CarWeights`. So a register imported again weighs the car again.
+
 A saved car keeps its own copy of how the register describes it, not a link to a row there. Each import replaces the register's table whole, and the vehicle is not touched.
 
 ## Cars from the register
@@ -116,7 +118,7 @@ NZTA's Motor Vehicle Register lists every vehicle in the country, about six mill
 
 `CarImporter` loads that file into `car_variant` when asked, in one transaction, as the other importers do. `CarRegister` reads it through `JdbcClient`, one list per step a driver takes: the makes, the models of a make, the years of a model, the engines of a year. A driver is not asked whether the car was sold new here or imported used, so each engine is listed once, with the figure of whichever of the two has more cars.
 
-The table also keeps the urban and extra-urban figures, the gross mass and the seats, for the hills and speed still to come. A used import's gross mass is the car and 55 kg a seat, where a car sold new here has the most its maker allows loaded, so the two need reading differently.
+The table also keeps the gross mass and the seats, which give a car's weight for the hills, and the urban and extra-urban figures, for speed, still to come. A used import's gross mass is the car and 55 kg a seat, where a car sold new here has the most its maker allows loaded, so `CarWeights` reads the two differently.
 
 ## One app
 
@@ -153,7 +155,7 @@ The map has no heights in it. GraphHopper can read them off a grid of the ground
 
 **The engine's settings had to change for hills to survive.** Left alone it drops any point a road keeps its shape without, judging by the map alone, and the top of a hill on a straight road is such a point. It also knows nothing of the ground between two bends. So a height is taken every 60 m along a straight stretch, and a point is kept when dropping it would move the road up or down by more than a metre. Each needs the other.
 
-**The engine's own totals for climb are not used.** It adds up every rise and fall between neighbouring points. The grid is the ground and not the road, and in whole metres, so that sum came to 113 m of climbing on 19 km of level road. `HeightProfile` evens the heights out over 150 m of road and counts a rise or a dip only when the road turns by 10 m or more. It is plain Java and its two settings can be changed without preparing the graph again. `docs/api.md` has what was measured.
+**The engine's own totals for climb are not used.** It adds up every rise and fall between neighbouring points. The grid is the ground and not the road, and in whole metres, so that sum came to 113 m of climbing on 19 km of level road. `HeightProfile` evens the heights out over 150 m of road and counts a rise or a dip only when the road turns by 10 m or more. It is plain Java and its two settings can be changed without preparing the graph again. It also keeps each descent it counts on its own, with the road it falls over, because how steep a descent is decides how much fuel it gives back. `docs/api.md` has what was measured.
 
 **Distance is still measured on the map.** With heights the engine measures every road along its slope, wobble of the grid included, which lengthened a gorge road by 1.3% over what it measures on the map. Distance is what the solver minimises, so it is taken off the map either way and switching heights on does not move it. Driving time is left as the engine gives it, and comes out a fraction longer.
 
@@ -170,5 +172,5 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | 2 | **Done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. Saved places are a JPA entity behind three endpoints. The planning flow above was untouched by both |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length, and with heights switched on how much it climbs and descends. The order is chosen for distance unless the request asks otherwise |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
-| 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use arrives with the request. It does not reach the matrix provider yet, because nothing there reads it |
-| 6 | **Begun.** A second way to fill the cost matrix: distance with the climb counted as extra road, when the request asks to factor in road climbs. The fuel each leg takes is worked out after the order is chosen, by `FuelEstimate`, at the dashboard's figure for every kilometre. Hills and speed in the fuel, and fuel instead of distance in the cost matrix, are still to come |
+| 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use and its weight arrive with the request. They do not reach the matrix provider yet, because nothing there reads them |
+| 6 | **Begun.** A second way to fill the cost matrix: distance with the climb counted as extra road, when the request asks to factor in road climbs. The fuel each leg takes is worked out after the order is chosen, by `FuelEstimate`: the vehicle's figure for every kilometre and, by `FuelUse`, what each climb costs and each descent gives back, once the roads have heights and the weight is known. Speed in the fuel, and fuel instead of distance in the cost matrix, are still to come |

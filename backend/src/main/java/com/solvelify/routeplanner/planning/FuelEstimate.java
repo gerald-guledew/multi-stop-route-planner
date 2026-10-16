@@ -5,13 +5,15 @@ import java.util.List;
 /**
  * The fuel a plan takes, leg by leg, for one vehicle.
  *
- * <p>Worked out after the order is chosen, from the distance of each leg. The order is still
- * chosen for distance, or for distance and climb together.
+ * <p>Worked out after the order is chosen, from the distance of each leg and, when the roads
+ * were read with their heights and the vehicle's weight is known, from its hills. The order is
+ * still chosen for distance, or for distance and climb together.
  *
  * @param legLitres   the fuel each leg takes, in the order of the plan's legs
  * @param totalLitres the legs added up
+ * @param countsHills whether the hills were counted. Not without heights, nor without the weight
  */
-public record FuelEstimate(List<Double> legLitres, double totalLitres) {
+public record FuelEstimate(List<Double> legLitres, double totalLitres, boolean countsHills) {
 
     public FuelEstimate {
         legLitres = List.copyOf(legLitres);
@@ -19,8 +21,10 @@ public record FuelEstimate(List<Double> legLitres, double totalLitres) {
 
     public static FuelEstimate of(RoutePlan plan, FuelUse fuelUse) {
         List<Double> legs = plan.legs().stream()
-                .map(leg -> fuelUse.litresFor(leg.distanceKm()))
+                .map(leg -> fuelUse.litresFor(leg.distanceKm(), leg.climbAndDescent()))
                 .toList();
-        return new FuelEstimate(legs, legs.stream().mapToDouble(Double::doubleValue).sum());
+        boolean countsHills = fuelUse.countsHills()
+                && plan.legs().stream().allMatch(leg -> leg.climbAndDescent().isPresent());
+        return new FuelEstimate(legs, legs.stream().mapToDouble(Double::doubleValue).sum(), countsHills);
     }
 }
