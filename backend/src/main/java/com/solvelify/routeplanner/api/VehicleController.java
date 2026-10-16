@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
 import java.util.Locale;
+import java.util.OptionalDouble;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -47,7 +48,7 @@ public class VehicleController {
     @GetMapping
     public ResponseEntity<VehicleResponse> current() {
         return vehicles.current()
-                .map(vehicle -> ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(VehicleResponse.from(vehicle)))
+                .map(vehicle -> ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(responseFor(vehicle)))
                 .orElseGet(() -> ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build());
     }
 
@@ -56,7 +57,11 @@ public class VehicleController {
         Vehicle saved = request.car() == null
                 ? vehicles.save(request.litresPer100Km(), VehicleSize.valueOf(request.size().toUpperCase(Locale.ROOT)))
                 : vehicles.saveFromRegister(request.car().toCar(), request.litresPer100Km());
-        return VehicleResponse.from(saved);
+        return responseFor(saved);
+    }
+
+    private VehicleResponse responseFor(Vehicle vehicle) {
+        return VehicleResponse.from(vehicle, vehicles.weightOf(vehicle));
     }
 
     @DeleteMapping
@@ -119,15 +124,18 @@ public class VehicleController {
      * @param figureFrom dashboard, or register for the register's laboratory figure
      * @param size       null for a car found in the register
      * @param car        null for a vehicle entered by hand
+     * @param kilograms  what it weighs empty, to the nearest 10 kg: the register's weight or the
+     *                   size's. Null when the register no longer lists the car
      */
-    public record VehicleResponse(double litresPer100Km, String figureFrom, String size, Car car) {
+    public record VehicleResponse(double litresPer100Km, String figureFrom, String size, Car car, Integer kilograms) {
 
-        static VehicleResponse from(Vehicle vehicle) {
+        static VehicleResponse from(Vehicle vehicle, OptionalDouble kilograms) {
             return new VehicleResponse(
                     vehicle.getLitresPer100Km(),
                     vehicle.getFigureFrom().name().toLowerCase(Locale.ROOT),
                     vehicle.getSize() == null ? null : vehicle.getSize().name().toLowerCase(Locale.ROOT),
-                    vehicle.getCar().orElse(null));
+                    vehicle.getCar().orElse(null),
+                    kilograms.isPresent() ? (int) Math.round(kilograms.getAsDouble() / 10) * 10 : null);
         }
     }
 }

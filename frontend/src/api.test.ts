@@ -265,10 +265,19 @@ describe('planning a route', () => {
     })
   })
 
-  it('sends the fuel use of the vehicle, when there is one', async () => {
+  it('sends the fuel use of the vehicle and its weight, when there is one', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, true, false, { litresPer100Km: 7.5 })
+    await optimizeRoute(start, stops, true, false, { litresPer100Km: 7.5, kilograms: 1270 })
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, kilograms: 1270 })
+  })
+
+  it('sends the fuel use alone for a vehicle whose weight is not known', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+
+    await optimizeRoute(start, stops, true, false, { litresPer100Km: 7.5, kilograms: null })
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.vehicle).toEqual({ litresPer100Km: 7.5 })

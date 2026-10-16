@@ -2,7 +2,6 @@ package com.solvelify.routeplanner.api;
 
 import com.solvelify.routeplanner.planning.ChosenFor;
 import com.solvelify.routeplanner.planning.FuelEstimate;
-import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
@@ -47,7 +46,7 @@ public class RouteController {
                 request.factorInRoadClimbsOrDefault() ? ChosenFor.DISTANCE_AND_CLIMB : ChosenFor.DISTANCE);
 
         Optional<FuelEstimate> fuel = Optional.ofNullable(request.vehicle())
-                .map(vehicle -> FuelEstimate.of(plan, new FuelUse(vehicle.litresPer100Km())));
+                .map(vehicle -> FuelEstimate.of(plan, vehicle.fuelUse()));
 
         return OptimizeRouteResponse.from(plan, fuel);
     }

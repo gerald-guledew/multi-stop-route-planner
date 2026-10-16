@@ -1,5 +1,6 @@
 package com.solvelify.routeplanner.api;
 
+import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.vehicle.Vehicle;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.OptionalDouble;
 
 /**
  * The optimize request.
@@ -39,14 +41,25 @@ public record OptimizeRouteRequest(
      * The vehicle as the plan needs it. Boxed, so a missing figure is refused rather than read
      * as nought.
      *
-     * @param litresPer100Km what the dashboard shows, from 2 to 30
+     * @param litresPer100Km what the dashboard shows, or the register's figure, from 2 to 30
+     * @param kilograms      what the vehicle weighs empty, from 400 to 4,000. Left out, the
+     *                       fuel does not count the hills
      */
     public record VehicleRequest(
 
             @NotNull
             @DecimalMin(value = "" + Vehicle.LEAST_LITRES_PER_100_KM, message = "must be between 2 and 30")
             @DecimalMax(value = "" + Vehicle.MOST_LITRES_PER_100_KM, message = "must be between 2 and 30")
-            Double litresPer100Km) {
+            Double litresPer100Km,
+
+            @DecimalMin(value = "400", message = "must be between 400 and 4000")
+            @DecimalMax(value = "4000", message = "must be between 400 and 4000")
+            Double kilograms) {
+
+        FuelUse fuelUse() {
+            return new FuelUse(litresPer100Km,
+                    kilograms == null ? OptionalDouble.empty() : OptionalDouble.of(kilograms));
+        }
     }
 
     /** Defaults to a round trip, as documented in docs/api.md. */

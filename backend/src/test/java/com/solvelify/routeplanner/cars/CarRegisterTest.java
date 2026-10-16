@@ -105,6 +105,37 @@ class CarRegisterTest {
         assertThat(register.find(new Car("SUZUKI", "SWIFT", 2019, new BigDecimal("1.2")))).isEmpty();
     }
 
+    @Test
+    void weighsACarFromTheGrossMassOfItsRows() {
+        weigh("SUZUKI", "SWIFT", 2018, "1.2", false, 1365);
+        weigh("SUZUKI", "SWIFT", 2018, "1.2", true, 1165);
+
+        assertThat(register.weightOf(new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2")))).hasValue(890);
+    }
+
+    @Test
+    void weighsACarTheRegisterDoesNotWeighLikeTheOthersOfItsEngineSize() {
+        // The 1.0 L Alto and Swift: only the Alto is weighed, so the Swift is taken to weigh as much.
+        weigh("SUZUKI", "ALTO", 2015, "1.0", false, 1100);
+
+        assertThat(register.weightOf(new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.0"))).getAsDouble())
+                .isEqualTo(1100 / 1.36);
+    }
+
+    @Test
+    void cannotWeighACarItDoesNotList() {
+        assertThat(register.weightOf(new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.3")))).isEmpty();
+    }
+
+    private void weigh(String make, String model, int year, String engineLitres, boolean importedUsed, int grossKilograms) {
+        jdbc.sql("""
+                        UPDATE car_variant SET gross_mass_kg = ?, seats = 5
+                        WHERE make = ? AND model = ? AND year = ? AND engine_litres = ? AND imported_used = ?
+                        """)
+                .params(grossKilograms, make, model, year, new BigDecimal(engineLitres), importedUsed)
+                .update();
+    }
+
     private void insert(String make, String model, int year, String engineLitres, boolean importedUsed,
                         double litresPer100Km, int cars) {
         jdbc.sql("""

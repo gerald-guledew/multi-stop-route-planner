@@ -19,20 +19,20 @@ const found = (car: Car, litresPer100Km: number): CarVariant => ({ car, litresPe
 
 describe('saying what the vehicle is', () => {
   it('gives the size and the fuel use of a vehicle entered by hand', () => {
-    const entered = { figureFrom: 'dashboard' as const, car: null }
+    const entered = { figureFrom: 'dashboard' as const, car: null, kilograms: 1270 }
     expect(vehicleSaid({ ...entered, litresPer100Km: 7.5, size: 'medium' })).toBe('Medium car, 7.5 L/100 km')
     expect(vehicleSaid({ ...entered, litresPer100Km: 11, size: 'large' })).toBe('Large car or SUV, 11 L/100 km')
     expect(vehicleSaid({ ...entered, litresPer100Km: 5.2, size: 'small' })).toBe('Small car, 5.2 L/100 km')
   })
 
   it('names a car found in the register, and calls its figure the official one', () => {
-    expect(vehicleSaid({ litresPer100Km: 4.8, figureFrom: 'register', size: null, car: SWIFT })).toBe(
+    expect(vehicleSaid({ litresPer100Km: 4.8, figureFrom: 'register', size: null, car: SWIFT, kilograms: 890 })).toBe(
       '2018 SUZUKI SWIFT 1.2 L, 4.8 L/100 km (official figure)',
     )
   })
 
   it('does not call the dashboard figure of a car found in the register the official one', () => {
-    expect(vehicleSaid({ litresPer100Km: 5.6, figureFrom: 'dashboard', size: null, car: SWIFT })).toBe(
+    expect(vehicleSaid({ litresPer100Km: 5.6, figureFrom: 'dashboard', size: null, car: SWIFT, kilograms: 890 })).toBe(
       '2018 SUZUKI SWIFT 1.2 L, 5.6 L/100 km',
     )
   })

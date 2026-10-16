@@ -1,9 +1,14 @@
 package com.solvelify.routeplanner.cars;
 
+import com.solvelify.routeplanner.cars.CarWeights.Rated;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -76,6 +81,48 @@ public class CarRegister {
                 .params(car.make(), car.model(), car.year(), car.engineLitres())
                 .query(CarRegister::variantOf)
                 .optional();
+    }
+
+    /**
+     * What this car weighs empty, from the gross mass the register gives it: see
+     * {@link CarWeights}. When the register has no weight for most of these cars, the middle
+     * weight of the cars with the same engine size. Empty when the register does not list it.
+     */
+    public OptionalDouble weightOf(Car car) {
+        List<Rated> rows = jdbc.sql("""
+                        SELECT imported_used, gross_mass_kg, seats, cars FROM car_variant
+                        WHERE make = ? AND model = ? AND year = ? AND engine_litres = ?
+                        """)
+                .params(car.make(), car.model(), car.year(), car.engineLitres())
+                .query(CarRegister::ratedOf)
+                .list();
+        OptionalDouble weight = CarWeights.weightOf(rows);
+        if (weight.isPresent() || rows.isEmpty()) {
+            return weight;
+        }
+
+        // Each make, model and year of this engine size, with its rows sold new and imported used.
+        Map<String, List<Rated>> sameSize = jdbc.sql("""
+                        SELECT make, model, year, imported_used, gross_mass_kg, seats, cars FROM car_variant
+                        WHERE engine_litres = ?
+                        """)
+                .param(car.engineLitres())
+                .query((row, index) -> new RatedEngine(
+                        row.getString("make") + " " + row.getString("model") + " " + row.getInt("year"),
+                        ratedOf(row, index)))
+                .list()
+                .stream()
+                .collect(Collectors.groupingBy(RatedEngine::engine, LinkedHashMap::new,
+                        Collectors.mapping(RatedEngine::rated, Collectors.toList())));
+        return CarWeights.middleOf(List.copyOf(sameSize.values()));
+    }
+
+    private record RatedEngine(String engine, Rated rated) {
+    }
+
+    private static Rated ratedOf(ResultSet row, int index) throws SQLException {
+        return new Rated(row.getBoolean("imported_used"), row.getObject("gross_mass_kg", Integer.class),
+                row.getObject("seats", Integer.class), row.getInt("cars"));
     }
 
     private static CarVariant variantOf(ResultSet row, int index) throws SQLException {

@@ -12,6 +12,7 @@ function aPlan(more: Partial<RoutePlan> = {}): RoutePlan {
     totalClimbMetres: 561,
     totalDescentMetres: 561,
     totalFuelLitres: null,
+    fuelCountsHills: null,
     enteredOrderDistanceKm: 70.1,
     shortestOrder: null,
     ordersChecked: 24,

@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.planning;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ClimbAndDescentTest {
@@ -30,6 +31,21 @@ class ClimbAndDescentTest {
 
         assertThat(overTheHill.plus(ClimbAndDescent.LEVEL)).isEqualTo(overTheHill);
         assertThat(ClimbAndDescent.LEVEL.plus(overTheHill)).isEqualTo(overTheHill);
+    }
+
+    @Test
+    void keepsTheDescentsOfBothDrivesInTheOrderDriven() {
+        ClimbAndDescent there = new ClimbAndDescent(0, 30, List.of(new ClimbAndDescent.Descent(30, 600)));
+        ClimbAndDescent back = new ClimbAndDescent(30, 20, List.of(new ClimbAndDescent.Descent(20, 2000)));
+
+        assertThat(there.plus(back).descents())
+                .containsExactly(new ClimbAndDescent.Descent(30, 600), new ClimbAndDescent.Descent(20, 2000));
+    }
+
+    @Test
+    void refusesADescentThatDropsNothing() {
+        assertThatThrownBy(() -> new ClimbAndDescent.Descent(0, 600)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ClimbAndDescent.Descent(30, -1)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
