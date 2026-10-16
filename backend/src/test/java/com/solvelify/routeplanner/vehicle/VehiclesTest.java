@@ -37,8 +37,8 @@ class VehiclesTest {
         repository.deleteAllInBatch();
         jdbc.sql("DELETE FROM car_variant").update();
         jdbc.sql("""
-                INSERT INTO car_variant (make, model, year, engine_litres, imported_used, cars, litres_per_100_km)
-                VALUES ('SUZUKI', 'SWIFT', 2018, 1.2, true, 552, 4.2)
+                INSERT INTO car_variant (make, model, year, engine_litres, imported_used, cars, litres_per_100_km, gross_mass_kg, seats)
+                VALUES ('SUZUKI', 'SWIFT', 2018, 1.2, true, 552, 4.2, 1165, 5)
                 """).update();
     }
 
@@ -111,6 +111,17 @@ class VehiclesTest {
         Vehicle saved = vehicles.current().orElseThrow();
         assertThat(saved.getCar()).isEmpty();
         assertThat(saved.getFigureFrom()).isEqualTo(FigureFrom.DASHBOARD);
+    }
+
+    @Test
+    void weighsAVehicleEnteredByHandAsCarsOfItsSizeWeigh() {
+        assertThat(vehicles.weightOf(vehicles.save(7.5, VehicleSize.MEDIUM))).hasValue(1270);
+    }
+
+    @Test
+    void weighsACarFoundInTheRegisterAsTheRegisterDoes() {
+        // Japan's 1,165 kg for a used import, less 55 kg for each of its five seats.
+        assertThat(vehicles.weightOf(vehicles.saveFromRegister(SWIFT, null))).hasValue(890);
     }
 
     @Test

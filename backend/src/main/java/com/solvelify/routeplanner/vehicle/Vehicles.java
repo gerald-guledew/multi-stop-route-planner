@@ -5,6 +5,7 @@ import com.solvelify.routeplanner.cars.CarNotInRegisterException;
 import com.solvelify.routeplanner.cars.CarRegister;
 import com.solvelify.routeplanner.cars.CarVariant;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import org.springframework.stereotype.Service;
 
 /** The vehicle saved in the planner: reading it, replacing it, removing it. */
@@ -41,6 +42,16 @@ public class Vehicles {
     public Vehicle saveFromRegister(Car car, Double dashboardLitresPer100Km) {
         CarVariant found = register.find(car).orElseThrow(() -> new CarNotInRegisterException(car));
         return repository.saveAndFlush(new Vehicle(found, dashboardLitresPer100Km));
+    }
+
+    /**
+     * What the vehicle weighs empty: the register's weight for a car found there, the size's for
+     * one entered by hand. Empty when the register no longer lists the car.
+     */
+    public OptionalDouble weightOf(Vehicle vehicle) {
+        return vehicle.getCar()
+                .map(register::weightOf)
+                .orElseGet(() -> OptionalDouble.of(vehicle.getSize().kilograms()));
     }
 
     /** Nothing happens when no vehicle is saved: removing nothing is not a mistake. */

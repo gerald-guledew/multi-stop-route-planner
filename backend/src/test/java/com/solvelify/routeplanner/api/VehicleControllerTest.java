@@ -23,6 +23,7 @@ import com.solvelify.routeplanner.vehicle.VehicleSize;
 import com.solvelify.routeplanner.vehicle.Vehicles;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -84,6 +85,26 @@ class VehicleControllerTest {
                 .andExpect(jsonPath("$.car.year").value(2018))
                 .andExpect(jsonPath("$.car.engineLitres").value(1.2))
                 .andExpect(jsonPath("$.car.importedUsed").doesNotExist());
+    }
+
+    @Test
+    void givesWhatTheVehicleWeighsToTheNearestTenKilograms() throws Exception {
+        Vehicle found = new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null);
+        given(vehicles.current()).willReturn(Optional.of(found));
+        given(vehicles.weightOf(found)).willReturn(OptionalDouble.of(886.4));
+
+        mockMvc.perform(get("/api/v1/vehicle"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kilograms").value(890));
+    }
+
+    @Test
+    void givesNoWeightWhenTheRegisterNoLongerListsTheCar() throws Exception {
+        given(vehicles.current()).willReturn(Optional.of(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null)));
+
+        mockMvc.perform(get("/api/v1/vehicle"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kilograms").value(nullValue()));
     }
 
     @Test
