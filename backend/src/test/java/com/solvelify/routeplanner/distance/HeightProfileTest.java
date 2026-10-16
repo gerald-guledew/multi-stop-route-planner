@@ -62,6 +62,34 @@ class HeightProfileTest {
     }
 
     @Test
+    void keepsEachDescentWithTheRoadItFallsOver() {
+        // Down 50 m over 1 km, level for 1 km, then down 30 m over 300 m.
+        Road twoDescents = Road.from(100).to(50, 1000).to(50, 1000).to(20, 300);
+
+        ClimbAndDescent counted = twoDescents.climbAndDescent();
+
+        // One descent from the top to the bottom: the level stretch is no turn.
+        assertThat(counted.descents()).singleElement().satisfies(descent -> {
+            assertThat(descent.dropMetres()).isCloseTo(80, within(A_HAIR));
+            assertThat(descent.overMetres()).isCloseTo(2300, within(A_HAIR));
+        });
+    }
+
+    @Test
+    void keepsTheDescentsOfAHillAndADipApart() {
+        // Up 60 m and down again over a hill, then down 40 m into a dip and back up.
+        Road hillAndDip = Road.from(0).to(60, 1500).to(0, 1500).to(-40, 1500).to(0, 1500);
+
+        ClimbAndDescent counted = hillAndDip.climbAndDescent();
+
+        assertThat(counted.descents()).singleElement().satisfies(descent -> {
+            // From the top of the hill to the bottom of the dip, evened out a little at both.
+            assertThat(descent.dropMetres()).isCloseTo(counted.descentMetres(), within(A_HAIR));
+            assertThat(descent.overMetres()).isCloseTo(3000, within(150.0));
+        });
+    }
+
+    @Test
     void takesALittleOffATopThatComesToAPoint() {
         // No road has a top like this one. The evening out rounds it, and 2 m of it go.
         Road sharp = Road.from(0).to(80, 1000).to(30, 1000);

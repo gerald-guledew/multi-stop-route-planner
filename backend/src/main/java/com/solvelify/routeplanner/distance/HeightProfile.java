@@ -1,6 +1,9 @@
 package com.solvelify.routeplanner.distance;
 
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
+import com.solvelify.routeplanner.planning.ClimbAndDescent.Descent;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Works out how much a drive climbs and descends from the heights along it.
@@ -26,6 +29,9 @@ import com.solvelify.routeplanner.planning.ClimbAndDescent;
  * <p>The two ends of a drive keep the heights they came with. So the climb less the descent is
  * exactly how much higher the drive ends than it began, and a trip that comes back to where it
  * started climbs as much as it descends.
+ *
+ * <p>Each descent counted is also kept on its own, with the road it falls over, from one turn to
+ * the next. How steep it is decides how much fuel it gives back.
  */
 final class HeightProfile {
 
@@ -56,7 +62,7 @@ final class HeightProfile {
             throw new IllegalArgumentException(
                     metresAlong.length + " distances along the drive, " + heights.length + " heights");
         }
-        return counted(evenedOut(metresAlong, heights, EVENED_OVER_METRES), LEAST_TURN_METRES);
+        return counted(metresAlong, evenedOut(metresAlong, heights, EVENED_OVER_METRES), LEAST_TURN_METRES);
     }
 
     /**
@@ -110,6 +116,19 @@ final class HeightProfile {
     }
 
     /**
+     * The two totals alone, for heights given without the distances between them, so the
+     * descents cannot be measured one by one.
+     */
+    static ClimbAndDescent counted(double[] heights, double leastTurnMetres) {
+        double[] pointNumbers = new double[heights.length];
+        for (int at = 0; at < heights.length; at++) {
+            pointNumbers[at] = at;
+        }
+        ClimbAndDescent counted = counted(pointNumbers, heights, leastTurnMetres);
+        return new ClimbAndDescent(counted.climbMetres(), counted.descentMetres());
+    }
+
+    /**
      * Adds up the rises and the falls, passing over any turn smaller than the least.
      *
      * <p>The road is followed from its last turn. While it keeps going the same way, the furthest
@@ -121,15 +140,18 @@ final class HeightProfile {
      * <p>What is left at the end is the height between the last turn and the end of the drive,
      * whichever way that goes. So the climb less the descent is always the height between the two
      * ends, and a drive taken the other way gives the same two figures with their places changed.
+     *
+     * @param metresAlong how far along the drive each point is, to measure each descent's road
      */
-    static ClimbAndDescent counted(double[] heights, double leastTurnMetres) {
+    static ClimbAndDescent counted(double[] metresAlong, double[] heights, double leastTurnMetres) {
         if (heights.length < 2) {
             return ClimbAndDescent.LEVEL;
         }
         double climb = 0;
         double descent = 0;
-        double lastTurn = heights[0];
-        double furthest = heights[0];
+        List<Descent> descents = new ArrayList<>();
+        int lastTurn = 0;
+        int furthest = 0;
         // Which way the road is heading is not known until it has moved by the least amount,
         // measured between the lowest and the highest it has been so far.
         double lowest = heights[0];
@@ -144,39 +166,49 @@ final class HeightProfile {
                     highest = Math.max(highest, here);
                     if (highest - lowest >= leastTurnMetres) {
                         heading = here == highest ? Heading.UP : Heading.DOWN;
-                        furthest = here;
+                        furthest = at;
                     }
                 }
                 case UP -> {
-                    if (here > furthest) {
-                        furthest = here;
-                    } else if (furthest - here >= leastTurnMetres) {
-                        climb += furthest - lastTurn;
+                    if (here > heights[furthest]) {
+                        furthest = at;
+                    } else if (heights[furthest] - here >= leastTurnMetres) {
+                        climb += heights[furthest] - heights[lastTurn];
                         lastTurn = furthest;
-                        furthest = here;
+                        furthest = at;
                         heading = Heading.DOWN;
                     }
                 }
                 case DOWN -> {
-                    if (here < furthest) {
-                        furthest = here;
-                    } else if (here - furthest >= leastTurnMetres) {
-                        descent += lastTurn - furthest;
+                    if (here < heights[furthest]) {
+                        furthest = at;
+                    } else if (here - heights[furthest] >= leastTurnMetres) {
+                        descent += heights[lastTurn] - heights[furthest];
+                        keep(descents, metresAlong, heights, lastTurn, furthest);
                         lastTurn = furthest;
-                        furthest = here;
+                        furthest = at;
                         heading = Heading.UP;
                     }
                 }
             }
         }
 
-        double leftOver = heights[heights.length - 1] - lastTurn;
+        int end = heights.length - 1;
+        double leftOver = heights[end] - heights[lastTurn];
         if (leftOver > 0) {
             climb += leftOver;
         } else {
             descent -= leftOver;
+            keep(descents, metresAlong, heights, lastTurn, end);
         }
-        return new ClimbAndDescent(climb, descent);
+        return new ClimbAndDescent(climb, descent, descents);
+    }
+
+    /** Keeps the descent from one turn to the next. A turn with nothing lower after it has none. */
+    private static void keep(List<Descent> descents, double[] metresAlong, double[] heights, int top, int bottom) {
+        if (heights[top] > heights[bottom]) {
+            descents.add(new Descent(heights[top] - heights[bottom], metresAlong[bottom] - metresAlong[top]));
+        }
     }
 
     private enum Heading { NOT_YET_KNOWN, UP, DOWN }
