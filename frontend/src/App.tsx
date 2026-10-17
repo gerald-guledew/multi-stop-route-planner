@@ -12,6 +12,7 @@ import {
 } from './api'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import type { Picked } from './framing'
+import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
 import { asPlace, startingFrom } from './savedPlaces'
 import { defaultLabel, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
@@ -23,14 +24,17 @@ import {
 import RouteMap from './components/RouteMap'
 import RoutePanel from './components/RoutePanel'
 import SavedPlaceList from './components/SavedPlaceList'
+import UndoRedo from './components/UndoRedo'
 import VehicleSection from './components/VehicleSection'
 import type { Place, RoutePlan, SavedPlace, Vehicle } from './types'
 
 export default function App() {
-  const [places, setPlaces] = useState<Place[]>([])
-  const [returnToStart, setReturnToStart] = useState(true)
-  // Off unless ticked: the order is then chosen for distance alone.
-  const [factorInRoadClimbs, setFactorInRoadClimbs] = useState(false)
+  // The trip, and the trip as it was before each change, so that a change can be undone.
+  // Factor in road climbs is off unless ticked: the order is then chosen for distance alone.
+  const [history, setHistory] = useState(() =>
+    startingWith({ places: [], returnToStart: true, factorInRoadClimbs: false }),
+  )
+  const { places, returnToStart, factorInRoadClimbs } = history.present
   const [plan, setPlan] = useState<RoutePlan | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [unroutablePlace, setUnroutablePlace] = useState<string | undefined>()
@@ -73,15 +77,24 @@ export default function App() {
       setDevicePosition(here)
       // If a start was picked while the browser was working it out, that choice stands.
       if (places.length === 0) {
-        setPlaces([{ name: 'My location', latitude: here.latitude, longitude: here.longitude }])
+        changePlaces(() => [
+          { name: 'My location', latitude: here.latitude, longitude: here.longitude },
+        ])
       }
       return
     }
 
     const better = afterABetterAnswer(places, devicePosition, here)
-    setPlaces(better.places)
     setDevicePosition(better.devicePosition)
     if (better.movedTheStart) {
+      // No change to undo. The trip as it was, before and after, starts from the better answer
+      // wherever it started from the guess, so undoing never brings the guess back.
+      setHistory((current) =>
+        correctedThroughout(current, (trip) => ({
+          ...trip,
+          places: afterABetterAnswer(trip.places, devicePosition, here).places,
+        })),
+      )
       // Any previous answer was worked out for where the start used to be.
       setPlan(null)
       setError(null)
@@ -137,8 +150,37 @@ export default function App() {
     return () => leaving.abort()
   }, [])
 
+  /**
+   * Changes the trip in a way that can be undone. Changes in the same run are undone together:
+   * a label typed letter by letter is undone in one press.
+   */
+  function change(next: (trip: Trip) => Trip, run?: string) {
+    setHistory((current) => afterChange(current, next(current.present), run))
+  }
+
+  function changePlaces(next: (places: Place[]) => Place[], run?: string) {
+    change((trip) => ({ ...trip, places: next(trip.places) }), run)
+  }
+
+  function undo() {
+    setHistory(undone)
+    forgetThePlan()
+  }
+
+  function redo() {
+    setHistory(redone)
+    forgetThePlan()
+  }
+
+  /** Any answer there was describes a trip that is no longer the one shown. */
+  function forgetThePlan() {
+    setPlan(null)
+    setError(null)
+    setUnroutablePlace(undefined)
+  }
+
   function addPlace(latitude: number, longitude: number) {
-    setPlaces((current) => [
+    changePlaces((current) => [
       ...current,
       { name: defaultLabel(current.length), latitude, longitude },
     ])
@@ -154,7 +196,7 @@ export default function App() {
   }
 
   function addSearchedPlace(place: Place) {
-    setPlaces((current) => [...current, place])
+    changePlaces((current) => [...current, place])
     goTo(place)
     setPlan(null)
     setError(null)
@@ -163,7 +205,7 @@ export default function App() {
 
   function movePlace(index: number, latitude: number, longitude: number) {
     const moved = afterDragging(places, devicePosition, index, latitude, longitude)
-    setPlaces(moved.places)
+    changePlaces(() => moved.places)
     setDevicePosition(moved.devicePosition)
     // Any previous answer was worked out for where the pin used to be.
     setPlan(null)
@@ -172,18 +214,21 @@ export default function App() {
   }
 
   function renamePlace(index: number, name: string) {
-    setPlaces((current) => current.map((place, at) => (at === index ? { ...place, name } : place)))
+    changePlaces(
+      (current) => current.map((place, at) => (at === index ? { ...place, name } : place)),
+      `label ${index}`,
+    )
     // A name that was taken is put right by typing another, so the complaint about it goes.
     setSavedProblem(null)
   }
 
   function removePlace(index: number) {
-    setPlaces((current) => withoutPlace(current, index))
+    changePlaces((current) => withoutPlace(current, index))
     setPlan(null)
   }
 
   function toggleKeepInPlace(index: number) {
-    setPlaces((current) => toggleKeptInPlace(current, index))
+    changePlaces((current) => toggleKeptInPlace(current, index))
     // A plan made while the stop was free, or kept, no longer says what was asked for.
     setPlan(null)
   }
@@ -255,7 +300,7 @@ export default function App() {
   }
 
   function startFromASavedPlace(saved: SavedPlace) {
-    setPlaces((current) => startingFrom(current, saved))
+    changePlaces((current) => startingFrom(current, saved))
     goTo(saved)
     // Any previous answer was worked out from another start.
     setPlan(null)
@@ -264,26 +309,26 @@ export default function App() {
   }
 
   function changeTurn(index: number, direction: Direction) {
-    setPlaces((current) => moved(current, index, direction))
+    changePlaces((current) => moved(current, index, direction))
     // A plan compares itself with the order entered, and holds kept stops to their turns.
     // Both have just changed.
     setPlan(null)
   }
 
   function changeReturnToStart(returns: boolean) {
-    setReturnToStart(returns)
+    change((trip) => ({ ...trip, returnToStart: returns }))
     // A plan made for a round trip is not the plan for a one-way one, or the other way about.
     setPlan(null)
   }
 
   function changeFactorInRoadClimbs(factorIn: boolean) {
-    setFactorInRoadClimbs(factorIn)
+    change((trip) => ({ ...trip, factorInRoadClimbs: factorIn }))
     // A plan chosen for distance alone is not the plan for distance and climb together.
     setPlan(null)
   }
 
   function clearAll() {
-    setPlaces([])
+    changePlaces(() => [])
     setPlan(null)
     setError(null)
     setUnroutablePlace(undefined)
@@ -380,6 +425,13 @@ export default function App() {
         onMapClick={addPlace}
         onMovePlace={movePlace}
         onCentreChange={setMapCentre}
+      />
+      <UndoRedo
+        // A plan on its way was asked for with the trip as it stands.
+        canUndo={history.past.length > 0 && !planning}
+        canRedo={history.future.length > 0 && !planning}
+        onUndo={undo}
+        onRedo={redo}
       />
     </main>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
-import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, UpIcon } from './icons'
+import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
 import { differsFromTheShortest, roadClimbsSaid, shortestSaid } from '../roadClimbs'
 import { climbSaid } from '../climb'
 import { fuelNote, litresSaid } from '../fuel'
@@ -104,6 +104,11 @@ function HowItWorks() {
         <li>
           <CrossIcon />
           <span>takes a place out</span>
+        </li>
+        <li>
+          <UndoIcon />
+          <RedoIcon />
+          <span>undo the last change to the trip, or redo it, from the corner of the map</span>
         </li>
       </ul>
     </>
