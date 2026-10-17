@@ -24,6 +24,8 @@ body {
   display: grid;
   grid-template-columns: 380px 1fr;
   height: 100vh;
+  /* Undo and redo are placed over the map from here. */
+  position: relative;
 }
 
 /* Panel */
@@ -418,6 +420,55 @@ button:disabled {
   width: 100%;
 }
 
+/* Undo and redo, in the top corner of the map across from its zoom buttons, and drawn like
+   them. */
+.undo-redo {
+  background: #fff;
+  background-clip: padding-box;
+  border: 2px solid rgb(0 0 0 / 20%);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 1000;
+}
+
+.undo-redo button {
+  align-items: center;
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  color: var(--ink);
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  width: 30px;
+}
+
+.undo-redo button:first-child {
+  border-radius: 2px 2px 0 0;
+}
+
+.undo-redo button:last-child {
+  border-radius: 0 0 2px 2px;
+  border-top: 1px solid #ccc;
+}
+
+.undo-redo button:hover:not(:disabled) {
+  background: #f4f4f4;
+}
+
+/* Greyed as the zoom buttons are when there is no further to go. */
+.undo-redo button:disabled {
+  background: #f4f4f4;
+  color: #bbb;
+  cursor: default;
+  opacity: 1;
+}
+
 /* Place search */
 
 .search {
@@ -655,6 +706,12 @@ button:disabled {
 
   .leaflet-bottom {
     bottom: 16px;
+  }
+
+  /* Level with the zoom buttons, under the search box. */
+  .undo-redo {
+    position: fixed;
+    top: 70px;
   }
 
   /* Not a box of its own here. Its parts are placed on the screen one by one. */

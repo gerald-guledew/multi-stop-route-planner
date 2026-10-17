@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * The small drawings on the buttons. Drawn here, a line or two each, because five shapes do
+ * The small drawings on the buttons. Drawn here, a line or two each, because seven shapes do
  * not need a library. A drawing says nothing to a screen reader, so each one is hidden from it
  * and the button around it carries the words.
  */
@@ -63,6 +63,26 @@ export function BookmarkIcon({ filled }: { filled: boolean }) {
   return (
     <Icon>
       <path d="M6 3.5h8v13l-4-3-4 3z" fill={filled ? 'currentColor' : 'none'} />
+    </Icon>
+  )
+}
+
+/** An arrow curling back to the left. */
+export function UndoIcon() {
+  return (
+    <Icon>
+      <path d="M7.5 4.5 4 8l3.5 3.5" />
+      <path d="M4 8h7.5a4.5 4.5 0 0 1 0 9H9" />
+    </Icon>
+  )
+}
+
+/** The same arrow, curling on to the right. */
+export function RedoIcon() {
+  return (
+    <Icon>
+      <path d="M12.5 4.5 16 8l-3.5 3.5" />
+      <path d="M16 8H8.5a4.5 4.5 0 0 0 0 9H11" />
     </Icon>
   )
 }
