@@ -114,7 +114,8 @@ function Pin({
         popupopen: onOpen,
       }}
     >
-      <Popup>{content}</Popup>
+      {/* A popup that opens near the top of a phone's map is slid down clear of the search box. */}
+      <Popup autoPanPaddingTopLeft={[5, 5 + coveredAtTheTopOfTheMap()]}>{content}</Popup>
     </Marker>
   )
 }
