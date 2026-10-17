@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Circle,
   CircleMarker,
@@ -41,17 +41,82 @@ interface Props {
  * broken-image problem bundlers cause with Leaflet's image paths, and it lets the pin show
  * its position in the route.
  */
-function numberedIcon(
-  label: string,
-  state: 'entered' | 'planned' | 'problem',
-  keptInPlace: boolean,
-): L.DivIcon {
+type PinState = 'entered' | 'planned' | 'problem'
+
+function numberedIcon(label: string, state: PinState, keptInPlace: boolean): L.DivIcon {
   return L.divIcon({
     className: '',
     html: `<span class="pin pin-${state}${keptInPlace ? ' pin-kept' : ''}">${label}</span>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   })
+}
+
+/**
+ * One place's pin, and its popup.
+ *
+ * The map is drawn again whenever the page is, and the page is drawn again each time the map
+ * comes to rest, because search wants to know where the map is looking. Leaflet takes a new
+ * position, icon or popup content as a change to the pin, and an open popup answers any change
+ * by panning the map back to show itself. So each is made again only when what it shows has
+ * changed. Otherwise the map could not be moved away from a pin whose popup is open.
+ */
+function Pin({
+  place,
+  label,
+  state,
+  keptInPlace,
+  height,
+  onMove,
+  onOpen,
+}: {
+  place: Place
+  label: string
+  state: PinState
+  keptInPlace: boolean
+  height: string | null
+  onMove: (latitude: number, longitude: number) => void
+  onOpen: () => void
+}) {
+  const { name, latitude, longitude } = place
+  const position = useMemo<[number, number]>(() => [latitude, longitude], [latitude, longitude])
+  const icon = useMemo(() => numberedIcon(label, state, keptInPlace), [label, state, keptInPlace])
+  const content = useMemo(
+    () => (
+      <>
+        <strong>{name}</strong>
+        <br />
+        {latitude.toFixed(5)}, {longitude.toFixed(5)}
+        {height && (
+          <>
+            <br />
+            {height}
+          </>
+        )}
+      </>
+    ),
+    [name, latitude, longitude, height],
+  )
+
+  return (
+    <Marker
+      position={position}
+      icon={icon}
+      // A pin can land in the wrong spot: a rough location, a click on a building rather than
+      // its street. Dragging puts it right without losing its name or its place in the list.
+      draggable
+      title="Drag to move"
+      eventHandlers={{
+        dragend: (event) => {
+          const droppedAt = (event.target as L.Marker).getLatLng()
+          onMove(droppedAt.lat, droppedAt.lng)
+        },
+        popupopen: onOpen,
+      }}
+    >
+      <Popup>{content}</Popup>
+    </Marker>
+  )
 }
 
 function ClickToAddStop({ onMapClick }: { onMapClick: Props['onMapClick'] }) {
@@ -275,45 +340,18 @@ export default function RouteMap({
 
       {devicePosition && <YouAreHere at={devicePosition} />}
 
-      {places.map((place, index) => {
-        const height = heightSaid(heights[spotOf(place)])
-
-        return (
-          <Marker
-            key={`${place.name}-${place.latitude}-${place.longitude}`}
-            position={[place.latitude, place.longitude]}
-            icon={numberedIcon(
-              labelFor(place, index),
-              place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered',
-              index > 0 && place.keepInPlace === true,
-            )}
-            // A pin can land in the wrong spot: a rough location, a click on a building rather
-            // than its street. Dragging puts it right without losing its name or its place in
-            // the list.
-            draggable
-            title="Drag to move"
-            eventHandlers={{
-              dragend: (event) => {
-                const droppedAt = (event.target as L.Marker).getLatLng()
-                onMovePlace(index, droppedAt.lat, droppedAt.lng)
-              },
-              popupopen: () => askHowHigh(place),
-            }}
-          >
-            <Popup>
-              <strong>{place.name}</strong>
-              <br />
-              {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
-              {height && (
-                <>
-                  <br />
-                  {height}
-                </>
-              )}
-            </Popup>
-          </Marker>
-        )
-      })}
+      {places.map((place, index) => (
+        <Pin
+          key={`${place.name}-${place.latitude}-${place.longitude}`}
+          place={place}
+          label={labelFor(place, index)}
+          state={place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered'}
+          keptInPlace={index > 0 && place.keepInPlace === true}
+          height={heightSaid(heights[spotOf(place)])}
+          onMove={(latitude, longitude) => onMovePlace(index, latitude, longitude)}
+          onOpen={() => askHowHigh(place)}
+        />
+      ))}
 
       {/*
         One line per leg. When the API sends the road it follows, draw that. When distances are
