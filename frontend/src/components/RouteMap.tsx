@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Circle,
   CircleMarker,
@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet'
 import { heightAt } from '../api'
 import { sitsOn } from '../foundStart'
+import { closeEnoughToCheck, everywhereTheTripGoes, type Picked } from '../framing'
 import { heightSaid, spotOf } from '../height'
 import type { DevicePosition, Position } from '../location'
 import { coveredAtTheTopOfTheMap } from '../screen'
@@ -29,8 +30,10 @@ interface Props {
   devicePosition: DevicePosition | null
   /** How many times the browser has been asked where the device is. */
   askedTimes: number
-  /** How many times the start has been put in from the saved places. */
-  startReplacedTimes: number
+  /** The place picked last from the search or the saved places. */
+  picked: Picked | null
+  /** How many times a plan has been asked for and the answer is in. */
+  plannedTimes: number
   onMapClick: (latitude: number, longitude: number) => void
   onMovePlace: (index: number, latitude: number, longitude: number) => void
   onCentreChange: (centre: Position) => void
@@ -41,17 +44,83 @@ interface Props {
  * broken-image problem bundlers cause with Leaflet's image paths, and it lets the pin show
  * its position in the route.
  */
-function numberedIcon(
-  label: string,
-  state: 'entered' | 'planned' | 'problem',
-  keptInPlace: boolean,
-): L.DivIcon {
+type PinState = 'entered' | 'planned' | 'problem'
+
+function numberedIcon(label: string, state: PinState, keptInPlace: boolean): L.DivIcon {
   return L.divIcon({
     className: '',
     html: `<span class="pin pin-${state}${keptInPlace ? ' pin-kept' : ''}">${label}</span>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   })
+}
+
+/**
+ * One place's pin, and its popup.
+ *
+ * The map is drawn again whenever the page is, and the page is drawn again each time the map
+ * comes to rest, because search wants to know where the map is looking. Leaflet takes a new
+ * position, icon or popup content as a change to the pin, and an open popup answers any change
+ * by panning the map back to show itself. So each is made again only when what it shows has
+ * changed. Otherwise the map could not be moved away from a pin whose popup is open.
+ */
+function Pin({
+  place,
+  label,
+  state,
+  keptInPlace,
+  height,
+  onMove,
+  onOpen,
+}: {
+  place: Place
+  label: string
+  state: PinState
+  keptInPlace: boolean
+  height: string | null
+  onMove: (latitude: number, longitude: number) => void
+  onOpen: () => void
+}) {
+  const { name, latitude, longitude } = place
+  const position = useMemo<[number, number]>(() => [latitude, longitude], [latitude, longitude])
+  const icon = useMemo(() => numberedIcon(label, state, keptInPlace), [label, state, keptInPlace])
+  const content = useMemo(
+    () => (
+      <>
+        <strong>{name}</strong>
+        <br />
+        {latitude.toFixed(5)}, {longitude.toFixed(5)}
+        {height && (
+          <>
+            <br />
+            {height}
+          </>
+        )}
+      </>
+    ),
+    [name, latitude, longitude, height],
+  )
+
+  return (
+    <Marker
+      position={position}
+      icon={icon}
+      // A pin can land in the wrong spot: a rough location, a click on a building rather than
+      // its street. Dragging puts it right without losing its name or its place in the list.
+      draggable
+      title="Drag to move"
+      eventHandlers={{
+        dragend: (event) => {
+          const droppedAt = (event.target as L.Marker).getLatLng()
+          onMove(droppedAt.lat, droppedAt.lng)
+        },
+        popupopen: onOpen,
+      }}
+    >
+      {/* A popup that opens near the top of a phone's map is slid down clear of the search box. */}
+      <Popup autoPanPaddingTopLeft={[5, 5 + coveredAtTheTopOfTheMap()]}>{content}</Popup>
+    </Marker>
+  )
 }
 
 function ClickToAddStop({ onMapClick }: { onMapClick: Props['onMapClick'] }) {
@@ -172,52 +241,59 @@ function ReportCentre({ onCentreChange }: { onCentreChange: Props['onCentreChang
 }
 
 /**
- * Moves the map when a place is added somewhere it is not showing.
- *
- * A click always lands inside the view, so this does nothing for clicks. A search result or
- * your own location can be anywhere in the country, and a pin dropped off screen looks exactly
- * like nothing happening.
- *
- * Only a place put into the trip moves the map: one added, or a saved place taking over as the
- * start. The second adds nothing to the count, so it is told apart by being counted on its
- * own. Renaming, removing or dragging leaves the view where you put it.
+ * Goes to a place picked from the search or the saved places, close enough to check it is the
+ * right one. A search result can be anywhere in the country, and a pin dropped off screen looks
+ * exactly like nothing happening. A click on the map needs none of this: it lands where
+ * somebody is already looking.
  */
-function KeepNewPlacesInView({
-  places,
-  startReplacedTimes,
-}: {
-  places: Place[]
-  startReplacedTimes: number
-}) {
+function GoToThePlacePicked({ picked }: { picked: Picked | null }) {
   const map = useMap()
-  const countBefore = useRef(0)
-  const startReplacedBefore = useRef(startReplacedTimes)
 
   useEffect(() => {
-    const added = places.length > countBefore.current
-    const startReplaced = startReplacedTimes !== startReplacedBefore.current
-    countBefore.current = places.length
-    startReplacedBefore.current = startReplacedTimes
-    if (!added && !startReplaced) {
+    if (picked) {
+      map.flyTo([picked.at.latitude, picked.at.longitude], closeEnoughToCheck(map.getZoom()))
+    }
+  }, [picked, map])
+
+  return null
+}
+
+/**
+ * Shows the whole trip once a plan is asked for and the answer is in: every place, and the
+ * roads between them if there is a plan. Going to each place picked leaves the map close to the
+ * last one, so this is what brings the trip back into one view.
+ *
+ * Nothing else about the trip moves the map. Renaming, removing or dragging leaves the view
+ * where you put it.
+ */
+function ShowTheWholeTrip({
+  places,
+  plan,
+  plannedTimes,
+}: {
+  places: Place[]
+  plan: RoutePlan | null
+  plannedTimes: number
+}) {
+  const map = useMap()
+  const plannedBefore = useRef(plannedTimes)
+
+  useEffect(() => {
+    if (plannedTimes === plannedBefore.current) {
       return
     }
+    plannedBefore.current = plannedTimes
 
-    const pins = places.map((place) => L.latLng(place.latitude, place.longitude))
-    if (pins.every((pin) => map.getBounds().contains(pin))) {
-      return
-    }
-
-    if (pins.length === 1) {
-      // Close enough to recognise the street, without zooming out if already closer.
-      map.setView(pins[0], Math.max(map.getZoom(), 14))
-    } else {
-      map.fitBounds(L.latLngBounds(pins), {
+    const points = everywhereTheTripGoes(places, plan)
+    if (points.length > 0) {
+      map.flyToBounds(L.latLngBounds(points), {
         paddingTopLeft: [40, 40 + coveredAtTheTopOfTheMap()],
         paddingBottomRight: [40, 40],
+        // A trip around a few streets still shows the suburb it is in.
         maxZoom: 15,
       })
     }
-  }, [places, map, startReplacedTimes])
+  }, [plannedTimes, places, plan, map])
 
   return null
 }
@@ -228,7 +304,8 @@ export default function RouteMap({
   unroutablePlace,
   devicePosition,
   askedTimes,
-  startReplacedTimes,
+  picked,
+  plannedTimes,
   onMapClick,
   onMovePlace,
   onCentreChange,
@@ -269,51 +346,25 @@ export default function RouteMap({
 
       <ClickToAddStop onMapClick={onMapClick} />
       <ReportCentre onCentreChange={onCentreChange} />
-      <KeepNewPlacesInView places={places} startReplacedTimes={startReplacedTimes} />
+      <GoToThePlacePicked picked={picked} />
+      <ShowTheWholeTrip places={places} plan={plan} plannedTimes={plannedTimes} />
 
       <ShowTheStartFoundForYou places={places} at={devicePosition} askedTimes={askedTimes} />
 
       {devicePosition && <YouAreHere at={devicePosition} />}
 
-      {places.map((place, index) => {
-        const height = heightSaid(heights[spotOf(place)])
-
-        return (
-          <Marker
-            key={`${place.name}-${place.latitude}-${place.longitude}`}
-            position={[place.latitude, place.longitude]}
-            icon={numberedIcon(
-              labelFor(place, index),
-              place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered',
-              index > 0 && place.keepInPlace === true,
-            )}
-            // A pin can land in the wrong spot: a rough location, a click on a building rather
-            // than its street. Dragging puts it right without losing its name or its place in
-            // the list.
-            draggable
-            title="Drag to move"
-            eventHandlers={{
-              dragend: (event) => {
-                const droppedAt = (event.target as L.Marker).getLatLng()
-                onMovePlace(index, droppedAt.lat, droppedAt.lng)
-              },
-              popupopen: () => askHowHigh(place),
-            }}
-          >
-            <Popup>
-              <strong>{place.name}</strong>
-              <br />
-              {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
-              {height && (
-                <>
-                  <br />
-                  {height}
-                </>
-              )}
-            </Popup>
-          </Marker>
-        )
-      })}
+      {places.map((place, index) => (
+        <Pin
+          key={`${place.name}-${place.latitude}-${place.longitude}`}
+          place={place}
+          label={labelFor(place, index)}
+          state={place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered'}
+          keptInPlace={index > 0 && place.keepInPlace === true}
+          height={heightSaid(heights[spotOf(place)])}
+          onMove={(latitude, longitude) => onMovePlace(index, latitude, longitude)}
+          onOpen={() => askHowHigh(place)}
+        />
+      ))}
 
       {/*
         One line per leg. When the API sends the road it follows, draw that. When distances are
