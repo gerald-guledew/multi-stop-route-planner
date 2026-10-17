@@ -11,6 +11,7 @@ import {
   saveVehicle,
 } from './api'
 import { afterABetterAnswer, afterDragging } from './foundStart'
+import type { Picked } from './framing'
 import { asPlace, startingFrom } from './savedPlaces'
 import { defaultLabel, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
@@ -56,9 +57,11 @@ export default function App() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [vehicleProblem, setVehicleProblem] = useState<string | null>(null)
   const [changingVehicle, setChangingVehicle] = useState(false)
-  // Counted up each time a saved place takes over as the start. Nothing is added to the trip
-  // then, so the map would not otherwise know there is somewhere new to show.
-  const [startReplacedTimes, setStartReplacedTimes] = useState(0)
+  // The place picked last from the search or the saved places. The map goes to it.
+  const [picked, setPicked] = useState<Picked | null>(null)
+  // Counted up each time a plan is asked for and the answer is in. The map then shows the whole
+  // trip.
+  const [plannedTimes, setPlannedTimes] = useState(0)
 
   // The browser answers seconds later, and may answer more than once. These two see the places
   // and the position as they are when it does, not as they were when it was asked.
@@ -145,8 +148,14 @@ export default function App() {
     setUnroutablePlace(undefined)
   }
 
+  /** Takes the map to a place picked from a list, close enough to check it is the right one. */
+  function goTo(at: Position) {
+    setPicked((last) => ({ at, times: (last?.times ?? 0) + 1 }))
+  }
+
   function addSearchedPlace(place: Place) {
     setPlaces((current) => [...current, place])
+    goTo(place)
     setPlan(null)
     setError(null)
     setUnroutablePlace(undefined)
@@ -247,7 +256,7 @@ export default function App() {
 
   function startFromASavedPlace(saved: SavedPlace) {
     setPlaces((current) => startingFrom(current, saved))
-    setStartReplacedTimes((times) => times + 1)
+    goTo(saved)
     // Any previous answer was worked out from another start.
     setPlan(null)
     setError(null)
@@ -301,6 +310,7 @@ export default function App() {
       }
     } finally {
       setPlanning(false)
+      setPlannedTimes((times) => times + 1)
     }
   }
 
@@ -365,7 +375,8 @@ export default function App() {
         unroutablePlace={unroutablePlace}
         devicePosition={devicePosition}
         askedTimes={asking.times}
-        startReplacedTimes={startReplacedTimes}
+        picked={picked}
+        plannedTimes={plannedTimes}
         onMapClick={addPlace}
         onMovePlace={movePlace}
         onCentreChange={setMapCentre}

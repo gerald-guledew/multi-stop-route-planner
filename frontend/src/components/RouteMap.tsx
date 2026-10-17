@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet'
 import { heightAt } from '../api'
 import { sitsOn } from '../foundStart'
+import { closeEnoughToCheck, everywhereTheTripGoes, type Picked } from '../framing'
 import { heightSaid, spotOf } from '../height'
 import type { DevicePosition, Position } from '../location'
 import { coveredAtTheTopOfTheMap } from '../screen'
@@ -29,8 +30,10 @@ interface Props {
   devicePosition: DevicePosition | null
   /** How many times the browser has been asked where the device is. */
   askedTimes: number
-  /** How many times the start has been put in from the saved places. */
-  startReplacedTimes: number
+  /** The place picked last from the search or the saved places. */
+  picked: Picked | null
+  /** How many times a plan has been asked for and the answer is in. */
+  plannedTimes: number
   onMapClick: (latitude: number, longitude: number) => void
   onMovePlace: (index: number, latitude: number, longitude: number) => void
   onCentreChange: (centre: Position) => void
@@ -172,52 +175,59 @@ function ReportCentre({ onCentreChange }: { onCentreChange: Props['onCentreChang
 }
 
 /**
- * Moves the map when a place is added somewhere it is not showing.
- *
- * A click always lands inside the view, so this does nothing for clicks. A search result or
- * your own location can be anywhere in the country, and a pin dropped off screen looks exactly
- * like nothing happening.
- *
- * Only a place put into the trip moves the map: one added, or a saved place taking over as the
- * start. The second adds nothing to the count, so it is told apart by being counted on its
- * own. Renaming, removing or dragging leaves the view where you put it.
+ * Goes to a place picked from the search or the saved places, close enough to check it is the
+ * right one. A search result can be anywhere in the country, and a pin dropped off screen looks
+ * exactly like nothing happening. A click on the map needs none of this: it lands where
+ * somebody is already looking.
  */
-function KeepNewPlacesInView({
-  places,
-  startReplacedTimes,
-}: {
-  places: Place[]
-  startReplacedTimes: number
-}) {
+function GoToThePlacePicked({ picked }: { picked: Picked | null }) {
   const map = useMap()
-  const countBefore = useRef(0)
-  const startReplacedBefore = useRef(startReplacedTimes)
 
   useEffect(() => {
-    const added = places.length > countBefore.current
-    const startReplaced = startReplacedTimes !== startReplacedBefore.current
-    countBefore.current = places.length
-    startReplacedBefore.current = startReplacedTimes
-    if (!added && !startReplaced) {
+    if (picked) {
+      map.flyTo([picked.at.latitude, picked.at.longitude], closeEnoughToCheck(map.getZoom()))
+    }
+  }, [picked, map])
+
+  return null
+}
+
+/**
+ * Shows the whole trip once a plan is asked for and the answer is in: every place, and the
+ * roads between them if there is a plan. Going to each place picked leaves the map close to the
+ * last one, so this is what brings the trip back into one view.
+ *
+ * Nothing else about the trip moves the map. Renaming, removing or dragging leaves the view
+ * where you put it.
+ */
+function ShowTheWholeTrip({
+  places,
+  plan,
+  plannedTimes,
+}: {
+  places: Place[]
+  plan: RoutePlan | null
+  plannedTimes: number
+}) {
+  const map = useMap()
+  const plannedBefore = useRef(plannedTimes)
+
+  useEffect(() => {
+    if (plannedTimes === plannedBefore.current) {
       return
     }
+    plannedBefore.current = plannedTimes
 
-    const pins = places.map((place) => L.latLng(place.latitude, place.longitude))
-    if (pins.every((pin) => map.getBounds().contains(pin))) {
-      return
-    }
-
-    if (pins.length === 1) {
-      // Close enough to recognise the street, without zooming out if already closer.
-      map.setView(pins[0], Math.max(map.getZoom(), 14))
-    } else {
-      map.fitBounds(L.latLngBounds(pins), {
+    const points = everywhereTheTripGoes(places, plan)
+    if (points.length > 0) {
+      map.flyToBounds(L.latLngBounds(points), {
         paddingTopLeft: [40, 40 + coveredAtTheTopOfTheMap()],
         paddingBottomRight: [40, 40],
+        // A trip around a few streets still shows the suburb it is in.
         maxZoom: 15,
       })
     }
-  }, [places, map, startReplacedTimes])
+  }, [plannedTimes, places, plan, map])
 
   return null
 }
@@ -228,7 +238,8 @@ export default function RouteMap({
   unroutablePlace,
   devicePosition,
   askedTimes,
-  startReplacedTimes,
+  picked,
+  plannedTimes,
   onMapClick,
   onMovePlace,
   onCentreChange,
@@ -269,7 +280,8 @@ export default function RouteMap({
 
       <ClickToAddStop onMapClick={onMapClick} />
       <ReportCentre onCentreChange={onCentreChange} />
-      <KeepNewPlacesInView places={places} startReplacedTimes={startReplacedTimes} />
+      <GoToThePlacePicked picked={picked} />
+      <ShowTheWholeTrip places={places} plan={plan} plannedTimes={plannedTimes} />
 
       <ShowTheStartFoundForYou places={places} at={devicePosition} askedTimes={askedTimes} />
 
