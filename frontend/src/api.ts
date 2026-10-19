@@ -1,3 +1,4 @@
+import type { ChosenFor } from './chosenFor'
 import type { Position } from './location'
 import type {
   CarVariant,
@@ -137,8 +138,9 @@ export async function searchPlaces(
 }
 
 /**
- * `factorInRoadClimbs` asks for an order chosen for distance and climb together. A planner with
- * no heights to go on answers with the shortest order all the same.
+ * `chosenFor` asks for the shortest order, for an order chosen for distance and climb together,
+ * or for the fastest. A planner with no heights to go on, or with no times, answers with the
+ * shortest order all the same.
  *
  * `vehicle` is what the fuel is worked out for. Without one the plan says nothing about fuel.
  * Its fuel use and its weight are sent, since that is all the planner reads of it so far. Without
@@ -148,7 +150,7 @@ export async function optimizeRoute(
   start: Place,
   stops: Place[],
   returnToStart: boolean,
-  factorInRoadClimbs: boolean,
+  chosenFor: ChosenFor,
   vehicle: Pick<Vehicle, 'litresPer100Km' | 'kilograms'> | null,
 ): Promise<RoutePlan> {
   const fuel = vehicle
@@ -162,7 +164,14 @@ export async function optimizeRoute(
   const response = await ask('/api/v1/routes/optimize', A_PLAN_MS, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ start, stops, returnToStart, factorInRoadClimbs, ...fuel }),
+    body: JSON.stringify({
+      start,
+      stops,
+      returnToStart,
+      factorInRoadClimbs: chosenFor === 'distanceAndClimb',
+      fastest: chosenFor === 'time',
+      ...fuel,
+    }),
   })
 
   if (!response.ok) {

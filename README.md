@@ -28,6 +28,7 @@ Develop an application that can accept a starting point and a list of places. It
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
 - An order that factors in road climbs when asked: a little longer, to climb less. Off unless ticked
+- The fastest order when asked, with the minutes it saves over the shortest. Another order is taken only when it saves a minute or more
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
 - Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes, with what each climb costs and each descent gives back
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
@@ -89,6 +90,8 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner
 The first start with heights on fetches the height of the ground for New Zealand, 70 files and 480 MB, into `backend/data/heights`, and builds a second graph beside the first. Later starts fetch nothing. Switching heights off again goes back to the first graph, which is left as it was. The climb is an estimate, and [docs/api.md](docs/api.md) says how it is counted and where it is wrong.
 
 With heights on, ticking "Factor in road climbs" on the screen has the order chosen for distance and climb together. Without them the box changes nothing, and the screen says so.
+
+On real roads, picking "Fastest order" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so too.
 
 ### Address search
 

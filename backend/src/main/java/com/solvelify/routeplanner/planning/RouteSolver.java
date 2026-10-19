@@ -6,8 +6,8 @@ import java.util.Set;
  * Chooses the order of the stops.
  *
  * <p>A solver sees numbers, not kilometres. Whatever fills the cost matrix decides what
- * "best" means: distance today, minutes or litres later. That is why "fastest or most
- * fuel-efficient" will be a change to how the matrix is built, not a new algorithm.
+ * "best" means: distance or seconds today, litres later. That is why the fastest order was a
+ * change to how the matrix is built, not a new algorithm, and the most fuel-efficient will be.
  */
 public interface RouteSolver {
 

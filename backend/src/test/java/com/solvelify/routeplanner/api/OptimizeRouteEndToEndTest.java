@@ -105,6 +105,22 @@ class OptimizeRouteEndToEndTest {
     }
 
     @Test
+    void choosesForDistanceWhenAskedForTheFastestOrderOnStraightLines() throws Exception {
+        // A straight line says how far and not how long, so there is no time to choose by.
+        String fastest = AUCKLAND_ERRANDS
+                .formatted("true")
+                .replace("\"returnToStart\": true", "\"returnToStart\": true, \"fastest\": true");
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(fastest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDistanceKm").value(51.76))
+                .andExpect(jsonPath("$.totalDurationSeconds").value(nullValue()))
+                .andExpect(jsonPath("$.shortestOrder").value(nullValue()));
+    }
+
+    @Test
     void keepsTheAirportSecondAsInDocsApiMd() throws Exception {
         String airportKeptSecond = AUCKLAND_ERRANDS
                 .formatted("true")

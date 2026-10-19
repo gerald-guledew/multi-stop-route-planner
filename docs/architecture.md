@@ -20,7 +20,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 
 1. The controller takes JSON, validates it, and turns it into domain objects.
 2. The service asks a matrix provider for travel figures between every pair of places.
-3. The service turns those figures into a cost matrix. Cost means distance. When the request asks to factor in road climbs, it means distance with the climb counted as extra road.
+3. The service turns those figures into a cost matrix. Cost means distance. When the request asks to factor in road climbs, it means distance with the climb counted as extra road. When it asks for the fastest order, it means driving time.
 4. The solver returns the cheapest order it can find.
 5. The service builds the answer: the ordered stops, each leg, and the totals.
 
@@ -46,9 +46,11 @@ Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances
 
 The interface hands back a whole matrix rather than one pair at a time, because routing engines calculate many-to-many distances in a single pass. Asking pair by pair would be far slower once real roads arrive.
 
-**The solver minimises a cost matrix without knowing what cost means.** Distance fills it today. Seconds or litres can fill it later. That turns "fastest or most fuel-efficient" into a decision about how the matrix is built, not a rewrite of the algorithm.
+**The solver minimises a cost matrix without knowing what cost means.** Distance or seconds fill it today. Litres can fill it later. That turns "fastest or most fuel-efficient" into a decision about how the matrix is built, not a rewrite of the algorithm.
 
 Factoring in road climbs was the first use of it. A second table counts every metre a drive climbs as 10 m of road, and the same solver is run over it. The shortest order is still worked out, so the answer can say what was given up for what. The 10 is `routeplanner.planning.road-metres-per-metre-climbed`.
+
+The fastest order was the second. Its table is the driving time of each drive. The order found over it is taken when it saves a minute or more over the shortest, and the shortest order is the answer otherwise.
 
 **A stop kept in its place is a rule about the order, not about the cost.** The solver is told which stops must be visited at the turn they were entered in, and it only ever builds the orders that respect that. It still knows nothing about why. Keeping a stop also makes the work smaller: ten stops with three kept is 5,040 orders to compare rather than 3.6 million.
 
@@ -173,4 +175,4 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length, and with heights switched on how much it climbs and descends. The order is chosen for distance unless the request asks otherwise |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
 | 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use and its weight arrive with the request. They do not reach the matrix provider yet, because nothing there reads them |
-| 6 | **Begun.** A second way to fill the cost matrix: distance with the climb counted as extra road, when the request asks to factor in road climbs. The fuel each leg takes is worked out after the order is chosen, by `FuelEstimate`: the vehicle's figure for every kilometre and, by `FuelUse`, what each climb costs and each descent gives back, once the roads have heights and the weight is known. Speed in the fuel, and fuel instead of distance in the cost matrix, are still to come |
+| 6 | **Begun.** Two more ways to fill the cost matrix: distance with the climb counted as extra road, when the request asks to factor in road climbs, and driving time, when it asks for the fastest order. The fuel each leg takes is worked out after the order is chosen, by `FuelEstimate`: the vehicle's figure for every kilometre and, by `FuelUse`, what each climb costs and each descent gives back, once the roads have heights and the weight is known. Speed in the fuel, and fuel instead of distance in the cost matrix, are still to come |

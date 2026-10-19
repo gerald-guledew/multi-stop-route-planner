@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { differsFromTheShortest, roadClimbsSaid, shortestSaid } from './roadClimbs'
+import { roadClimbsSaid } from './roadClimbs'
 import type { RoutePlan } from './types'
 
 /** A round trip of 62.88 km that climbs 561 m, and whatever else is said of it. */
@@ -20,8 +20,8 @@ function aPlan(more: Partial<RoutePlan> = {}): RoutePlan {
   }
 }
 
-const SHORTER_AND_HILLIER = { distanceKm: 62.58, climbMetres: 666, descentMetres: 666 }
-const THE_SAME = { distanceKm: 62.88, climbMetres: 561, descentMetres: 561 }
+const SHORTER_AND_HILLIER = { distanceKm: 62.58, durationSeconds: 4930, climbMetres: 666, descentMetres: 666 }
+const THE_SAME = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 561, descentMetres: 561 }
 
 describe('saying what factoring in road climbs came to', () => {
   it('says how much longer the order is than the shortest, and how much less it climbs', () => {
@@ -36,7 +36,7 @@ describe('saying what factoring in road climbs came to', () => {
       totalDistanceKm: 66.71,
       totalClimbMetres: 575,
       totalDescentMetres: 531,
-      shortestOrder: { distanceKm: 66.16, climbMetres: 678, descentMetres: 634 },
+      shortestOrder: { distanceKm: 66.16, durationSeconds: 5190, climbMetres: 678, descentMetres: 634 },
     })
 
     expect(roadClimbsSaid(true, oneWay)).toBe(
@@ -64,7 +64,7 @@ describe('saying what factoring in road climbs came to', () => {
   })
 
   it('calls an order as long as the shortest no longer', () => {
-    const asLong = { distanceKm: 62.88, climbMetres: 600, descentMetres: 600 }
+    const asLong = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 600, descentMetres: 600 }
 
     expect(roadClimbsSaid(true, aPlan({ shortestOrder: asLong }))).toBe(
       'This order is no longer than the shortest and climbs 39 m less.',
@@ -72,7 +72,7 @@ describe('saying what factoring in road climbs came to', () => {
   })
 
   it('puts a comma in the thousands', () => {
-    const farHillier = { distanceKm: 60.08, climbMetres: 1761, descentMetres: 1761 }
+    const farHillier = { distanceKm: 60.08, durationSeconds: 4790, climbMetres: 1761, descentMetres: 1761 }
 
     expect(roadClimbsSaid(true, aPlan({ shortestOrder: farHillier }))).toBe(
       'This order is 2.80 km longer than the shortest and climbs 1,200 m less.',
@@ -80,48 +80,10 @@ describe('saying what factoring in road climbs came to', () => {
   })
 
   it('does not say less than nought for a metre lost in rounding', () => {
-    const aMetreTheWrongWay = { distanceKm: 62.87, climbMetres: 560, descentMetres: 560 }
+    const aMetreTheWrongWay = { distanceKm: 62.87, durationSeconds: 4975, climbMetres: 560, descentMetres: 560 }
 
     expect(roadClimbsSaid(true, aPlan({ shortestOrder: aMetreTheWrongWay }))).toBe(
       'This order is 0.01 km longer than the shortest and climbs 0 m less.',
-    )
-  })
-})
-
-describe('telling the order chosen from the shortest', () => {
-  it('says they differ when the order is longer', () => {
-    expect(differsFromTheShortest(aPlan({ shortestOrder: SHORTER_AND_HILLIER }))).toBe(true)
-  })
-
-  it('says they differ when the order only climbs less', () => {
-    const asLong = { distanceKm: 62.88, climbMetres: 562, descentMetres: 562 }
-
-    expect(differsFromTheShortest(aPlan({ shortestOrder: asLong }))).toBe(true)
-  })
-
-  it('says they do not when the figures are the same', () => {
-    expect(differsFromTheShortest(aPlan({ shortestOrder: THE_SAME }))).toBe(false)
-  })
-
-  it('says they do not when there is no shortest order to hold it against', () => {
-    expect(differsFromTheShortest(aPlan())).toBe(false)
-  })
-})
-
-describe('saying what the shortest order comes to', () => {
-  it('gives how far it is and how much it climbs', () => {
-    expect(shortestSaid(SHORTER_AND_HILLIER)).toBe('62.58 km, 666 m up')
-  })
-
-  it('gives the climb and not the descent', () => {
-    expect(shortestSaid({ distanceKm: 66.16, climbMetres: 678, descentMetres: 634 })).toBe(
-      '66.16 km, 678 m up',
-    )
-  })
-
-  it('puts a comma in the thousands, and keeps two decimals', () => {
-    expect(shortestSaid({ distanceKm: 141.7, climbMetres: 1403, descentMetres: 1403 })).toBe(
-      '141.70 km, 1,403 m up',
     )
   })
 })

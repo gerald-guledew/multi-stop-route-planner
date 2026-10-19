@@ -18,6 +18,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class RoutePlanningService {
 
+    /**
+     * How much an order found for time has to save over the shortest to be taken. The times are
+     * for clear roads and the screen gives them to the minute, so a few seconds are no reason to
+     * drive kilometres further.
+     */
+    static final double LEAST_SECONDS_SAVED = 60;
+
     private final TravelMatrixProvider travelMatrixProvider;
     private final RouteSolver routeSolver;
     private final PlanningProperties properties;
@@ -45,9 +52,11 @@ public class RoutePlanningService {
      *                    visited at the turn they were entered in. The first stop of the day
      *                    that cannot wait, say. The others are arranged around them
      * @param chosenFor   what the order is chosen for. Climb can be counted only on roads whose
-     *                    heights are known. On any others the order is chosen for distance,
+     *                    heights are known, and time only on roads, since a straight line says
+     *                    how far and not how long. Otherwise the order is chosen for distance,
      *                    whatever was asked, and the plan gives no shortest order to hold it
-     *                    against
+     *                    against. The fastest order is taken when it saves a minute or more, and
+     *                    the shortest otherwise
      */
     public RoutePlan plan(
             Location start,
@@ -76,15 +85,15 @@ public class RoutePlanningService {
         RouteSolver.Solution shortest = routeSolver.solve(matrix.asCostMatrix(), returnToStart, kept);
         int[] shortestPath = pathOf(shortest.order(), returnToStart);
 
-        // The same search again over a table that counts the climb as well. The shortest order
-        // is still worked out, because it is what this one is held against.
-        Optional<RouteSolver.Solution> countingClimb = chosenFor == ChosenFor.DISTANCE_AND_CLIMB
-                ? matrix.asCostMatrixCountingClimb(properties.roadMetresPerMetreClimbed())
-                        .map(cost -> routeSolver.solve(cost, returnToStart, kept))
-                : Optional.empty();
+        // The same search again over another table, when the order is chosen for more than
+        // distance. The shortest order is still worked out, because it is what this one is held
+        // against.
+        Optional<RouteSolver.Solution> chosen = costFor(chosenFor, matrix)
+                .map(cost -> routeSolver.solve(cost, returnToStart, kept));
 
-        int[] bestPath = countingClimb
+        int[] bestPath = chosen
                 .map(solution -> pathOf(solution.order(), returnToStart))
+                .filter(path -> savesEnough(chosenFor, path, shortestPath, matrix))
                 .orElse(shortestPath);
         int[] enteredPath = pathOf(stopsInEnteredOrder(stops.size()), returnToStart);
 
@@ -97,7 +106,32 @@ public class RoutePlanningService {
                 climbAlong(bestPath, matrix),
                 distanceAlong(enteredPath, matrix),
                 shortest.ordersChecked(),
-                countingClimb.flatMap(counted -> shortestOrderAlong(shortestPath, matrix)));
+                chosen.map(solution -> shortestOrderAlong(shortestPath, matrix)));
+    }
+
+    /**
+     * The table an order chosen for more than distance is found with. Empty for distance alone,
+     * which the shortest order already answers, and when the matrix lacks what the table needs:
+     * heights for the climb, times for the time.
+     */
+    private Optional<double[][]> costFor(ChosenFor chosenFor, TravelMatrix matrix) {
+        return switch (chosenFor) {
+            case DISTANCE -> Optional.empty();
+            case DISTANCE_AND_CLIMB -> matrix.asCostMatrixCountingClimb(properties.roadMetresPerMetreClimbed());
+            case TIME -> matrix.asCostMatrixOfDrivingTime();
+        };
+    }
+
+    /**
+     * Whether an order found for time saves enough over the shortest to be taken. An order found
+     * for anything else is taken as found.
+     */
+    private static boolean savesEnough(ChosenFor chosenFor, int[] path, int[] shortestPath, TravelMatrix matrix) {
+        if (chosenFor != ChosenFor.TIME) {
+            return true;
+        }
+        double saved = durationAlong(shortestPath, matrix).orElseThrow() - durationAlong(path, matrix).orElseThrow();
+        return saved >= LEAST_SECONDS_SAVED;
     }
 
     /** The matrix puts the start at 0, so the stop at position 0 of the list is index 1. */
@@ -147,8 +181,8 @@ public class RoutePlanningService {
     }
 
     /**
-     * Driving time for the whole trip, or empty when the matrix has no times. The order was
-     * not chosen for time. This says how long that order takes, not that it is the quickest.
+     * Driving time for the whole trip, or empty when the matrix has no times. Unless the order
+     * was chosen for time, this says how long that order takes, not that it is the quickest.
      */
     private static OptionalDouble durationAlong(int[] path, TravelMatrix matrix) {
         double total = 0;
@@ -178,9 +212,9 @@ public class RoutePlanningService {
         return Optional.of(total);
     }
 
-    private static Optional<RoutePlan.ShortestOrder> shortestOrderAlong(int[] path, TravelMatrix matrix) {
-        return climbAlong(path, matrix)
-                .map(climb -> new RoutePlan.ShortestOrder(distanceAlong(path, matrix), climb));
+    private static RoutePlan.ShortestOrder shortestOrderAlong(int[] path, TravelMatrix matrix) {
+        return new RoutePlan.ShortestOrder(
+                distanceAlong(path, matrix), durationAlong(path, matrix), climbAlong(path, matrix));
     }
 
     private static double distanceAlong(int[] path, TravelMatrix matrix) {

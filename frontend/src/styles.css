@@ -297,6 +297,13 @@ body {
   margin-bottom: 12px;
 }
 
+/* The shortest order or the fastest, side by side. */
+.chosen-for {
+  column-gap: 20px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
 .buttons {
   display: flex;
   gap: 8px;

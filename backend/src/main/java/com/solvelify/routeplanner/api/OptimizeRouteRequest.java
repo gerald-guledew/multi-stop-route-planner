@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.api;
 import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.vehicle.Vehicle;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotEmpty;
@@ -33,6 +34,8 @@ public record OptimizeRouteRequest(
         Boolean returnToStart,
 
         Boolean factorInRoadClimbs,
+
+        Boolean fastest,
 
         @Valid
         VehicleRequest vehicle) {
@@ -73,5 +76,19 @@ public record OptimizeRouteRequest(
      */
     public boolean factorInRoadClimbsOrDefault() {
         return factorInRoadClimbs != null && factorInRoadClimbs;
+    }
+
+    /** Whether the order is to be chosen for driving time. Left out, it is chosen for distance. */
+    public boolean fastestOrDefault() {
+        return fastest != null && fastest;
+    }
+
+    /**
+     * Reported as the field "fastestOrRoadClimbs". Road climbs are counted as road, which the
+     * shortest order is chosen for and the fastest is not.
+     */
+    @AssertTrue(message = "must ask for the fastest order or for road climbs factored in, not both")
+    public boolean isFastestOrRoadClimbs() {
+        return !(fastestOrDefault() && factorInRoadClimbsOrDefault());
     }
 }

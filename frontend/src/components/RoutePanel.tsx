@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
-import { differsFromTheShortest, roadClimbsSaid, shortestSaid } from '../roadClimbs'
+import { chosenFor } from '../chosenFor'
 import { climbSaid } from '../climb'
+import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
+import { roadClimbsSaid } from '../roadClimbs'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
+import { differsFromTheShortest, shortestSaid } from '../shortestOrder'
 import { anyKeptInPlace, canMove, ordinal, type Direction } from '../stops'
 import { whatNext } from '../whatNext'
 import type { DevicePosition, LocationProblem, Position } from '../location'
@@ -25,9 +28,12 @@ interface Props {
   onToggleKeepInPlace: (index: number) => void
   onChangeTurn: (index: number, direction: Direction) => void
   onReturnToStartChange: (returnToStart: boolean) => void
-  /** Whether the order is to be chosen for distance and climb together. */
+  /** Whether the order is to be chosen for distance and climb together, when it is the shortest. */
   factorInRoadClimbs: boolean
   onFactorInRoadClimbsChange: (factorInRoadClimbs: boolean) => void
+  /** Whether the order is to be the fastest rather than the shortest. */
+  fastest: boolean
+  onFastestChange: (fastest: boolean) => void
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
@@ -161,7 +167,9 @@ export default function RoutePanel(props: Props) {
   const saving = plan ? savingSaid(plan.enteredOrderDistanceKm, plan.totalDistanceKm) : null
   const climb = plan ? climbSaid(plan.totalClimbMetres, plan.totalDescentMetres) : null
   const fuel = plan && plan.totalFuelLitres !== null ? litresSaid(plan.totalFuelLitres) : null
-  const roadClimbs = plan ? roadClimbsSaid(props.factorInRoadClimbs, plan) : null
+  const chosen = chosenFor({ fastest: props.fastest, factorInRoadClimbs: props.factorInRoadClimbs })
+  const roadClimbs = plan ? roadClimbsSaid(chosen === 'distanceAndClimb', plan) : null
+  const quickest = plan ? fastestSaid(chosen === 'time', plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
   const shortest = plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
 
@@ -381,17 +389,43 @@ export default function RoutePanel(props: Props) {
                 />
                 Return to the start
               </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={props.factorInRoadClimbs}
-                  // A plan on its way was asked for with the box as it stood.
-                  disabled={planning}
-                  onChange={(event) => props.onFactorInRoadClimbsChange(event.target.checked)}
-                />
-                Factor in road climbs
-              </label>
-              {props.factorInRoadClimbs && (
+              {/* A plan on its way was asked for with these as they stood. */}
+              <div className="chosen-for" role="radiogroup" aria-label="What the order is chosen for">
+                <label>
+                  <input
+                    type="radio"
+                    name="chosen-for"
+                    checked={!props.fastest}
+                    disabled={planning}
+                    onChange={() => props.onFastestChange(false)}
+                  />
+                  Shortest order
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="chosen-for"
+                    checked={props.fastest}
+                    disabled={planning}
+                    onChange={() => props.onFastestChange(true)}
+                  />
+                  Fastest order
+                </label>
+              </div>
+              {props.fastest && <p className="note">The order may come out longer, to take less time.</p>}
+              {/* Road climbs are counted as road, so they count for the shortest order alone. */}
+              {!props.fastest && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={props.factorInRoadClimbs}
+                    disabled={planning}
+                    onChange={(event) => props.onFactorInRoadClimbsChange(event.target.checked)}
+                  />
+                  Factor in road climbs
+                </label>
+              )}
+              {chosen === 'distanceAndClimb' && (
                 <p className="note">The order may come out a little longer, to climb less.</p>
               )}
 
@@ -446,7 +480,7 @@ export default function RoutePanel(props: Props) {
                 {shortest && (
                   <div>
                     <dt>The shortest order</dt>
-                    <dd>{shortestSaid(shortest)}</dd>
+                    <dd>{shortestSaid(shortest, chosen)}</dd>
                   </div>
                 )}
                 <div>
@@ -462,6 +496,7 @@ export default function RoutePanel(props: Props) {
               </dl>
 
               {roadClimbs && <p className="note">{roadClimbs}</p>}
+              {quickest && <p className="note">{quickest}</p>}
               {plan.totalDurationSeconds !== null && (
                 <p className="note">
                   Driving time is for clear roads. It allows nothing for traffic, or for the

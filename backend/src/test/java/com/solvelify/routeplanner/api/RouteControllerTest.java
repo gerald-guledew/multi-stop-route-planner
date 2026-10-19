@@ -425,6 +425,61 @@ class RouteControllerTest {
         verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE));
     }
 
+    // An order chosen for driving time.
+
+    @Test
+    void asksForTimeWhenToldToFindTheFastestOrder() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"fastest\": true")))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.TIME));
+    }
+
+    @Test
+    void asksForDistanceWhenToldNotToFindTheFastestOrder() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"fastest\": false")))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE));
+    }
+
+    @Test
+    void refusesTheFastestOrderWithRoadClimbsFactoredIn() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace(
+                                "\"returnToStart\": true", "\"fastest\": true, \"factorInRoadClimbs\": true")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("fastestOrRoadClimbs"))
+                .andExpect(jsonPath("$.errors[0].message")
+                        .value("must ask for the fastest order or for road climbs factored in, not both"));
+    }
+
+    @Test
+    void saysHowLongTheShortestOrderTakesWhenTheOrderWasChosenForTime() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any())).willReturn(aPlanChosenForTime());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"fastest\": true")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDurationSeconds").value(1556))
+                .andExpect(jsonPath("$.shortestOrder.distanceKm").value(18.94))
+                .andExpect(jsonPath("$.shortestOrder.durationSeconds").value(1746))
+                // Roads read without heights. Null, as for the plan, and not nought.
+                .andExpect(jsonPath("$.shortestOrder", hasKey("climbMetres")))
+                .andExpect(jsonPath("$.shortestOrder.climbMetres").value(nullValue()))
+                .andExpect(jsonPath("$.shortestOrder.descentMetres").value(nullValue()));
+    }
+
     @Test
     void saysWhatTheShortestOrderComesTo() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any()))
@@ -436,6 +491,7 @@ class RouteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalDistanceKm").value(19.29))
                 .andExpect(jsonPath("$.shortestOrder.distanceKm").value(18.94))
+                .andExpect(jsonPath("$.shortestOrder.durationSeconds").value(1490))
                 .andExpect(jsonPath("$.shortestOrder.climbMetres").value(153))
                 .andExpect(jsonPath("$.shortestOrder.descentMetres").value(152));
     }
@@ -463,7 +519,23 @@ class RouteControllerTest {
                 chosen.totalClimbAndDescent(),
                 chosen.enteredOrderDistanceKm(),
                 chosen.ordersChecked(),
-                Optional.of(new RoutePlan.ShortestOrder(18.936, new ClimbAndDescent(152.6, 152.4))));
+                Optional.of(new RoutePlan.ShortestOrder(
+                        18.936, OptionalDouble.of(1490.4), Optional.of(new ClimbAndDescent(152.6, 152.4)))));
+    }
+
+    /** The plan with times further down, chosen for time, on roads read without their heights. */
+    private static RoutePlan aPlanChosenForTime() {
+        RoutePlan chosen = aPlanWithTimes();
+
+        return new RoutePlan(
+                chosen.route(),
+                chosen.legs(),
+                chosen.totalDistanceKm(),
+                chosen.totalDurationSeconds(),
+                chosen.totalClimbAndDescent(),
+                chosen.enteredOrderDistanceKm(),
+                chosen.ordersChecked(),
+                Optional.of(new RoutePlan.ShortestOrder(18.936, OptionalDouble.of(1745.6), Optional.empty())));
     }
 
     private static RoutePlan aPlanWithClimbs() {
