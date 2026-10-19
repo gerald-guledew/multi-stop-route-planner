@@ -7,6 +7,7 @@ import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
+import { googleMapsLink, leavesOutTheDriveBack } from '../googleMaps'
 import { roadClimbsSaid } from '../roadClimbs'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
@@ -62,16 +63,6 @@ const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
 }
 
 const MAX_STOPS = 10
-
-/** Hands the finished order to Google Maps, which does the actual navigating. */
-function googleMapsLink(route: Place[]): string {
-  const asCoordinates = (place: Place) => `${place.latitude},${place.longitude}`
-  const origin = asCoordinates(route[0])
-  const destination = asCoordinates(route[route.length - 1])
-  const waypoints = route.slice(1, -1).map(asCoordinates).join('|')
-
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`
-}
 
 /** A finger that has moved this far up or down the top of the panel meant to swipe it. */
 const SWIPE_PIXELS = 24
@@ -553,6 +544,13 @@ export default function RoutePanel(props: Props) {
               </ol>
 
               <p className="checked">{plan.ordersChecked.toLocaleString()} possible orders compared</p>
+
+              {leavesOutTheDriveBack(plan.route) && (
+                <p className="note">
+                  Google Maps takes nine stops between the start and the end, so the link ends at
+                  your last stop. Head back to the start from there.
+                </p>
+              )}
 
               <a className="primary button" href={googleMapsLink(plan.route)} target="_blank" rel="noreferrer">
                 Open in Google Maps
