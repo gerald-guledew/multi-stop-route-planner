@@ -80,8 +80,8 @@ function HowItWorks() {
     <>
       <p className="lede">
         Search an address or a business to drop a pin on it, or click the map for anywhere
-        else. Drag a pin to move it. The box beside each pin is a label you can rename. It does
-        not move anything.
+        else. Drag a pin to move it. On a phone, hold it until it lifts first. The box beside
+        each pin is a label you can rename. It does not move anything.
       </p>
       <p className="lede">
         Click the street outside a place rather than the building itself. A pin inside a mall
@@ -367,7 +367,7 @@ export default function RoutePanel(props: Props) {
             <p className="note">
               Your browser guessed this spot. By its own estimate it is good to about{' '}
               {roughly(here.accuracyMetres)}, the circle on the map. It can be further out than that.
-              Drag the pin to where you really are.
+              Move the pin to where you really are.
             </p>
           )}
 

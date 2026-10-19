@@ -64,7 +64,7 @@ The map screen, in a second terminal:
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. Beside each stop a padlock keeps it at its turn, two arrows move it up or down the list, and a bookmark saves the place for next time under the label you gave it. Once the data below is loaded you can type them instead, and the nearest match comes first.
+Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. On a phone, hold it until it lifts, then drag it. Beside each stop a padlock keeps it at its turn, two arrows move it up or down the list, and a bookmark saves the place for next time under the label you gave it. Once the data below is loaded you can type them instead, and the nearest match comes first.
 
 On a phone the map fills the screen. The search box floats over the top of it, and the trip is a panel that comes up from the bottom.
 
