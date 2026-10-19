@@ -150,7 +150,7 @@ Results are empty until the data is imported: LINZ addresses for `address`, Over
 
 ## POST /api/v1/routes/optimize
 
-Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in road climbs, it returns the order that comes out best with the climb counted as well.
+Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in road climbs, it returns the order that comes out best with the climb counted as well. Asked for the fastest order, it returns the order with the least driving time.
 
 Distances are straight lines for now. Step 3 replaces them with real driving distances.
 
@@ -166,6 +166,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `stops[].keepInPlace` | boolean | Optional, defaults to `false`. See "Keeping a stop in its place" below |
 | `returnToStart` | boolean | Optional, defaults to `true` |
 | `factorInRoadClimbs` | boolean | Optional, defaults to `false`. See "Factoring in road climbs" below |
+| `fastest` | boolean | Optional, defaults to `false`. Not together with `factorInRoadClimbs`. See "The fastest order" below |
 | `vehicle` | object | Optional. The vehicle to work out the fuel for. See "Fuel" below |
 | `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows, or the register's figure for a car found there |
 | `vehicle.kilograms` | number | Optional, 400 to 4,000. What the vehicle weighs empty. Without it the fuel does not count the hills |
@@ -202,7 +203,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `totalFuelLitres` | number | The fuel the whole trip takes. `null` when no `vehicle` was sent |
 | `fuelCountsHills` | boolean | Whether the fuel counts the hills. `false` when the roads were read without heights or the `vehicle` came without `kilograms`. `null` when no `vehicle` was sent |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
-| `shortestOrder` | object | Only when road climbs were factored in: the `distanceKm`, `climbMetres` and `descentMetres` of the shortest order, to hold this one against. `null` otherwise |
+| `shortestOrder` | object | Only when road climbs were factored in or the fastest order was asked for: the `distanceKm`, `durationSeconds`, `climbMetres` and `descentMetres` of the shortest order, to hold this one against. Its time is `null` on straight lines and its climb and descent without heights, as for the plan. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
 
 ```json
@@ -248,7 +249,7 @@ Three things to know about these figures.
 
 - **They are for clear roads.** The time is what each road's speed allows with nothing in the way. OpenStreetMap carries no traffic, so the same drive at five in the afternoon takes longer.
 - **They are driving time alone.** Nothing is added for the time spent at a stop.
-- **The order is never chosen for time.** The time is how long the order returned takes. Another order can be quicker and longer.
+- **The order is chosen for distance unless the fastest is asked for.** The time is then how long the shortest order takes, and another order can be quicker and longer. See "The fastest order" below.
 
 On straight lines both fields are `null`, not zero. A straight line says how far apart two places are, and nothing about how fast anybody gets from one to the other.
 
@@ -347,7 +348,7 @@ The answer also says what the shortest order comes to, in `shortestOrder`, so th
   "totalDistanceKm": 62.88,
   "totalClimbMetres": 561,
   "totalDescentMetres": 561,
-  "shortestOrder": { "distanceKm": 62.58, "climbMetres": 666, "descentMetres": 666 }
+  "shortestOrder": { "distanceKm": 62.58, "durationSeconds": 4728, "climbMetres": 666, "descentMetres": 666 }
 }
 ```
 
@@ -370,6 +371,36 @@ routeplanner:
 ```
 
 It is a round figure, and not a fuel estimate. A [study that simulated cars on graded roads](https://vtechworks.lib.vt.edu/handle/10919/46178) put the extra fuel at over 9% for each 1% of slope, and a slope of 1% is a metre climbed in every 100 m of road. The planner knows nothing of the vehicle yet, so one figure serves for every car.
+
+### The fastest order
+
+Send `"fastest": true` and the order is chosen for driving time. Left out, it is chosen for distance. An order that is longer and keeps to faster roads then comes out ahead when it takes less time.
+
+The answer says what the shortest order comes to, in `shortestOrder`, as it does for road climbs. The five stops further up, by road with heights and with the Airport moved to its forecourt, at `-37.0070, 174.7830`:
+
+| | Order of the stops | Distance | Driving time |
+| --- | --- | --- | --- |
+| Shortest | Airport, Sylvia Park, Takapuna, Devonport | 76.91 km | 5,063 s |
+| Fastest | Takapuna, Devonport, Sylvia Park, Airport | 77.33 km | 4,952 s |
+
+```json
+{
+  "totalDistanceKm": 77.33,
+  "totalDurationSeconds": 4952,
+  "shortestOrder": { "distanceKm": 76.91, "durationSeconds": 5063, "climbMetres": 478, "descentMetres": 478 }
+}
+```
+
+Things to know.
+
+- **Another order has to save a minute to be taken.** The times are for clear roads and the screen gives them to the minute. So when no order is a minute or more quicker than the shortest, the answer is the shortest order, and `shortestOrder` repeats its figures. Without that rule, 103 of the 400 round trips below changed order to save less than a minute, and one went 8.50 km further to save under half a minute.
+- **How often it changes the order.** On 400 made-up round trips of four to eight stops around Auckland, between places picked at random from the business names, with 87 minutes of driving at the middle, the order changed in 202. Where it did, it saved 2.5 minutes at the middle, 3% of the trip, and was 1.57 km longer. None saved more than 8.8 minutes, and none was more than 8.75 km longer. On 400 one-way trips the order changed in 148, saving 2.4 minutes at the middle and 10 at most.
+- **The times are for clear roads**, as said under "Driving times" above. From the Sky Tower to the Airport they give 21 minutes, where travel guides give about 25 off-peak. At rush hour the motorway the fastest order keeps to may be the slowest road there is.
+- **A longer order takes more fuel.** The fuel is worked out for the order chosen, whatever it was chosen for.
+- **Not together with road climbs.** Road climbs are counted as road, which the shortest order is chosen for and the fastest is not. A request with both is refused with a 400.
+- **On straight lines there is no time to choose by.** The order is chosen for distance as if nothing had been asked, and `shortestOrder` is `null`. It is not an error.
+- **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way.
+- **A stop kept in its place stays there.**
 
 ### Fuel
 
@@ -432,7 +463,7 @@ Validation failures return **400** as RFC 9457 Problem Details, with the media t
 
 | Status | When |
 | --- | --- |
-| 400 | A field is missing, a coordinate is out of range, there are no stops, or there are more than 10 |
+| 400 | A field is missing, a coordinate is out of range, there are no stops, there are more than 10, or both `fastest` and `factorInRoadClimbs` are true |
 | 422 | A place has no road near it, so no car can reach it. Only possible on the `graphhopper` provider |
 | 500 | Anything unexpected. The response carries no internal details |
 

@@ -14,7 +14,7 @@ import type { Place } from './types'
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const office: Place = { name: 'Office', latitude: -36.8485, longitude: 174.7621 }
 
-const empty: Trip = { places: [], returnToStart: true, factorInRoadClimbs: false }
+const empty: Trip = { places: [], returnToStart: true, factorInRoadClimbs: false, fastest: false }
 
 function going(...places: Place[]): Trip {
   return { ...empty, places }
@@ -69,6 +69,13 @@ describe('undoing and redoing changes to the trip', () => {
     const ticked = afterChange(startingWith(empty), { ...empty, factorInRoadClimbs: true })
 
     expect(undone(ticked).present.factorInRoadClimbs).toBe(false)
+  })
+
+  it('undoes picking the fastest order like any other change', () => {
+    const picked = afterChange(startingWith(empty), { ...empty, fastest: true })
+
+    expect(undone(picked).present.fastest).toBe(false)
+    expect(redone(undone(picked)).present.fastest).toBe(true)
   })
 
   it('takes a change that changes nothing as no change', () => {

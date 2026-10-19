@@ -84,6 +84,15 @@ public final class TravelMatrix {
     }
 
     /**
+     * The table for an order chosen for driving time: how long each drive takes.
+     *
+     * <p>Empty when the source has no times. A straight line says how far and not how long.
+     */
+    public Optional<double[][]> asCostMatrixOfDrivingTime() {
+        return durationsSeconds == null ? Optional.empty() : Optional.of(copyOf(durationsSeconds));
+    }
+
+    /**
      * The table for an order chosen for distance and climb together. Each drive costs its
      * distance, and on top of it {@code roadMetresPerMetreClimbed} metres of road for every
      * metre it climbs. Coming down counts for nothing.

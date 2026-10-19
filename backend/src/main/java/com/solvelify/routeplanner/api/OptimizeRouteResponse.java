@@ -29,8 +29,10 @@ import java.util.stream.IntStream;
  *                             without heights or the vehicle came without its weight. Null when
  *                             no vehicle was sent
  * @param shortestOrder        what the shortest order comes to, given when the order was chosen
- *                             for distance and climb together, so the two can be held against
- *                             each other. Null when the order was chosen for distance alone
+ *                             for distance and climb together or for driving time, so the two
+ *                             can be held against each other. Null when the order was chosen for
+ *                             distance alone, and when what it was to be chosen for is not known:
+ *                             heights for the climb, times for the time
  */
 public record OptimizeRouteResponse(
         List<Place> route,
@@ -48,8 +50,14 @@ public record OptimizeRouteResponse(
     public record Place(String name, double latitude, double longitude) {
     }
 
-    /** The shortest order: how far it is, and how much it climbs and comes down. */
-    public record ShortestOrder(double distanceKm, long climbMetres, long descentMetres) {
+    /**
+     * The shortest order: how far it is, how long it takes, and how much it climbs and comes down.
+     *
+     * @param durationSeconds null on straight lines, as for a plan
+     * @param climbMetres     null unless the roads were read with their heights
+     * @param descentMetres   null whenever the climb is
+     */
+    public record ShortestOrder(double distanceKm, Long durationSeconds, Long climbMetres, Long descentMetres) {
     }
 
     /**
@@ -108,8 +116,9 @@ public record OptimizeRouteResponse(
                 plan.shortestOrder()
                         .map(shortest -> new ShortestOrder(
                                 roundToTwoDecimals(shortest.distanceKm()),
-                                Math.round(shortest.climbAndDescent().climbMetres()),
-                                Math.round(shortest.climbAndDescent().descentMetres())))
+                                wholeSeconds(shortest.durationSeconds()),
+                                wholeMetresUp(shortest.climbAndDescent()),
+                                wholeMetresDown(shortest.climbAndDescent())))
                         .orElse(null),
                 plan.ordersChecked());
     }

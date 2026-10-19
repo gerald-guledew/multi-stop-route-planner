@@ -17,9 +17,10 @@ import java.util.OptionalDouble;
  * <p>The climb and descent are empty unless the roads were read with their heights. On a round
  * trip the two come out equal, since the trip ends where it began.
  *
- * <p>{@code shortestOrder} is given when the order was chosen for distance and climb together.
- * It is what the shortest order would have come to, so that what was given up for what can be
- * seen. Empty when the order was chosen for distance alone: the plan is then the shortest order.
+ * <p>{@code shortestOrder} is given when the order was chosen for more than distance: for
+ * distance and climb together, or for driving time. It is what the shortest order would have
+ * come to, so that what was given up for what can be seen. Empty when the order was chosen for
+ * distance alone: the plan is then the shortest order.
  */
 public record RoutePlan(
         List<Location> route,
@@ -68,9 +69,11 @@ public record RoutePlan(
 
     /**
      * What the shortest order comes to, to hold a plan chosen for more than distance against.
-     * Only given on roads whose heights are known, so its climb always is.
+     * Its time is known wherever the roads are, and its climb where they were read with their
+     * heights.
      */
-    public record ShortestOrder(double distanceKm, ClimbAndDescent climbAndDescent) {
+    public record ShortestOrder(
+            double distanceKm, OptionalDouble durationSeconds, Optional<ClimbAndDescent> climbAndDescent) {
     }
 
     /**

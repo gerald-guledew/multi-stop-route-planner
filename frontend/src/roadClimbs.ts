@@ -1,37 +1,6 @@
 import { metres } from './climb'
-import type { RoutePlan, ShortestOrder } from './types'
-
-/**
- * Half of the last digit shown. The figures arrive rounded, to a hundredth of a kilometre and
- * to a metre, so anything smaller than this is no difference at all.
- */
-const NO_FURTHER_KM = 0.005
-const NO_LESS_METRES = 0.5
-
-/** How much further the order chosen goes than the shortest, and how much less it climbs. */
-function against(shortest: ShortestOrder, plan: RoutePlan): { furtherKm: number; lessMetres: number } {
-  return {
-    furtherKm: plan.totalDistanceKm - shortest.distanceKm,
-    lessMetres: shortest.climbMetres - (plan.totalClimbMetres ?? shortest.climbMetres),
-  }
-}
-
-/**
- * Whether the order chosen is another one than the shortest, going by the figures. False when
- * the plan gives no shortest order to hold it against, since it is then the shortest itself.
- */
-export function differsFromTheShortest(plan: RoutePlan): boolean {
-  if (plan.shortestOrder === null) {
-    return false
-  }
-  const { furtherKm, lessMetres } = against(plan.shortestOrder, plan)
-  return furtherKm >= NO_FURTHER_KM || lessMetres >= NO_LESS_METRES
-}
-
-/** The shortest order in a few words, for the row beside the order chosen: "62.58 km, 666 m up". */
-export function shortestSaid(shortest: ShortestOrder): string {
-  return `${shortest.distanceKm.toFixed(2)} km, ${metres(shortest.climbMetres)} up`
-}
+import { against, differsFromTheShortest, NO_FURTHER_KM } from './shortestOrder'
+import type { RoutePlan } from './types'
 
 /**
  * What factoring in road climbs came to for this plan, in a sentence. Null when it was not asked
