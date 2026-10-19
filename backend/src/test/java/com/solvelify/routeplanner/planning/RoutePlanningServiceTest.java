@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.within;
 
 import com.solvelify.routeplanner.distance.HaversineTravelMatrixProvider;
 import java.util.List;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -364,8 +366,8 @@ class RoutePlanningServiceTest {
         RoutePlan plan = overTheRidge.plan(
                 HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
 
-        assertThat(plan.shortestOrder())
-                .contains(new RoutePlan.ShortestOrder(16, new ClimbAndDescent(150, 130)));
+        assertThat(plan.shortestOrder()).contains(new RoutePlan.ShortestOrder(
+                16, OptionalDouble.of(200), Optional.of(new ClimbAndDescent(150, 130))));
     }
 
     @Test
@@ -398,8 +400,8 @@ class RoutePlanningServiceTest {
                 HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
 
         assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(150, 150));
-        assertThat(plan.shortestOrder())
-                .contains(new RoutePlan.ShortestOrder(28, new ClimbAndDescent(150, 150)));
+        assertThat(plan.shortestOrder()).contains(new RoutePlan.ShortestOrder(
+                28, OptionalDouble.of(300), Optional.of(new ClimbAndDescent(150, 150))));
     }
 
     @Test
@@ -451,6 +453,138 @@ class RoutePlanningServiceTest {
     @Test
     void choosesForDistanceOnStraightLinesWhateverWasAsked() {
         RoutePlan plan = service.plan(SKY_TOWER, STOPS, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(plan.totalDistanceKm()).isCloseTo(51.76, within(0.01));
+        assertThat(plan.shortestOrder()).isEmpty();
+    }
+
+    // An order chosen for driving time.
+
+    /**
+     * Home to the Office is 10 km through town and takes 15 minutes. Home to the Shop is 12 km by
+     * motorway and takes as long as given. Office and Shop are 5 km and 5 minutes apart either way,
+     * and the drives home are 10 km and 11 km, 10 minutes each.
+     *
+     * <p>There and back, the order entered, Home, Office, Shop, is 10 + 5 + 11 = 26 km and
+     * 900 + 300 + 600 = 1800 seconds. Home, Shop, Office is 12 + 5 + 10 = 27 km, and with
+     * 10 minutes to the Shop, 600 + 300 + 600 = 1500 seconds. So the shortest order is then five
+     * minutes slower.
+     */
+    private static TravelMatrixProvider aMotorwayToTheShopTaking(double seconds) {
+        return places -> new TravelMatrix(
+                new double[][] {
+                    {0, 10, 12},
+                    {10, 0, 5},
+                    {11, 5, 0},
+                },
+                new double[][] {
+                    {0, 900, seconds},
+                    {600, 0, 300},
+                    {600, 300, 0},
+                });
+    }
+
+    private final RoutePlanningService byTheMotorway =
+            new RoutePlanningService(aMotorwayToTheShopTaking(600), new BruteForceRouteSolver(), AS_SHIPPED);
+
+    @Test
+    void goesFurtherToTakeLessTime() {
+        RoutePlan plan = byTheMotorway.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office", "Home");
+        assertThat(plan.totalDurationSeconds()).hasValue(1500);
+        assertThat(plan.totalDistanceKm()).isEqualTo(27);
+    }
+
+    @Test
+    void saysWhatTheShortestOrderWouldHaveComeToAndHowLongItTakes() {
+        RoutePlan plan = byTheMotorway.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
+
+        // No heights on these roads, so no climb to give.
+        assertThat(plan.shortestOrder()).contains(
+                new RoutePlan.ShortestOrder(26, OptionalDouble.of(1800), Optional.empty()));
+    }
+
+    @Test
+    void takesTheShortestOrderUnlessAskedForTime() {
+        RoutePlan plan = byTheMotorway.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.totalDurationSeconds()).hasValue(1800);
+        assertThat(plan.shortestOrder()).isEmpty();
+    }
+
+    @Test
+    void choosesForTimeOnAOneWayTripToo() {
+        // One way, Home, Shop, Office is 17 km in 900 seconds, and the shortest 15 km in 1200.
+        RoutePlan plan = byTheMotorway.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.TIME);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office");
+        assertThat(plan.totalDurationSeconds()).hasValue(900);
+        assertThat(plan.shortestOrder().orElseThrow().durationSeconds()).hasValue(1200);
+    }
+
+    @Test
+    void leavesAKeptStopAtItsTurnWhenChoosingForTime() {
+        // With the Office kept first there is one order, and it is the slower one.
+        RoutePlan plan = byTheMotorway.plan(HOME, OFFICE_AND_SHOP, Set.of(0), THERE_AND_BACK, ChosenFor.TIME);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.ordersChecked()).isEqualTo(1);
+    }
+
+    @Test
+    void givesTheSameFiguresTwiceWhenTheShortestOrderIsAlsoTheQuickest() {
+        // One way on the roads with times further up, Home, Office, Shop is both: 16 km in 200
+        // seconds, against 25 km in 1800.
+        RoutePlan plan = onRoadsWithTimes.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.TIME);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+        assertThat(plan.shortestOrder()).contains(
+                new RoutePlan.ShortestOrder(16, OptionalDouble.of(200), Optional.empty()));
+    }
+
+    @Test
+    void givesTheClimbOfTheShortestOrderWhenTheRoadsHaveHeights() {
+        // There and back, the shortest is Home, Shop, Office in 2400 seconds. The quickest is
+        // the other way round, in 300. Both climb 150 m.
+        RoutePlan plan = onRoadsWithHeights.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.shortestOrder()).contains(new RoutePlan.ShortestOrder(
+                35, OptionalDouble.of(2400), Optional.of(new ClimbAndDescent(150, 150))));
+    }
+
+    @Test
+    void keepsTheShortestOrderWhenNoOtherSavesAMinute() {
+        // With 870 seconds to the Shop, going there first takes 1770 seconds. Half a minute less
+        // is no reason to drive a kilometre further.
+        RoutePlanningService halfAMinuteQuicker = new RoutePlanningService(
+                aMotorwayToTheShopTaking(870), new BruteForceRouteSolver(), AS_SHIPPED);
+
+        RoutePlan plan = halfAMinuteQuicker.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        // Still held against the shortest order, which it is.
+        assertThat(plan.shortestOrder()).contains(
+                new RoutePlan.ShortestOrder(26, OptionalDouble.of(1800), Optional.empty()));
+    }
+
+    @Test
+    void takesAnOrderThatSavesAMinute() {
+        RoutePlanningService aMinuteQuicker = new RoutePlanningService(
+                aMotorwayToTheShopTaking(840), new BruteForceRouteSolver(), AS_SHIPPED);
+
+        RoutePlan plan = aMinuteQuicker.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office", "Home");
+        assertThat(plan.totalDurationSeconds()).hasValue(1740);
+    }
+
+    @Test
+    void choosesForDistanceOnStraightLinesWhenAskedForTime() {
+        // A straight line says how far and not how long, so there is no time to choose by.
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
 
         assertThat(plan.totalDistanceKm()).isCloseTo(51.76, within(0.01));
         assertThat(plan.shortestOrder()).isEmpty();

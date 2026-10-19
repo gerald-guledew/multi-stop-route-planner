@@ -43,12 +43,20 @@ public class RouteController {
                 stops,
                 positionsKeptInPlace(request.stops()),
                 request.returnToStartOrDefault(),
-                request.factorInRoadClimbsOrDefault() ? ChosenFor.DISTANCE_AND_CLIMB : ChosenFor.DISTANCE);
+                chosenFor(request));
 
         Optional<FuelEstimate> fuel = Optional.ofNullable(request.vehicle())
                 .map(vehicle -> FuelEstimate.of(plan, vehicle.fuelUse()));
 
         return OptimizeRouteResponse.from(plan, fuel);
+    }
+
+    /** The fastest order, the order counting road climbs, or else the shortest. */
+    private static ChosenFor chosenFor(OptimizeRouteRequest request) {
+        if (request.fastestOrDefault()) {
+            return ChosenFor.TIME;
+        }
+        return request.factorInRoadClimbsOrDefault() ? ChosenFor.DISTANCE_AND_CLIMB : ChosenFor.DISTANCE;
     }
 
     /** Where in the list the stops marked to keep their place are, counting from 0. */

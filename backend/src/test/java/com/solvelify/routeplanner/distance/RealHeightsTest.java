@@ -251,7 +251,7 @@ class RealHeightsTest {
         RoutePlan.ShortestOrder shortest = plan.shortestOrder().orElseThrow();
         double climb = plan.totalClimbAndDescent().orElseThrow().climbMetres();
         assertThat(plan.totalDistanceKm() - shortest.distanceKm()).isBetween(0.1, 0.6);
-        assertThat(shortest.climbAndDescent().climbMetres() - climb).isBetween(70.0, 140.0);
+        assertThat(shortest.climbAndDescent().orElseThrow().climbMetres() - climb).isBetween(70.0, 140.0);
         assertThat(plan.route()).extracting(Location::name)
                 .containsExactly("Avondale", "Glen Eden", "Blockhouse Bay", "Takapuna", "Mission Bay", "Avondale");
     }
@@ -265,7 +265,21 @@ class RealHeightsTest {
         // Measured: 76.91 km and 478 m either way. No other order climbs enough less.
         RoutePlan.ShortestOrder shortest = plan.shortestOrder().orElseThrow();
         assertThat(plan.totalDistanceKm()).isEqualTo(shortest.distanceKm());
-        assertThat(plan.totalClimbAndDescent()).contains(shortest.climbAndDescent());
+        assertThat(plan.totalClimbAndDescent()).isEqualTo(shortest.climbAndDescent());
+    }
+
+    @Test
+    void findsAQuickerOrderForTheFiveStops() {
+        RoutePlan plan = planner().plan(
+                THE_ROUND.getFirst(), THE_ROUND.subList(1, THE_ROUND.size()), Set.of(), true, ChosenFor.TIME);
+
+        // Measured: 77.33 km in 4,952 seconds, where the shortest order is 76.91 km in 5,063.
+        RoutePlan.ShortestOrder shortest = plan.shortestOrder().orElseThrow();
+        double saved = shortest.durationSeconds().orElseThrow() - plan.totalDurationSeconds().orElseThrow();
+        assertThat(saved).isBetween(60.0, 180.0);
+        assertThat(plan.totalDistanceKm() - shortest.distanceKm()).isBetween(0.1, 1.0);
+        assertThat(plan.route()).extracting(Location::name)
+                .containsExactly("Sky Tower", "Takapuna", "Devonport", "Sylvia Park", "Airport", "Sky Tower");
     }
 
     private static RoutePlanningService planner() {

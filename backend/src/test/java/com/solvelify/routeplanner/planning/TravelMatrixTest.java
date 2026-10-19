@@ -148,6 +148,30 @@ class TravelMatrixTest {
         assertThat(matrix.asCostMatrix()).isDeepEqualTo(KM);
     }
 
+    // The table for an order chosen for driving time.
+
+    @Test
+    void handsTheSolverTheTimesForAnOrderChosenForTime() {
+        TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS);
+
+        assertThat(matrix.asCostMatrixOfDrivingTime()).hasValueSatisfying(
+                cost -> assertThat(cost).isDeepEqualTo(SECONDS));
+    }
+
+    @Test
+    void hasNoTimesToHandTheSolverOnStraightLines() {
+        assertThat(new TravelMatrix(KM).asCostMatrixOfDrivingTime()).isEmpty();
+    }
+
+    @Test
+    void keepsItsTimesAsTheyWereWhenTheTableIsChanged() {
+        TravelMatrix matrix = new TravelMatrix(KM, SECONDS);
+
+        matrix.asCostMatrixOfDrivingTime().orElseThrow()[0][1] = 1;
+
+        assertThat(matrix.durationSeconds(0, 1)).hasValue(600);
+    }
+
     // The table for an order chosen for distance and climb together.
 
     @Test

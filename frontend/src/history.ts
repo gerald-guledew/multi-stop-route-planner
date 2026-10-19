@@ -5,11 +5,15 @@ import type { Place } from './types'
  * them, so each rule can be tested on its own.
  */
 
-/** Everything about the trip that a change can be undone in: the places, and the two boxes. */
+/**
+ * Everything about the trip that a change can be undone in: the places, the two boxes, and
+ * whether the order is to be the shortest or the fastest.
+ */
 export interface Trip {
   places: Place[]
   returnToStart: boolean
   factorInRoadClimbs: boolean
+  fastest: boolean
 }
 
 /** The trip as it is, and as it was before each change. */
@@ -37,7 +41,8 @@ function same(one: Trip, other: Trip): boolean {
   return (
     one.places === other.places &&
     one.returnToStart === other.returnToStart &&
-    one.factorInRoadClimbs === other.factorInRoadClimbs
+    one.factorInRoadClimbs === other.factorInRoadClimbs &&
+    one.fastest === other.fastest
   )
 }
 
