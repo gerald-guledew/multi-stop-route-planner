@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import {
   Circle,
   CircleMarker,
@@ -16,6 +16,16 @@ import { sitsOn } from '../foundStart'
 import { closeEnoughToCheck, everywhereTheTripGoes, type Picked } from '../framing'
 import { heightSaid, spotOf } from '../height'
 import type { DevicePosition, Position } from '../location'
+import {
+  afterHolding,
+  afterMoving,
+  droppedAt,
+  holdFor,
+  landing,
+  pressed,
+  type Grip,
+  type Point,
+} from '../pinDrag'
 import { coveredAtTheTopOfTheMap } from '../screen'
 import type { Place, RoutePlan } from '../types'
 
@@ -42,14 +52,19 @@ interface Props {
 /**
  * Numbered pins, drawn in HTML rather than with Leaflet's default icon. It avoids the
  * broken-image problem bundlers cause with Leaflet's image paths, and it lets the pin show
- * its position in the route.
+ * its position in the route. Each says which place it stands for, to be picked up by.
  */
 type PinState = 'entered' | 'planned' | 'problem'
 
-function numberedIcon(label: string, state: PinState, keptInPlace: boolean): L.DivIcon {
+function numberedIcon(
+  label: string,
+  state: PinState,
+  keptInPlace: boolean,
+  index: number,
+): L.DivIcon {
   return L.divIcon({
     className: '',
-    html: `<span class="pin pin-${state}${keptInPlace ? ' pin-kept' : ''}">${label}</span>`,
+    html: `<span class="pin pin-${state}${keptInPlace ? ' pin-kept' : ''}" data-place="${index}">${label}</span>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   })
@@ -66,24 +81,27 @@ function numberedIcon(label: string, state: PinState, keptInPlace: boolean): L.D
  */
 function Pin({
   place,
+  index,
   label,
   state,
   keptInPlace,
   height,
-  onMove,
   onOpen,
 }: {
   place: Place
+  index: number
   label: string
   state: PinState
   keptInPlace: boolean
   height: string | null
-  onMove: (latitude: number, longitude: number) => void
   onOpen: () => void
 }) {
   const { name, latitude, longitude } = place
   const position = useMemo<[number, number]>(() => [latitude, longitude], [latitude, longitude])
-  const icon = useMemo(() => numberedIcon(label, state, keptInPlace), [label, state, keptInPlace])
+  const icon = useMemo(
+    () => numberedIcon(label, state, keptInPlace, index),
+    [label, state, keptInPlace, index],
+  )
   const content = useMemo(
     () => (
       <>
@@ -102,24 +120,182 @@ function Pin({
   )
 
   return (
-    <Marker
-      position={position}
-      icon={icon}
-      // A pin can land in the wrong spot: a rough location, a click on a building rather than
-      // its street. Dragging puts it right without losing its name or its place in the list.
-      draggable
-      title="Drag to move"
-      eventHandlers={{
-        dragend: (event) => {
-          const droppedAt = (event.target as L.Marker).getLatLng()
-          onMove(droppedAt.lat, droppedAt.lng)
-        },
-        popupopen: onOpen,
-      }}
-    >
+    // Not draggable to Leaflet: PickUpPins moves pins.
+    <Marker position={position} icon={icon} title="Drag to move" eventHandlers={{ popupopen: onOpen }}>
       {/* A popup that opens near the top of a phone's map is slid down clear of the search box. */}
       <Popup autoPanPaddingTopLeft={[5, 5 + coveredAtTheTopOfTheMap()]}>{content}</Popup>
     </Marker>
+  )
+}
+
+/**
+ * Picks pins up and moves them, by the rules in pinDrag.ts. Leaflet's own dragging takes a pin
+ * the moment a finger touches it, which is how a thumb meant for the map moved pins. So Leaflet
+ * is not told the pins can be dragged, and this moves them instead.
+ *
+ * A pin can land in the wrong spot: a rough location, a click on a building rather than its
+ * street. Moving it puts it right without losing its name or its place in the list.
+ *
+ * While a finger rests on a pin the map still has it, and moving off moves the map. Once the
+ * pin comes away the map is held still, the pin is faded where it was, and a larger one follows
+ * the finger. Putting a pin down is no click, so the click that follows is swallowed. It would
+ * open the popup, or with a mouse let go elsewhere, add a stop there.
+ */
+function PickUpPins({ onMovePlace }: { onMovePlace: Props['onMovePlace'] }) {
+  const map = useMap()
+  // The pin being carried, as drawn: its label, its look, and where it would land.
+  const [carried, setCarried] = useState<{ label: string; look: string; at: Point } | null>(null)
+  const move = useEffectEvent(onMovePlace)
+
+  useEffect(() => {
+    const container = map.getContainer()
+    let grip: Grip | null = null
+    let pointerId = -1
+    let pin: HTMLElement | null = null
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    function pinUnder(target: EventTarget | null): HTMLElement | null {
+      return target instanceof Element ? target.closest<HTMLElement>('.pin[data-place]') : null
+    }
+
+    function onTheMap(event: PointerEvent): Point {
+      const point = map.mouseEventToContainerPoint(event)
+      return { x: point.x, y: point.y }
+    }
+
+    function show(now: Grip) {
+      if (now.stage === 'carrying' && pin) {
+        setCarried({ label: pin.textContent ?? '', look: pin.className, at: landing(now) })
+      }
+    }
+
+    function comeAway(now: Grip) {
+      // The map has followed the finger so far. From here only the pin does.
+      map.dragging.disable()
+      pin?.closest('.leaflet-marker-icon')?.classList.add('pin-picked-up')
+      show(now)
+    }
+
+    function swallowTheNextClick() {
+      const swallow = (event: MouseEvent) => {
+        event.stopPropagation()
+        event.preventDefault()
+      }
+      window.addEventListener('click', swallow, { capture: true, once: true })
+      // A click from letting go comes at once, if at all.
+      setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 400)
+    }
+
+    function letGo() {
+      clearTimeout(timer)
+      if (grip?.stage === 'carrying') {
+        map.dragging.enable()
+        swallowTheNextClick()
+      }
+      pin?.closest('.leaflet-marker-icon')?.classList.remove('pin-picked-up')
+      grip = null
+      pointerId = -1
+      pin = null
+      setCarried(null)
+    }
+
+    function onDown(event: PointerEvent) {
+      if (grip) {
+        // A second finger: a pinch, not a pin.
+        if (event.pointerId !== pointerId) {
+          letGo()
+        }
+        return
+      }
+      const under = pinUnder(event.target)
+      if (!under || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) {
+        return
+      }
+      grip = pressed(event.pointerType, onTheMap(event))
+      pointerId = event.pointerId
+      pin = under
+      const hold = holdFor(grip)
+      if (hold !== null) {
+        timer = setTimeout(() => {
+          if (grip) {
+            grip = afterHolding(grip)
+            comeAway(grip)
+          }
+        }, hold)
+      }
+    }
+
+    function onMove(event: PointerEvent) {
+      if (!grip || event.pointerId !== pointerId) {
+        return
+      }
+      const before = grip
+      const now = afterMoving(grip, onTheMap(event))
+      if (now === null) {
+        // Moved off before the pin came away: the map has the finger.
+        letGo()
+      } else if (before.stage === 'resting' && now.stage === 'carrying') {
+        grip = now
+        comeAway(now)
+      } else {
+        grip = now
+        show(now)
+      }
+    }
+
+    function onUp(event: PointerEvent) {
+      if (!grip || event.pointerId !== pointerId) {
+        return
+      }
+      const at = droppedAt(grip)
+      const index = Number(pin?.dataset.place)
+      letGo()
+      if (at) {
+        const spot = map.containerPointToLatLng([at.x, at.y])
+        move(index, spot.lat, spot.lng)
+      }
+    }
+
+    function onCancel(event: PointerEvent) {
+      if (grip && event.pointerId === pointerId) {
+        letGo()
+      }
+    }
+
+    // A mouse pressed on a pin is the pin's. Let through, it would start moving the map.
+    function keepTheMapStill(event: MouseEvent) {
+      if (event.button === 0 && pinUnder(event.target)) {
+        event.stopPropagation()
+      }
+    }
+
+    container.addEventListener('pointerdown', onDown, true)
+    container.addEventListener('mousedown', keepTheMapStill, true)
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onCancel)
+    return () => {
+      clearTimeout(timer)
+      if (grip?.stage === 'carrying') {
+        map.dragging.enable()
+      }
+      container.removeEventListener('pointerdown', onDown, true)
+      container.removeEventListener('mousedown', keepTheMapStill, true)
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onCancel)
+    }
+  }, [map])
+
+  if (!carried) {
+    return null
+  }
+  return (
+    <div className="carried" style={{ left: carried.at.x, top: carried.at.y }}>
+      <span className={carried.look}>{carried.label}</span>
+      <span className="carried-stem" />
+      <span className="carried-dot" />
+    </div>
   )
 }
 
@@ -345,6 +521,7 @@ export default function RouteMap({
       />
 
       <ClickToAddStop onMapClick={onMapClick} />
+      <PickUpPins onMovePlace={onMovePlace} />
       <ReportCentre onCentreChange={onCentreChange} />
       <GoToThePlacePicked picked={picked} />
       <ShowTheWholeTrip places={places} plan={plan} plannedTimes={plannedTimes} />
@@ -357,11 +534,11 @@ export default function RouteMap({
         <Pin
           key={`${place.name}-${place.latitude}-${place.longitude}`}
           place={place}
+          index={index}
           label={labelFor(place, index)}
           state={place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered'}
           keptInPlace={index > 0 && place.keepInPlace === true}
           height={heightSaid(heights[spotOf(place)])}
-          onMove={(latitude, longitude) => onMovePlace(index, latitude, longitude)}
           onOpen={() => askHowHigh(place)}
         />
       ))}
