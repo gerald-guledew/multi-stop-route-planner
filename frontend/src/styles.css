@@ -208,9 +208,54 @@ body {
   border-radius: 6px;
 }
 
-/* Pins can be dragged, so they should look as if they can. */
-.leaflet-marker-draggable {
+/* Pins can be moved, so they should look as if they can. */
+.leaflet-marker-pane .pin[data-place] {
   cursor: grab;
+}
+
+/* The pin where it was, while it is carried somewhere else. */
+.pin-picked-up {
+  opacity: 0.35;
+}
+
+/* A pin being carried: larger, held up on a stem, over a dot on the spot where it will land. */
+.carried {
+  height: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 0;
+  /* Over the map and its popups, under its buttons. */
+  z-index: 500;
+}
+
+.carried .pin {
+  bottom: 18px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 35%);
+  font-size: 20px;
+  height: 52px;
+  left: -26px;
+  position: absolute;
+  width: 52px;
+}
+
+.carried-stem {
+  background: var(--ink);
+  bottom: 4px;
+  height: 16px;
+  left: -1px;
+  position: absolute;
+  width: 2px;
+}
+
+.carried-dot {
+  background: var(--ink);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  height: 12px;
+  left: -6px;
+  position: absolute;
+  top: -6px;
+  width: 12px;
 }
 
 /* Where the browser says this device is, and the doubt around it. */
