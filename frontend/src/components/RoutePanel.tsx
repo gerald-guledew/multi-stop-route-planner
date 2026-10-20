@@ -417,7 +417,7 @@ export default function RoutePanel(props: Props) {
                 </label>
               )}
               {chosen === 'distanceAndClimb' && (
-                <p className="note">The order may come out a little longer, to climb less.</p>
+                <p className="note">The order and the roads may come out a little longer, to climb less.</p>
               )}
 
               <div className="buttons">

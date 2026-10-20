@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version="0.6" generator="by hand">
+  <!--
+    Two roads between the same two ends, drawn by hand for RoadsClimbingLessTest.
+
+    The test supplies the heights: a round hill 80 m high, centred on the top of Hill Road,
+    sloping evenly down to the level ground 600 m from its top. The level ground is at nought.
+
+    Hill Road goes straight over the top, 3.03 km from end to end.
+    Round Road goes round the hill to the south, never nearer its top than 666 m, and is level.
+    It is 3.51 km from end to end.
+    Side Road leaves Round Road at its east bend and runs south. It leads nowhere, and is there
+    because the engine finds roads with an index of the map's junctions, which needs them to
+    lie at more than one latitude.
+  -->
+  <node id="1" lat="-36.9000" lon="174.6830"/>
+  <node id="2" lat="-36.9000" lon="174.7000"/>
+  <node id="3" lat="-36.9000" lon="174.7170"/>
+  <node id="4" lat="-36.9060" lon="174.6920"/>
+  <node id="5" lat="-36.9060" lon="174.7080"/>
+  <node id="6" lat="-36.9150" lon="174.7080"/>
+  <way id="10">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Hill Road"/>
+  </way>
+  <way id="20">
+    <nd ref="1"/>
+    <nd ref="4"/>
+    <nd ref="5"/>
+    <nd ref="3"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Round Road"/>
+  </way>
+  <way id="30">
+    <nd ref="5"/>
+    <nd ref="6"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Side Road"/>
+  </way>
+</osm>

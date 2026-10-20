@@ -11,6 +11,7 @@ import com.graphhopper.util.exceptions.PointNotFoundException;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
+import com.solvelify.routeplanner.planning.Roads;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
@@ -43,6 +44,9 @@ import org.springframework.stereotype.Component;
  * On the real map that made a gorge road 1.3% longer than it measures on the map. So with heights
  * the distance is still taken off the map, as it is without them, and switching heights on does
  * not move it.
+ *
+ * <p>The roads that climb less are a profile of their own, which only a graph with heights has.
+ * On any other graph they are the usual roads.
  */
 @Component
 @ConditionalOnProperty(name = "routeplanner.routing.provider", havingValue = RoutingProperties.GRAPHHOPPER)
@@ -55,18 +59,22 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
     private static final boolean THINNED_FOR_DRAWING = false;
 
     private final GraphHopper graphHopper;
-    private final String profile;
+    private final String usualProfile;
+    private final String climbingLessProfile;
     private final boolean roadsHaveHeights;
 
     public GraphHopperTravelMatrixProvider(GraphHopper graphHopper, RoutingProperties properties) {
         this.graphHopper = graphHopper;
-        this.profile = properties.profile();
-        // Asked of the graph and not of the settings. The graph is what the figures come from.
+        this.usualProfile = properties.profile();
+        // Both asked of the graph and not of the settings. The graph is what the figures come from.
+        String climbingLess = GraphHopperConfiguration.climbingLess(usualProfile);
+        this.climbingLessProfile = graphHopper.getProfile(climbingLess) != null ? climbingLess : usualProfile;
         this.roadsHaveHeights = graphHopper.getBaseGraph().getNodeAccess().is3D();
     }
 
     @Override
-    public TravelMatrix matrixFor(List<Location> places) {
+    public TravelMatrix matrixFor(List<Location> places, Roads roads) {
+        String profile = profileFor(roads);
         int size = places.size();
         double[][] distances = new double[size][size];
         double[][] durations = new double[size][size];
@@ -78,13 +86,13 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
                     climbs[from][to] = ClimbAndDescent.LEVEL;
                 } else if (roadsHaveHeights) {
                     // One drive worked out, and every figure read off it.
-                    ResponsePath drive = bestPath(places.get(from), places.get(to), EVERY_POINT);
+                    ResponsePath drive = bestPath(places.get(from), places.get(to), profile, EVERY_POINT);
                     Road road = Road.along(drive.getPoints());
                     distances[from][to] = road.metresOnTheMap() / METRES_PER_KM;
                     durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
                     climbs[from][to] = HeightProfile.climbAndDescent(road.metresAlong(), road.heights());
                 } else {
-                    ResponsePath drive = bestPath(places.get(from), places.get(to), THINNED_FOR_DRAWING);
+                    ResponsePath drive = bestPath(places.get(from), places.get(to), profile, THINNED_FOR_DRAWING);
                     distances[from][to] = drive.getDistance() / METRES_PER_KM;
                     durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
                 }
@@ -99,8 +107,8 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
     }
 
     @Override
-    public List<GeoPoint> pathBetween(Location from, Location to) {
-        ResponsePath path = bestPath(from, to, THINNED_FOR_DRAWING);
+    public List<GeoPoint> pathBetween(Location from, Location to, Roads roads) {
+        ResponsePath path = bestPath(from, to, profileFor(roads), THINNED_FOR_DRAWING);
 
         PointList points = path.getPoints();
         List<GeoPoint> shape = new ArrayList<>(points.size());
@@ -110,12 +118,20 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
         return shape;
     }
 
+    private String profileFor(Roads roads) {
+        return switch (roads) {
+            case USUAL -> usualProfile;
+            case CLIMBING_LESS -> climbingLessProfile;
+        };
+    }
+
     /**
+     * @param profile    the engine's name for the roads to take
      * @param everyPoint whether the answer keeps every point of the drive. Left alone the engine
      *                   drops any point the line can be drawn without, judging by the map alone,
      *                   and the heights of a straight road go with them
      */
-    private ResponsePath bestPath(Location from, Location to, boolean everyPoint) {
+    private ResponsePath bestPath(Location from, Location to, String profile, boolean everyPoint) {
         GHRequest request = new GHRequest(
                 from.latitude(), from.longitude(),
                 to.latitude(), to.longitude())

@@ -15,7 +15,13 @@ import java.util.List;
  */
 public interface TravelMatrixProvider {
 
-    TravelMatrix matrixFor(List<Location> places);
+    /** Every drive along the roads asked for. Straight lines are the same whichever is asked. */
+    TravelMatrix matrixFor(List<Location> places, Roads roads);
+
+    /** Every drive along the usual roads. */
+    default TravelMatrix matrixFor(List<Location> places) {
+        return matrixFor(places, Roads.USUAL);
+    }
 
     /**
      * The shape of the drive between two places, for drawing on a map.
@@ -27,7 +33,12 @@ public interface TravelMatrixProvider {
      * <p>Asked for only on the legs that end up in the answer, rather than for every pair in
      * the matrix, because a plan of n stops uses n legs out of n squared possibilities.
      */
-    default List<GeoPoint> pathBetween(Location from, Location to) {
+    default List<GeoPoint> pathBetween(Location from, Location to, Roads roads) {
         return List.of();
+    }
+
+    /** The shape of the drive between two places along the usual roads. */
+    default List<GeoPoint> pathBetween(Location from, Location to) {
+        return pathBetween(from, to, Roads.USUAL);
     }
 }
