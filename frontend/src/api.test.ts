@@ -263,6 +263,7 @@ describe('planning a route', () => {
       returnToStart: false,
       factorInRoadClimbs: false,
       fastest: false,
+      leastFuel: false,
     })
   })
 
@@ -312,6 +313,19 @@ describe('planning a route', () => {
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.fastest).toBe(true)
     expect(sent.factorInRoadClimbs).toBe(false)
+    expect(sent.leastFuel).toBe(false)
+  })
+
+  it('asks for the least fuel of the vehicle when told to', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+
+    await optimizeRoute(start, stops, true, 'fuel', { litresPer100Km: 7.5, kilograms: 1270 })
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent.leastFuel).toBe(true)
+    expect(sent.fastest).toBe(false)
+    expect(sent.factorInRoadClimbs).toBe(false)
+    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, kilograms: 1270 })
   })
 
   it('says which stops have to keep their place', async () => {

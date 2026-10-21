@@ -20,8 +20,8 @@ function aPlan(more: Partial<RoutePlan> = {}): RoutePlan {
   }
 }
 
-const SHORTER_AND_HILLIER = { distanceKm: 62.58, durationSeconds: 4930, climbMetres: 666, descentMetres: 666 }
-const THE_SAME = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 561, descentMetres: 561 }
+const SHORTER_AND_HILLIER = { distanceKm: 62.58, durationSeconds: 4930, climbMetres: 666, descentMetres: 666, fuelLitres: null }
+const THE_SAME = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 561, descentMetres: 561, fuelLitres: null }
 
 describe('telling the order chosen from the shortest', () => {
   it('says they differ when the order is longer', () => {
@@ -38,6 +38,12 @@ describe('telling the order chosen from the shortest', () => {
     const asLongAndSlower = { ...THE_SAME, durationSeconds: 5100 }
 
     expect(differsFromTheShortest(aPlan({ shortestOrder: asLongAndSlower }))).toBe(true)
+  })
+
+  it('says they differ when the order only takes less fuel', () => {
+    const asLongAndThirstier = aPlan({ totalFuelLitres: 4.7, shortestOrder: { ...THE_SAME, fuelLitres: 4.81 } })
+
+    expect(differsFromTheShortest(asLongAndThirstier)).toBe(true)
   })
 
   it('says they do not when the figures are the same', () => {
@@ -65,24 +71,28 @@ describe('saying what the shortest order comes to', () => {
   })
 
   it('gives the climb and not the descent', () => {
-    const oneWay = { distanceKm: 66.16, durationSeconds: 5190, climbMetres: 678, descentMetres: 634 }
+    const oneWay = { distanceKm: 66.16, durationSeconds: 5190, climbMetres: 678, descentMetres: 634, fuelLitres: null }
 
     expect(shortestSaid(oneWay, 'distanceAndClimb')).toBe('66.16 km, 678 m up')
   })
 
   it('puts a comma in the thousands, and keeps two decimals', () => {
-    const farHillier = { distanceKm: 141.7, durationSeconds: 9000, climbMetres: 1403, descentMetres: 1403 }
+    const farHillier = { distanceKm: 141.7, durationSeconds: 9000, climbMetres: 1403, descentMetres: 1403, fuelLitres: null }
 
     expect(shortestSaid(farHillier, 'distanceAndClimb')).toBe('141.70 km, 1,403 m up')
   })
 
   it('gives how far it is and how long it takes, beside the fastest order', () => {
-    const slower = { distanceKm: 61.68, durationSeconds: 5340, climbMetres: null, descentMetres: null }
+    const slower = { distanceKm: 61.68, durationSeconds: 5340, climbMetres: null, descentMetres: null, fuelLitres: null }
 
     expect(shortestSaid(slower, 'time')).toBe('61.68 km, 1 h 29 min')
   })
 
   it('gives the time and not the climb beside the fastest order, when it knows both', () => {
     expect(shortestSaid(SHORTER_AND_HILLIER, 'time')).toBe('62.58 km, 1 h 22 min')
+  })
+
+  it('gives how far it is and the fuel it takes, beside the least fuel', () => {
+    expect(shortestSaid({ ...SHORTER_AND_HILLIER, fuelLitres: 4.86 }, 'fuel')).toBe('62.58 km, 4.9 L')
   })
 })

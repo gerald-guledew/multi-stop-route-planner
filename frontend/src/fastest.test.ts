@@ -21,7 +21,7 @@ function aPlan(shortestOrder: ShortestOrder | null): RoutePlan {
 
 /** The shortest order, with as many seconds on top of the plan's as given. */
 function shortest(distanceKm: number, slowerBySeconds: number): ShortestOrder {
-  return { distanceKm, durationSeconds: 4980 + slowerBySeconds, climbMetres: null, descentMetres: null }
+  return { distanceKm, durationSeconds: 4980 + slowerBySeconds, climbMetres: null, descentMetres: null, fuelLitres: null }
 }
 
 describe('saying what asking for the fastest order came to', () => {

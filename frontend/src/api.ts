@@ -139,12 +139,12 @@ export async function searchPlaces(
 
 /**
  * `chosenFor` asks for the shortest order, for an order chosen for distance and climb together,
- * or for the fastest. A planner with no heights to go on, or with no times, answers with the
- * shortest order all the same.
+ * for the fastest, or for the least fuel. A planner with no heights to go on, or with no times,
+ * answers with the shortest order all the same.
  *
- * `vehicle` is what the fuel is worked out for. Without one the plan says nothing about fuel.
- * Its fuel use and its weight are sent, since that is all the planner reads of it so far. Without
- * the weight, the fuel does not count the hills.
+ * `vehicle` is what the fuel is worked out for. Without one the plan says nothing about fuel, and
+ * the least fuel cannot be asked for. Its fuel use and its weight are sent, since that is all the
+ * planner reads of it so far. Without the weight, the fuel does not count the hills.
  */
 export async function optimizeRoute(
   start: Place,
@@ -170,6 +170,7 @@ export async function optimizeRoute(
       returnToStart,
       factorInRoadClimbs: chosenFor === 'distanceAndClimb',
       fastest: chosenFor === 'time',
+      leastFuel: chosenFor === 'fuel',
       ...fuel,
     }),
   })

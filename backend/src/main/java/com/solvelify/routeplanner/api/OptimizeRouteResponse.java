@@ -29,10 +29,11 @@ import java.util.stream.IntStream;
  *                             without heights or the vehicle came without its weight. Null when
  *                             no vehicle was sent
  * @param shortestOrder        what the shortest order comes to, given when the order was chosen
- *                             for distance and climb together or for driving time, so the two
- *                             can be held against each other. Null when the order was chosen for
- *                             distance alone, and when what it was to be chosen for is not known:
- *                             heights for the climb, times for the time
+ *                             for distance and climb together, for driving time or for fuel, so
+ *                             the two can be held against each other. Null when the order was
+ *                             chosen for distance alone, and when what it was to be chosen for is
+ *                             not known: heights for the climb, times for the time, heights and
+ *                             the vehicle's weight for the fuel
  */
 public record OptimizeRouteResponse(
         List<Place> route,
@@ -51,13 +52,16 @@ public record OptimizeRouteResponse(
     }
 
     /**
-     * The shortest order: how far it is, how long it takes, and how much it climbs and comes down.
+     * The shortest order: how far it is, how long it takes, how much it climbs and comes down, and
+     * the fuel it takes.
      *
      * @param durationSeconds null on straight lines, as for a plan
      * @param climbMetres     null unless the roads were read with their heights
      * @param descentMetres   null whenever the climb is
+     * @param fuelLitres      null when no vehicle was sent
      */
-    public record ShortestOrder(double distanceKm, Long durationSeconds, Long climbMetres, Long descentMetres) {
+    public record ShortestOrder(
+            double distanceKm, Long durationSeconds, Long climbMetres, Long descentMetres, Double fuelLitres) {
     }
 
     /**
@@ -118,7 +122,11 @@ public record OptimizeRouteResponse(
                                 roundToTwoDecimals(shortest.distanceKm()),
                                 wholeSeconds(shortest.durationSeconds()),
                                 wholeMetresUp(shortest.climbAndDescent()),
-                                wholeMetresDown(shortest.climbAndDescent())))
+                                wholeMetresDown(shortest.climbAndDescent()),
+                                fuel.map(FuelEstimate::shortestOrderLitres)
+                                        .filter(OptionalDouble::isPresent)
+                                        .map(litres -> roundToTwoDecimals(litres.getAsDouble()))
+                                        .orElse(null)))
                         .orElse(null),
                 plan.ordersChecked());
     }

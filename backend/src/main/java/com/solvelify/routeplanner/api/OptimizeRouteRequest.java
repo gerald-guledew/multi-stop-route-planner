@@ -19,7 +19,7 @@ import java.util.OptionalDouble;
  * own, so without them a stop with latitude 500 would sail through untouched.
  *
  * @param vehicle the vehicle to work out the fuel for. Left out, the plan says nothing about
- *                fuel. The order is chosen the same way either way
+ *                fuel. The order is chosen for its fuel only when the least fuel is asked for
  */
 public record OptimizeRouteRequest(
 
@@ -36,6 +36,8 @@ public record OptimizeRouteRequest(
         Boolean factorInRoadClimbs,
 
         Boolean fastest,
+
+        Boolean leastFuel,
 
         @Valid
         VehicleRequest vehicle) {
@@ -90,5 +92,28 @@ public record OptimizeRouteRequest(
     @AssertTrue(message = "must ask for the fastest order or for road climbs factored in, not both")
     public boolean isFastestOrRoadClimbs() {
         return !(fastestOrDefault() && factorInRoadClimbsOrDefault());
+    }
+
+    /**
+     * Whether the order is to be chosen for the least fuel the vehicle sent takes. Left out, it is
+     * chosen for distance.
+     */
+    public boolean leastFuelOrDefault() {
+        return leastFuel != null && leastFuel;
+    }
+
+    /**
+     * Reported as the field "leastFuelAlone". The fuel counts the climbs itself, so they are not
+     * counted again as road, and the fastest order is chosen for something else altogether.
+     */
+    @AssertTrue(message = "must ask for the least fuel on its own, not with the fastest order or road climbs factored in")
+    public boolean isLeastFuelAlone() {
+        return !(leastFuelOrDefault() && (fastestOrDefault() || factorInRoadClimbsOrDefault()));
+    }
+
+    /** Reported as the field "leastFuelForAVehicle". The fuel is a vehicle's, so it is needed. */
+    @AssertTrue(message = "must send the vehicle whose fuel is to be the least")
+    public boolean isLeastFuelForAVehicle() {
+        return !leastFuelOrDefault() || vehicle != null;
     }
 }

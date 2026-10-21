@@ -67,6 +67,26 @@ class FuelEstimateTest {
         assertThat(estimate.totalLitres()).isCloseTo(3.0, within(1e-9));
     }
 
+    @Test
+    void givesWhatTheShortestOrderTakesWhenThePlanIsHeldAgainstIt() {
+        // The shortest order is 36 km and comes down its 100 m in 1 km, 10%, too steep to give
+        // back more than that kilometre takes on the level.
+        RoutePlan heldAgainstTheShortest = new RoutePlan(
+                ROUND_TRIP.route(), ROUND_TRIP.legs(), 40, OptionalDouble.empty(), Optional.empty(), 40, 2,
+                Optional.of(new RoutePlan.ShortestOrder(36, OptionalDouble.empty(), Optional.of(
+                        new ClimbAndDescent(100, 100, List.of(new ClimbAndDescent.Descent(100, 1000)))))));
+        double hundredMetresUp = 1300 * 9.81 * 100 / (0.30 * 33e6);
+
+        FuelEstimate estimate = FuelEstimate.of(heldAgainstTheShortest, new FuelUse(7.5, OptionalDouble.of(1225)));
+
+        assertThat(estimate.shortestOrderLitres()).hasValueCloseTo(2.7 + hundredMetresUp - 0.075, within(1e-9));
+    }
+
+    @Test
+    void givesNothingForTheShortestOrderWhenThePlanIsTheShortestOrder() {
+        assertThat(FuelEstimate.of(ROUND_TRIP, new FuelUse(7.5)).shortestOrderLitres()).isEmpty();
+    }
+
     private static RoutePlan.Leg leg(String from, String to, double distanceKm, ClimbAndDescent hills) {
         return new RoutePlan.Leg(from, to, distanceKm, OptionalDouble.empty(), Optional.of(hills), List.of());
     }

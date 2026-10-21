@@ -2,6 +2,7 @@ package com.solvelify.routeplanner.api;
 
 import com.solvelify.routeplanner.planning.ChosenFor;
 import com.solvelify.routeplanner.planning.FuelEstimate;
+import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
@@ -37,22 +38,27 @@ public class RouteController {
         List<Location> stops = request.stops().stream()
                 .map(RouteController::toLocation)
                 .toList();
+        Optional<FuelUse> vehicle = Optional.ofNullable(request.vehicle())
+                .map(OptimizeRouteRequest.VehicleRequest::fuelUse);
 
         RoutePlan plan = routePlanningService.plan(
                 toLocation(request.start()),
                 stops,
                 positionsKeptInPlace(request.stops()),
                 request.returnToStartOrDefault(),
-                chosenFor(request));
+                chosenFor(request),
+                vehicle);
 
-        Optional<FuelEstimate> fuel = Optional.ofNullable(request.vehicle())
-                .map(vehicle -> FuelEstimate.of(plan, vehicle.fuelUse()));
+        Optional<FuelEstimate> fuel = vehicle.map(fuelUse -> FuelEstimate.of(plan, fuelUse));
 
         return OptimizeRouteResponse.from(plan, fuel);
     }
 
-    /** The fastest order, the order counting road climbs, or else the shortest. */
+    /** The least fuel, the fastest order, the order counting road climbs, or else the shortest. */
     private static ChosenFor chosenFor(OptimizeRouteRequest request) {
+        if (request.leastFuelOrDefault()) {
+            return ChosenFor.FUEL;
+        }
         if (request.fastestOrDefault()) {
             return ChosenFor.TIME;
         }

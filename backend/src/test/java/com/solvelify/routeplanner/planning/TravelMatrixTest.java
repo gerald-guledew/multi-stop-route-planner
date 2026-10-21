@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
+import java.util.Optional;
+import java.util.OptionalDouble;
 import org.junit.jupiter.api.Test;
 
 class TravelMatrixTest {
@@ -220,6 +222,33 @@ class TravelMatrixTest {
     void hasNoClimbToCountWhenTheRoadsHaveNoHeights() {
         assertThat(new TravelMatrix(KM, SECONDS).asCostMatrixCountingClimb(10)).isEmpty();
         assertThat(new TravelMatrix(KM).asCostMatrixCountingClimb(10)).isEmpty();
+    }
+
+    // The table for an order chosen for fuel.
+
+    /** A car of 1,225 kg at 7.5 L/100 km. With the driver it weighs 1,300 kg. */
+    private static final FuelUse A_MEDIUM_CAR = new FuelUse(7.5, OptionalDouble.of(1225));
+
+    @Test
+    void givesWhatEachDriveUsesUpForGood() {
+        TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS);
+
+        double[][] cost = matrix.asCostMatrixOfFuel(A_MEDIUM_CAR).orElseThrow();
+
+        assertThat(cost[0][1]).isEqualTo(A_MEDIUM_CAR.litresUsedUpFor(10, Optional.of(CLIMBS[0][1])));
+        assertThat(cost[1][0]).isEqualTo(A_MEDIUM_CAR.litresUsedUpFor(12, Optional.of(CLIMBS[1][0])));
+        // Up 80 m and down 50 m, gently enough over 10 km to get back all that cost. The 30 m it
+        // ends higher is kept as height. So it uses up what its 10 km take on the level.
+        assertThat(cost[0][1]).isCloseTo(0.75, within(1e-9));
+        assertThat(cost[0][0]).isZero();
+    }
+
+    @Test
+    void hasNoFuelTableWhenTheHillsCannotBeCounted() {
+        // The fuel then goes with the distance, and the shortest order already takes the least.
+        assertThat(new TravelMatrix(KM, SECONDS).asCostMatrixOfFuel(A_MEDIUM_CAR)).isEmpty();
+        assertThat(new TravelMatrix(KM).asCostMatrixOfFuel(A_MEDIUM_CAR)).isEmpty();
+        assertThat(new TravelMatrix(KM, SECONDS, CLIMBS).asCostMatrixOfFuel(new FuelUse(7.5))).isEmpty();
     }
 
     @Test

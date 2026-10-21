@@ -86,6 +86,22 @@ public record FuelUse(double litresPer100Km, OptionalDouble kilograms) {
         return level + perMetreClimbed * drive.climbMetres() - givenBack;
     }
 
+    /**
+     * The fuel a drive uses up for good: what it takes on the level, and what its steep descents
+     * brake away. What it climbs is left out, since the car keeps that as height and gets it back
+     * coming down. Over a round trip, which ends as high as it began, this is the fuel it takes.
+     *
+     * <p>A one-way trip that ends lower takes less fuel than one that ends higher, but only because
+     * the car is left lower, and the next drive up takes that fuel back. This leaves it out.
+     */
+    public double litresUsedUpFor(double distanceKm, Optional<ClimbAndDescent> hills) {
+        if (hills.isEmpty() || kilograms.isEmpty()) {
+            return litresFor(distanceKm);
+        }
+        ClimbAndDescent drive = hills.get();
+        return litresFor(distanceKm, hills) - litresPerMetreClimbed() * (drive.climbMetres() - drive.descentMetres());
+    }
+
     /** The fuel each metre of climb takes. */
     double litresPerMetreClimbed() {
         return (kilograms.getAsDouble() + DRIVER_KILOGRAMS) * GRAVITY

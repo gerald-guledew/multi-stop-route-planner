@@ -96,7 +96,10 @@ export interface Leg {
   path: [number, number][]
 }
 
-/** What the shortest order comes to: how far it is, how long it takes, and how much it climbs. */
+/**
+ * What the shortest order comes to: how far it is, how long it takes, how much it climbs, and
+ * the fuel it takes.
+ */
 export interface ShortestOrder {
   distanceKm: number
   /** Driving time on clear roads. Null on straight-line distances. */
@@ -105,6 +108,8 @@ export interface ShortestOrder {
   climbMetres: number | null
   /** Null whenever the climb is. */
   descentMetres: number | null
+  /** For the vehicle sent with the plan. Null when none was sent. */
+  fuelLitres: number | null
 }
 
 export interface RoutePlan {
@@ -125,10 +130,11 @@ export interface RoutePlan {
   fuelCountsHills: boolean | null
   enteredOrderDistanceKm: number
   /**
-   * Set when the order was chosen for distance and climb together, or for driving time, so that
-   * it can be held against the shortest. Null when it was chosen for distance alone. That
-   * includes a planner asked to factor in road climbs that has no heights to go on, and one asked
-   * for the fastest order that measures straight lines.
+   * Set when the order was chosen for distance and climb together, for driving time or for fuel,
+   * so that it can be held against the shortest. Null when it was chosen for distance alone. That
+   * includes a planner asked to factor in road climbs that has no heights to go on, one asked for
+   * the fastest order that measures straight lines, and one asked for the least fuel that cannot
+   * count the hills.
    */
   shortestOrder: ShortestOrder | null
   ordersChecked: number

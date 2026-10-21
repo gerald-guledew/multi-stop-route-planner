@@ -18,5 +18,13 @@ public enum ChosenFor {
      * takes less time, by a minute or more. The times are for clear roads, so this is the quickest
      * order with nothing in the way.
      */
-    TIME
+    TIME,
+
+    /**
+     * The least fuel, for one vehicle: its figure for every kilometre, with what each climb costs
+     * and each descent gives back, as {@link FuelUse} counts them. That needs the heights of the
+     * roads and the vehicle's weight. Without either the fuel goes with the distance, and the
+     * shortest order takes the least.
+     */
+    FUEL
 }

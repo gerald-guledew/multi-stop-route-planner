@@ -14,7 +14,7 @@ import type { Place } from './types'
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const office: Place = { name: 'Office', latitude: -36.8485, longitude: 174.7621 }
 
-const empty: Trip = { places: [], returnToStart: true, factorInRoadClimbs: false, fastest: false }
+const empty: Trip = { places: [], returnToStart: true, factorInRoadClimbs: false, order: 'shortest' }
 
 function going(...places: Place[]): Trip {
   return { ...empty, places }
@@ -72,10 +72,17 @@ describe('undoing and redoing changes to the trip', () => {
   })
 
   it('undoes picking the fastest order like any other change', () => {
-    const picked = afterChange(startingWith(empty), { ...empty, fastest: true })
+    const picked = afterChange(startingWith(empty), { ...empty, order: 'fastest' })
 
-    expect(undone(picked).present.fastest).toBe(false)
-    expect(redone(undone(picked)).present.fastest).toBe(true)
+    expect(undone(picked).present.order).toBe('shortest')
+    expect(redone(undone(picked)).present.order).toBe('fastest')
+  })
+
+  it('undoes picking the least fuel back to the order picked before', () => {
+    const fastest = afterChange(startingWith(empty), { ...empty, order: 'fastest' })
+    const leastFuel = afterChange(fastest, { ...empty, order: 'leastFuel' })
+
+    expect(undone(leastFuel).present.order).toBe('fastest')
   })
 
   it('takes a change that changes nothing as no change', () => {

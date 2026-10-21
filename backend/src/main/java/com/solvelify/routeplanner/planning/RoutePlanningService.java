@@ -25,6 +25,14 @@ public class RoutePlanningService {
      */
     static final double LEAST_SECONDS_SAVED = 60;
 
+    /**
+     * How much an order found for fuel has to save over the shortest to be taken, both in the fuel
+     * it uses up for good and in the fuel it takes as driven. The screen gives fuel to a tenth of a
+     * litre, worked out from a figure that is an average, so less than that is no reason to drive
+     * further.
+     */
+    static final double LEAST_LITRES_SAVED = 0.1;
+
     private final TravelMatrixProvider travelMatrixProvider;
     private final RouteSolver routeSolver;
     private final PlanningProperties properties;
@@ -47,6 +55,16 @@ public class RoutePlanningService {
         return plan(start, stops, keptInPlace, returnToStart, ChosenFor.DISTANCE);
     }
 
+    /** The order chosen for anything but fuel, which needs a vehicle. */
+    public RoutePlan plan(
+            Location start,
+            List<Location> stops,
+            Set<Integer> keptInPlace,
+            boolean returnToStart,
+            ChosenFor chosenFor) {
+        return plan(start, stops, keptInPlace, returnToStart, chosenFor, Optional.empty());
+    }
+
     /**
      * @param keptInPlace positions in {@code stops}, counting from 0, of the stops that must be
      *                    visited at the turn they were entered in. The first stop of the day
@@ -54,18 +72,27 @@ public class RoutePlanningService {
      * @param chosenFor   what the order is chosen for. Climb can be counted only on roads whose
      *                    heights are known, and is then counted on the roads between the stops
      *                    as well as in their order. Time only on roads, since a straight line says
-     *                    how far and not how long. Otherwise the order is chosen for distance,
+     *                    how far and not how long. Fuel counts the hills only on roads whose
+     *                    heights are known, for a vehicle whose weight is, and otherwise goes with
+     *                    the distance. Without what it needs, the order is chosen for distance,
      *                    whatever was asked, and the plan gives no shortest order to hold it
-     *                    against. The fastest order is taken when it saves a minute or more, and
-     *                    the shortest otherwise
+     *                    against. The fastest order is taken when it saves a minute or more, the
+     *                    order for fuel when it saves a tenth of a litre or more, and the shortest
+     *                    otherwise
+     * @param vehicle     the vehicle whose fuel an order chosen for fuel keeps down. Needed for
+     *                    that, and not read otherwise
      */
     public RoutePlan plan(
             Location start,
             List<Location> stops,
             Set<Integer> keptInPlace,
             boolean returnToStart,
-            ChosenFor chosenFor) {
+            ChosenFor chosenFor,
+            Optional<FuelUse> vehicle) {
 
+        if (chosenFor == ChosenFor.FUEL && vehicle.isEmpty()) {
+            throw new IllegalArgumentException("an order chosen for fuel needs the vehicle whose fuel it is");
+        }
         for (int position : keptInPlace) {
             if (position < 0 || position >= stops.size()) {
                 throw new IllegalArgumentException(
@@ -82,7 +109,7 @@ public class RoutePlanningService {
         Set<Integer> kept = asMatrixIndices(keptInPlace);
 
         // The solver is handed a table of costs and keeps the total down. Distances give the
-        // shortest order. Step 6 fills the table with litres instead.
+        // shortest order.
         RouteSolver.Solution shortest = routeSolver.solve(usual.asCostMatrix(), returnToStart, kept);
         int[] shortestPath = pathOf(shortest.order(), returnToStart);
 
@@ -93,12 +120,12 @@ public class RoutePlanningService {
                 ? Drives.climbingLessWhereWorthIt(usual, travelMatrixProvider.matrixFor(places, Roads.CLIMBING_LESS),
                         properties.roadMetresPerMetreClimbed())
                 : Drives.alongTheUsualRoads(usual);
-        Optional<RouteSolver.Solution> chosen = costFor(chosenFor, drives.matrix())
+        Optional<RouteSolver.Solution> chosen = costFor(chosenFor, drives.matrix(), vehicle)
                 .map(cost -> routeSolver.solve(cost, returnToStart, kept));
 
         Optional<int[]> chosenPath = chosen
                 .map(solution -> pathOf(solution.order(), returnToStart))
-                .filter(path -> savesEnough(chosenFor, durationAlong(path, drives.matrix()), durationAlong(shortestPath, usual)));
+                .filter(path -> savesEnough(chosenFor, path, drives.matrix(), shortestPath, usual, vehicle));
         int[] bestPath = chosenPath.orElse(shortestPath);
         // The plan is driven along the drives its order was found over.
         Drives driven = chosenPath.isPresent() ? drives : Drives.alongTheUsualRoads(usual);
@@ -130,26 +157,46 @@ public class RoutePlanningService {
     /**
      * The table an order chosen for more than distance is found with. Empty for distance alone,
      * which the shortest order already answers, and when the matrix lacks what the table needs:
-     * heights for the climb, times for the time.
+     * heights for the climb, times for the time, heights and the vehicle's weight for the fuel.
      */
-    private Optional<double[][]> costFor(ChosenFor chosenFor, TravelMatrix matrix) {
+    private Optional<double[][]> costFor(ChosenFor chosenFor, TravelMatrix matrix, Optional<FuelUse> vehicle) {
         return switch (chosenFor) {
             case DISTANCE -> Optional.empty();
             case DISTANCE_AND_CLIMB -> matrix.asCostMatrixCountingClimb(properties.roadMetresPerMetreClimbed());
             case TIME -> matrix.asCostMatrixOfDrivingTime();
+            case FUEL -> matrix.asCostMatrixOfFuel(vehicle.orElseThrow());
         };
     }
 
     /**
-     * Whether an order found for time saves enough over the shortest to be taken. An order found
-     * for anything else is taken as found.
+     * Whether an order found for time or fuel saves enough over the shortest to be taken. An
+     * order found for distance and climb together is taken as found.
+     *
+     * <p>An order found for fuel has to save in the fuel it uses up for good, which it was found
+     * for, and in the fuel it takes as driven, which the plan shows. On a one-way trip the two
+     * differ by the height the car is left at. Saving in the first alone, an order could end
+     * higher and take more fuel than the shortest, as driven. Saving in the second alone, it
+     * could save only by ending lower.
      */
-    private static boolean savesEnough(ChosenFor chosenFor, OptionalDouble seconds, OptionalDouble shortestSeconds) {
-        if (chosenFor != ChosenFor.TIME) {
-            return true;
-        }
-        double saved = shortestSeconds.orElseThrow() - seconds.orElseThrow();
-        return saved >= LEAST_SECONDS_SAVED;
+    private static boolean savesEnough(
+            ChosenFor chosenFor,
+            int[] path,
+            TravelMatrix matrix,
+            int[] shortestPath,
+            TravelMatrix usual,
+            Optional<FuelUse> vehicle) {
+        return switch (chosenFor) {
+            case TIME -> durationAlong(shortestPath, usual).orElseThrow() - durationAlong(path, matrix).orElseThrow()
+                    >= LEAST_SECONDS_SAVED;
+            case FUEL -> {
+                FuelUse fuel = vehicle.orElseThrow();
+                yield litresUsedUpAlong(shortestPath, usual, fuel) - litresUsedUpAlong(path, matrix, fuel)
+                                >= LEAST_LITRES_SAVED
+                        && litresAlong(shortestPath, usual, fuel) - litresAlong(path, matrix, fuel)
+                                >= LEAST_LITRES_SAVED;
+            }
+            case DISTANCE, DISTANCE_AND_CLIMB -> true;
+        };
     }
 
     /** The matrix puts the start at 0, so the stop at position 0 of the list is index 1. */
@@ -229,6 +276,26 @@ public class RoutePlanningService {
             total = total.plus(leg.get());
         }
         return Optional.of(total);
+    }
+
+    /** The fuel for the whole trip, with the hills of each leg where the matrix knows them. */
+    private static double litresAlong(int[] path, TravelMatrix matrix, FuelUse vehicle) {
+        double total = 0;
+        for (int step = 0; step < path.length - 1; step++) {
+            total += vehicle.litresFor(
+                    matrix.distanceKm(path[step], path[step + 1]), matrix.climbAndDescent(path[step], path[step + 1]));
+        }
+        return total;
+    }
+
+    /** The fuel the whole trip uses up for good, leaving out the height the car is left at. */
+    private static double litresUsedUpAlong(int[] path, TravelMatrix matrix, FuelUse vehicle) {
+        double total = 0;
+        for (int step = 0; step < path.length - 1; step++) {
+            total += vehicle.litresUsedUpFor(
+                    matrix.distanceKm(path[step], path[step + 1]), matrix.climbAndDescent(path[step], path[step + 1]));
+        }
+        return total;
     }
 
     private static RoutePlan.ShortestOrder shortestOrderAlong(int[] path, TravelMatrix matrix) {

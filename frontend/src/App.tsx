@@ -10,7 +10,7 @@ import {
   savePlace,
   saveVehicle,
 } from './api'
-import { chosenFor } from './chosenFor'
+import { chosenFor, type Order } from './chosenFor'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import type { Picked } from './framing'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
@@ -31,12 +31,12 @@ import type { Place, RoutePlan, SavedPlace, Vehicle } from './types'
 
 export default function App() {
   // The trip, and the trip as it was before each change, so that a change can be undone.
-  // Factor in road climbs is off unless ticked, and the fastest order unless picked. The order
-  // is then chosen for distance alone.
+  // Factor in road climbs is off unless ticked, and the shortest order is picked unless another
+  // is. The order is then chosen for distance alone.
   const [history, setHistory] = useState(() =>
-    startingWith({ places: [], returnToStart: true, factorInRoadClimbs: false, fastest: false }),
+    startingWith({ places: [], returnToStart: true, factorInRoadClimbs: false, order: 'shortest' }),
   )
-  const { places, returnToStart, factorInRoadClimbs, fastest } = history.present
+  const { places, returnToStart, factorInRoadClimbs, order } = history.present
   const [plan, setPlan] = useState<RoutePlan | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [unroutablePlace, setUnroutablePlace] = useState<string | undefined>()
@@ -329,9 +329,9 @@ export default function App() {
     setPlan(null)
   }
 
-  function changeFastest(isFastest: boolean) {
-    change((trip) => ({ ...trip, fastest: isFastest }))
-    // The shortest order is not the plan for the fastest, or the other way about.
+  function changeOrder(picked: Order) {
+    change((trip) => ({ ...trip, order: picked }))
+    // The shortest order is not the plan for the fastest or the least fuel, or the other way about.
     setPlan(null)
   }
 
@@ -351,7 +351,13 @@ export default function App() {
 
     try {
       setPlan(
-        await optimizeRoute(start, stops, returnToStart, chosenFor({ fastest, factorInRoadClimbs }), vehicle),
+        await optimizeRoute(
+          start,
+          stops,
+          returnToStart,
+          chosenFor({ order, factorInRoadClimbs, hasVehicle: vehicle !== null }),
+          vehicle,
+        ),
       )
     } catch (caught) {
       setPlan(null)
@@ -384,8 +390,8 @@ export default function App() {
         onReturnToStartChange={changeReturnToStart}
         factorInRoadClimbs={factorInRoadClimbs}
         onFactorInRoadClimbsChange={changeFactorInRoadClimbs}
-        fastest={fastest}
-        onFastestChange={changeFastest}
+        order={order}
+        onOrderChange={changeOrder}
         onPlan={planRoute}
         onClear={clearAll}
         onPickPlace={addSearchedPlace}

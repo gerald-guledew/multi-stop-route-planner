@@ -18,9 +18,9 @@ import java.util.OptionalDouble;
  * trip the two come out equal, since the trip ends where it began.
  *
  * <p>{@code shortestOrder} is given when the order was chosen for more than distance: for
- * distance and climb together, or for driving time. It is what the shortest order would have
- * come to, so that what was given up for what can be seen. Empty when the order was chosen for
- * distance alone: the plan is then the shortest order.
+ * distance and climb together, for driving time or for fuel. It is what the shortest order would
+ * have come to, so that what was given up for what can be seen. Empty when the order was chosen
+ * for distance alone: the plan is then the shortest order.
  */
 public record RoutePlan(
         List<Location> route,
