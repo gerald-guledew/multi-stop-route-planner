@@ -94,6 +94,13 @@ class TravelMatrixTest {
     }
 
     @Test
+    void saysWhetherItKnowsTheClimb() {
+        assertThat(new TravelMatrix(KM, SECONDS, CLIMBS).knowsClimb()).isTrue();
+        assertThat(new TravelMatrix(KM, SECONDS).knowsClimb()).isFalse();
+        assertThat(new TravelMatrix(KM).knowsClimb()).isFalse();
+    }
+
+    @Test
     void tellsALevelDriveFromOneItKnowsNothingAbout() {
         TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS);
 

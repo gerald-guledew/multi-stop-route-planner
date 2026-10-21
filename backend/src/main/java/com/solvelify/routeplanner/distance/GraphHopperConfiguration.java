@@ -6,9 +6,15 @@ import com.graphhopper.config.Profile;
 import com.graphhopper.reader.dem.ElevationProvider;
 import com.graphhopper.reader.dem.SkadiProvider;
 import com.graphhopper.reader.dem.TileBasedElevationProvider;
+import com.graphhopper.routing.WeightingFactory;
+import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.util.GHUtility;
+import com.graphhopper.util.PMap;
+import com.solvelify.routeplanner.planning.PlanningProperties;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -43,8 +49,17 @@ class GraphHopperConfiguration {
      */
     private static final double HEIGHT_KEPT_TO_WITHIN_METRES = 1;
 
+    /**
+     * The hint on a profile that has the engine count climb as road: how many metres of road a
+     * metre of climb counts as.
+     */
+    private static final String ROAD_METRES_PER_METRE_CLIMBED = "road_metres_per_metre_climbed";
+
+    /** The hint on that profile saying which version of the weighting prepared it. */
+    private static final String CLIMB_WEIGHTING_VERSION = "climb_counted_as_road_version";
+
     @Bean(destroyMethod = "close")
-    GraphHopper graphHopper(RoutingProperties properties) {
+    GraphHopper graphHopper(RoutingProperties properties, PlanningProperties planning) {
         Path osmFile = Path.of(properties.osmFile());
         if (!Files.exists(osmFile)) {
             throw new IllegalStateException(
@@ -58,15 +73,23 @@ class GraphHopperConfiguration {
         if (heights.enabled()) {
             log.info("Preparing GraphHopper from {}, with the height of every road. The first run fetches"
                     + " the height files into {} and takes minutes, later runs are quick.", osmFile, heights.files());
-            hopper = engineFor(osmFile, heights.graphCache(), properties.profile(), heightsOfTheGround(heights.files()));
+            hopper = engineFor(osmFile, heights.graphCache(), properties.profile(), heightsOfTheGround(heights.files()),
+                    planning.roadMetresPerMetreClimbed());
         } else {
             log.info("Preparing GraphHopper from {}. The first run takes minutes, later runs are quick.", osmFile);
-            hopper = engineFor(osmFile, properties.graphCache(), properties.profile(), ElevationProvider.NOOP);
+            hopper = engineFor(osmFile, properties.graphCache(), properties.profile(), ElevationProvider.NOOP,
+                    planning.roadMetresPerMetreClimbed());
         }
         hopper.importOrLoad();
 
-        log.info("GraphHopper ready, routing on the {} profile", properties.profile());
+        log.info("GraphHopper ready, routing on the profiles {}",
+                hopper.getProfiles().stream().map(Profile::getName).toList());
         return hopper;
+    }
+
+    /** The engine as this application sets it up, with a metre of climb counted as it ships. */
+    static GraphHopper engineFor(Path osmFile, String graphFolder, String profile, ElevationProvider heights) {
+        return engineFor(osmFile, graphFolder, profile, heights, new PlanningProperties(null).roadMetresPerMetreClimbed());
     }
 
     /**
@@ -75,18 +98,35 @@ class GraphHopperConfiguration {
      * <p>Apart from the bean so that a test can have the very same engine on a map of its own,
      * with heights it made up.
      *
-     * @param heights where the height of a point comes from, or {@link ElevationProvider#NOOP} for
-     *                roads taken as flat
+     * <p>With heights it weighs roads two ways, each a profile prepared ahead: its own way, and
+     * with every metre a road climbs counted as so many metres more of it. That figure and the
+     * version of the weighting are part of the second profile, so a graph prepared with another
+     * figure or an older weighting is refused, not read.
+     *
+     * @param heights                   where the height of a point comes from, or
+     *                                  {@link ElevationProvider#NOOP} for roads taken as flat
+     * @param roadMetresPerMetreClimbed how many metres of road a metre of climb counts as, on the
+     *                                  roads that climb less. Not read without heights
      */
-    static GraphHopper engineFor(Path osmFile, String graphFolder, String profile, ElevationProvider heights) {
-        GraphHopper hopper = new GraphHopper();
+    static GraphHopper engineFor(
+            Path osmFile, String graphFolder, String profile, ElevationProvider heights, double roadMetresPerMetreClimbed) {
+        GraphHopper hopper = new EngineCountingClimb();
         hopper.setOSMFile(osmFile.toString());
         hopper.setGraphHopperLocation(graphFolder);
         hopper.setEncodedValuesString("car_access, car_average_speed, road_access");
-        hopper.setProfiles(new Profile(profile)
-                .setCustomModel(GHUtility.loadCustomModelFromJar("car.json")));
+
+        List<Profile> profiles = new ArrayList<>();
+        profiles.add(new Profile(profile).setCustomModel(GHUtility.loadCustomModelFromJar("car.json")));
+        if (heights != ElevationProvider.NOOP) {
+            profiles.add(new Profile(climbingLess(profile))
+                    .setCustomModel(GHUtility.loadCustomModelFromJar("car.json"))
+                    .putHint(ROAD_METRES_PER_METRE_CLIMBED, roadMetresPerMetreClimbed)
+                    .putHint(CLIMB_WEIGHTING_VERSION, ClimbCountedAsRoad.VERSION));
+        }
+        hopper.setProfiles(profiles);
         // Contraction hierarchies: slower to prepare once, far faster on every query afterwards.
-        hopper.getCHPreparationHandler().setCHProfiles(new CHProfile(profile));
+        hopper.getCHPreparationHandler().setCHProfiles(
+                profiles.stream().map(each -> new CHProfile(each.getName())).toList());
 
         if (heights != ElevationProvider.NOOP) {
             hopper.setElevationProvider(heights);
@@ -110,5 +150,30 @@ class GraphHopperConfiguration {
      */
     static TileBasedElevationProvider heightsOfTheGround(String folder) {
         return new SkadiProvider(folder).setInterpolate(true);
+    }
+
+    /** The name of the profile whose roads climb less, beside the one named in the settings. */
+    static String climbingLess(String profile) {
+        return profile + "_climbing_less";
+    }
+
+    /**
+     * The engine, which weighs roads by their climb as well for a profile that says how much a
+     * metre of climb counts. It does so whenever it weighs them, preparing the profile ahead as
+     * much as answering, so the two cannot differ.
+     */
+    private static final class EngineCountingClimb extends GraphHopper {
+
+        @Override
+        protected WeightingFactory createWeightingFactory() {
+            WeightingFactory own = super.createWeightingFactory();
+            return (profile, hints, disableTurnCosts) -> {
+                Weighting weighting = own.createWeighting(profile, hints, disableTurnCosts);
+                PMap asked = profile.getHints();
+                return asked.has(ROAD_METRES_PER_METRE_CLIMBED)
+                        ? new ClimbCountedAsRoad(weighting, asked.getDouble(ROAD_METRES_PER_METRE_CLIMBED, 0))
+                        : weighting;
+            };
+        }
     }
 }

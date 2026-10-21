@@ -1,6 +1,7 @@
 package com.solvelify.routeplanner.distance;
 
 import com.solvelify.routeplanner.planning.Location;
+import com.solvelify.routeplanner.planning.Roads;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import java.util.List;
@@ -21,8 +22,9 @@ import org.springframework.stereotype.Component;
         matchIfMissing = true)
 public class HaversineTravelMatrixProvider implements TravelMatrixProvider {
 
+    /** A straight line takes no roads, so it is the same line whichever roads are asked for. */
     @Override
-    public TravelMatrix matrixFor(List<Location> places) {
+    public TravelMatrix matrixFor(List<Location> places, Roads roads) {
         int size = places.size();
         double[][] distances = new double[size][size];
 

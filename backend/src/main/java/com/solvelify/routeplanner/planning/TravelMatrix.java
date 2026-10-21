@@ -71,6 +71,11 @@ public final class TravelMatrix {
         return climbs == null ? Optional.empty() : Optional.of(climbs[from][to]);
     }
 
+    /** Whether the heights of the roads are known, and with them how much every drive climbs. */
+    public boolean knowsClimb() {
+        return climbs != null;
+    }
+
     public int size() {
         return distancesKm.length;
     }
