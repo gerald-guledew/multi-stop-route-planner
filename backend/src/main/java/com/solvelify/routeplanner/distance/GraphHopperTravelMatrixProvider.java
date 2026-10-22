@@ -9,6 +9,7 @@ import com.graphhopper.util.Parameters;
 import com.graphhopper.util.PointList;
 import com.graphhopper.util.exceptions.PointNotFoundException;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
+import com.solvelify.routeplanner.planning.Directions;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.Roads;
@@ -107,15 +108,20 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
     }
 
     @Override
-    public List<GeoPoint> pathBetween(Location from, Location to, Roads roads) {
-        ResponsePath path = bestPath(from, to, profileFor(roads), THINNED_FOR_DRAWING);
+    public Directions directionsBetween(Location from, Location to, Roads roads) {
+        // The names of the roads along the drive too, for the turns onto a road the map does
+        // not name.
+        GHRequest request = requestFor(from, to, profileFor(roads))
+                .setPathDetails(List.of(Parameters.Details.STREET_NAME, Parameters.Details.STREET_REF));
+        ResponsePath drive = route(request, from, to);
 
-        PointList points = path.getPoints();
+        PointList points = drive.getPoints();
         List<GeoPoint> shape = new ArrayList<>(points.size());
         for (int index = 0; index < points.size(); index++) {
             shape.add(new GeoPoint(points.getLat(index), points.getLon(index)));
         }
-        return shape;
+        // Worked out by the engine along with the drive, from all of its points.
+        return new Directions(shape, TurnsFromTheEngine.from(drive.getInstructions(), points, drive.getPathDetails()));
     }
 
     private String profileFor(Roads roads) {
@@ -132,14 +138,21 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
      *                   and the heights of a straight road go with them
      */
     private ResponsePath bestPath(Location from, Location to, String profile, boolean everyPoint) {
-        GHRequest request = new GHRequest(
-                from.latitude(), from.longitude(),
-                to.latitude(), to.longitude())
-                .setProfile(profile);
+        GHRequest request = requestFor(from, to, profile);
         if (everyPoint) {
             request.putHint(Parameters.Routing.WAY_POINT_MAX_DISTANCE, 0);
         }
+        return route(request, from, to);
+    }
 
+    private static GHRequest requestFor(Location from, Location to, String profile) {
+        return new GHRequest(
+                from.latitude(), from.longitude(),
+                to.latitude(), to.longitude())
+                .setProfile(profile);
+    }
+
+    private ResponsePath route(GHRequest request, Location from, Location to) {
         GHResponse response = graphHopper.route(request);
         if (response.hasErrors()) {
             throw asUnroutable(response.getErrors().get(0), from, to);

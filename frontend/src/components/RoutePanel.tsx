@@ -15,6 +15,7 @@ import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
 import { differsFromTheShortest, shortestSaid } from '../shortestOrder'
 import { anyKeptInPlace, canMove, ordinal, type Direction } from '../stops'
+import { turnDistanceSaid, turnSaid, turnsCounted } from '../turns'
 import { whatNext } from '../whatNext'
 import type { DevicePosition, LocationProblem, Position } from '../location'
 import type { FigureFrom, Place, RoutePlan, SavedPlace } from '../types'
@@ -549,10 +550,28 @@ export default function RoutePanel(props: Props) {
                         {leg ? legSaid(leg) : ''}
                         {legClimb && <span className="climb">{legClimb}</span>}
                       </span>
+                      {/* How to drive there, along the road drawn on the map. Closed until asked for. */}
+                      {leg && leg.turns.length > 0 && (
+                        <details className="turns">
+                          <summary>{turnsCounted(leg.turns)}</summary>
+                          <ol>
+                            {leg.turns.map((turn, at) => (
+                              <li key={at}>
+                                <span className="turn-said">{turnSaid(turn, place.name)}</span>
+                                <span className="turn-km">{turnDistanceSaid(turn.distanceMetres)}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </details>
+                      )}
                     </li>
                   )
                 })}
               </ol>
+
+              {plan.legs.some((leg) => leg.turns.length > 0) && (
+                <p className="note">The turns follow the roads drawn on the map. Google Maps picks its own.</p>
+              )}
 
               <p className="checked">{plan.ordersChecked.toLocaleString()} possible orders compared</p>
 

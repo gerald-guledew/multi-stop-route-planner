@@ -4,6 +4,7 @@ import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.FuelEstimate;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.RoutePlan;
+import com.solvelify.routeplanner.planning.Turn.Way;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -74,6 +75,8 @@ public record OptimizeRouteResponse(
      *                        the distances are straight lines. Pairs rather than objects because a
      *                        single leg can carry hundreds of points, and field names would triple
      *                        the payload.
+     * @param turns           the turns along that road, from setting off to arriving, empty when
+     *                        the distances are straight lines
      */
     public record Leg(
             String from,
@@ -83,7 +86,37 @@ public record OptimizeRouteResponse(
             Long climbMetres,
             Long descentMetres,
             Double fuelLitres,
-            double[][] path) {
+            double[][] path,
+            List<Turn> turns) {
+    }
+
+    /**
+     * One turn of a leg. What a driver is told is left to the screen.
+     *
+     * @param turn           which way: setOff, continue, slightLeft, left, sharpLeft, slightRight,
+     *                       right, sharpRight, keepLeft, keepRight, uTurn, roundabout,
+     *                       leaveRoundabout, ferry or arrive
+     * @param street         the road it goes onto, by its name, or by its number when the map gives
+     *                       it none. Null when the map gives neither
+     * @param follows        the road the drive after it mostly follows, when it goes onto a road
+     *                       the map does not name, such as a motorway's on-ramp. Null otherwise
+     * @param towards        where the signs point. Null where none do
+     * @param motorwayExit   the name of the motorway exit it takes. Null for any other turn
+     * @param roundaboutExit which exit to take, counting from where the roundabout is entered. Null
+     *                       for any other turn
+     * @param heading        the bearing it sets off on, in whole degrees clockwise from north. Null
+     *                       for any turn but setting off
+     * @param distanceMetres how far to drive after it, before the next turn, to the metre
+     */
+    public record Turn(
+            String turn,
+            String street,
+            String follows,
+            String towards,
+            String motorwayExit,
+            Integer roundaboutExit,
+            Long heading,
+            long distanceMetres) {
     }
 
     public static OptimizeRouteResponse from(RoutePlan plan) {
@@ -107,7 +140,18 @@ public record OptimizeRouteResponse(
                                     wholeMetresUp(leg.climbAndDescent()),
                                     wholeMetresDown(leg.climbAndDescent()),
                                     fuel.map(litres -> roundToTwoDecimals(litres.legLitres().get(index))).orElse(null),
-                                    asPairs(leg.path()));
+                                    asPairs(leg.path()),
+                                    leg.turns().stream()
+                                            .map(turn -> new Turn(
+                                                    wireName(turn.way()),
+                                                    turn.street().orElse(null),
+                                                    turn.follows().orElse(null),
+                                                    turn.towards().orElse(null),
+                                                    turn.motorwayExit().orElse(null),
+                                                    turn.roundaboutExit().isPresent() ? turn.roundaboutExit().getAsInt() : null,
+                                                    turn.heading().isPresent() ? Math.round(turn.heading().getAsDouble()) : null,
+                                                    Math.round(turn.metres())))
+                                            .toList());
                         })
                         .toList(),
                 roundToTwoDecimals(plan.totalDistanceKm()),
@@ -133,6 +177,27 @@ public record OptimizeRouteResponse(
 
     private static double roundToTwoDecimals(double value) {
         return Math.round(value * 100) / 100.0;
+    }
+
+    /** Which way a turn goes, as the API names it. */
+    private static String wireName(Way way) {
+        return switch (way) {
+            case SET_OFF -> "setOff";
+            case CONTINUE -> "continue";
+            case SLIGHT_LEFT -> "slightLeft";
+            case LEFT -> "left";
+            case SHARP_LEFT -> "sharpLeft";
+            case SLIGHT_RIGHT -> "slightRight";
+            case RIGHT -> "right";
+            case SHARP_RIGHT -> "sharpRight";
+            case KEEP_LEFT -> "keepLeft";
+            case KEEP_RIGHT -> "keepRight";
+            case U_TURN -> "uTurn";
+            case ROUNDABOUT -> "roundabout";
+            case LEAVE_ROUNDABOUT -> "leaveRoundabout";
+            case FERRY -> "ferry";
+            case ARRIVE -> "arrive";
+        };
     }
 
     /** To the second. Null, and not zero, when there is no time to give: zero would be a claim. */

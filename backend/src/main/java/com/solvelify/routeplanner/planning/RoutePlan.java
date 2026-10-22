@@ -81,6 +81,8 @@ public record RoutePlan(
      * @param climbAndDescent how much the drive goes up and comes down, empty unless the roads
      *                        were read with their heights
      * @param path            the road the drive follows, empty when distances are straight lines
+     * @param turns           the turns along that road, from setting off to arriving, empty when
+     *                        distances are straight lines
      */
     public record Leg(
             String from,
@@ -88,7 +90,24 @@ public record RoutePlan(
             double distanceKm,
             OptionalDouble durationSeconds,
             Optional<ClimbAndDescent> climbAndDescent,
-            List<GeoPoint> path) {
+            List<GeoPoint> path,
+            List<Turn> turns) {
+
+        public Leg {
+            path = List.copyOf(path);
+            turns = List.copyOf(turns);
+        }
+
+        /** A leg whose turns are not known. */
+        public Leg(
+                String from,
+                String to,
+                double distanceKm,
+                OptionalDouble durationSeconds,
+                Optional<ClimbAndDescent> climbAndDescent,
+                List<GeoPoint> path) {
+            this(from, to, distanceKm, durationSeconds, climbAndDescent, path, List.of());
+        }
 
         /** A leg from a source that knows distances and not times. */
         public Leg(String from, String to, double distanceKm, List<GeoPoint> path) {

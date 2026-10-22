@@ -10,6 +10,7 @@ import com.graphhopper.reader.dem.ElevationProvider;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
+import com.solvelify.routeplanner.planning.Turn;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -109,7 +110,7 @@ class GraphHopperTravelMatrixProviderTest {
 
     @Test
     void tracesTheRoadBetweenTwoPlaces() {
-        List<GeoPoint> shape = provider.pathBetween(DEVONPORT, SYLVIA_PARK);
+        List<GeoPoint> shape = provider.directionsBetween(DEVONPORT, SYLVIA_PARK).path();
 
         // A straight line needs two points. A drive round the harbour needs a great many more.
         assertThat(shape).hasSizeGreaterThan(50);
@@ -121,12 +122,42 @@ class GraphHopperTravelMatrixProviderTest {
 
     @Test
     void drawsTheDriveNorthOfTheHarbourBeforeCrossingIt() {
-        List<GeoPoint> shape = provider.pathBetween(DEVONPORT, SYLVIA_PARK);
+        List<GeoPoint> shape = provider.directionsBetween(DEVONPORT, SYLVIA_PARK).path();
 
         // The bridge is the only road crossing, so the drive reaches well west of both ends.
         double westernmost = shape.stream().mapToDouble(GeoPoint::longitude).min().orElseThrow();
 
         assertThat(westernmost).isLessThan(Math.min(DEVONPORT.longitude(), SYLVIA_PARK.longitude()));
+    }
+
+    @Test
+    void writesOutTheTurnsFromSettingOffToArriving() {
+        List<Turn> turns = provider.directionsBetween(DEVONPORT, SYLVIA_PARK).turns();
+
+        assertThat(turns.getFirst().way()).isEqualTo(Turn.Way.SET_OFF);
+        assertThat(turns.getFirst().heading()).isPresent();
+        assertThat(turns.getLast().way()).isEqualTo(Turn.Way.ARRIVE);
+        assertThat(turns.getLast().metres()).isZero();
+    }
+
+    @Test
+    void addsUpTheTurnsToTheDrive() {
+        double metres = provider.directionsBetween(DEVONPORT, SYLVIA_PARK).turns().stream()
+                .mapToDouble(Turn::metres)
+                .sum();
+
+        // Without heights the engine measures its turns on the map, as the matrix does.
+        assertThat(metres / 1000)
+                .isCloseTo(provider.matrixFor(List.of(DEVONPORT, SYLVIA_PARK)).distanceKm(0, 1), within(0.001));
+    }
+
+    @Test
+    void namesTheRoadsAndWhereTheSignsPoint() {
+        List<Turn> turns = provider.directionsBetween(DEVONPORT, SYLVIA_PARK).turns();
+
+        // Out of Devonport by Lake Road, and onto the motorway by the signs.
+        assertThat(turns).anySatisfy(turn -> assertThat(turn.street()).contains("Lake Road"));
+        assertThat(turns).anySatisfy(turn -> assertThat(turn.towards()).isPresent());
     }
 
     @Test

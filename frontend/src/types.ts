@@ -94,6 +94,48 @@ export interface Leg {
   fuelLitres: number | null
   /** The road this leg follows, as [latitude, longitude] pairs. Empty on straight-line distances. */
   path: [number, number][]
+  /** The turns along that road, from setting off to arriving. Empty on straight-line distances. */
+  turns: Turn[]
+}
+
+/** Which way a turn goes. */
+export type TurnWay =
+  | 'setOff'
+  | 'continue'
+  | 'slightLeft'
+  | 'left'
+  | 'sharpLeft'
+  | 'slightRight'
+  | 'right'
+  | 'sharpRight'
+  | 'keepLeft'
+  | 'keepRight'
+  | 'uTurn'
+  | 'roundabout'
+  | 'leaveRoundabout'
+  | 'ferry'
+  | 'arrive'
+
+/** One turn along a leg's road, as the planner knows it. What a driver is told is up to the screen. */
+export interface Turn {
+  turn: TurnWay
+  /** The road it goes onto, by its name, or by its number when it has none. Null when the map gives neither. */
+  street: string | null
+  /**
+   * The road the drive after it mostly follows, when it goes onto one the map does not name, such
+   * as a motorway's on-ramp. Null otherwise.
+   */
+  follows: string | null
+  /** Where the signs point. Null where none do. */
+  towards: string | null
+  /** The name of the motorway exit it takes. Null for any other turn. */
+  motorwayExit: string | null
+  /** Which exit of a roundabout to take, counting from where it is entered. Null for any other turn. */
+  roundaboutExit: number | null
+  /** The bearing it sets off on, in degrees clockwise from north. Null for any turn but setting off. */
+  heading: number | null
+  /** How far to drive after it, before the next turn. Nought on arriving. */
+  distanceMetres: number
 }
 
 /**

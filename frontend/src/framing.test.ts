@@ -15,6 +15,7 @@ function legAlong(path: [number, number][]): Leg {
     descentMetres: null,
     fuelLitres: null,
     path,
+    turns: [],
   }
 }
 

@@ -138,8 +138,8 @@ class RoadsClimbingLessTest {
     void drawsTheRoadRoundTheHill() {
         GraphHopperTravelMatrixProvider provider = providerFor(asShipped);
 
-        List<GeoPoint> usual = provider.pathBetween(WEST_END, EAST_END, Roads.USUAL);
-        List<GeoPoint> climbingLess = provider.pathBetween(WEST_END, EAST_END, Roads.CLIMBING_LESS);
+        List<GeoPoint> usual = provider.directionsBetween(WEST_END, EAST_END, Roads.USUAL).path();
+        List<GeoPoint> climbingLess = provider.directionsBetween(WEST_END, EAST_END, Roads.CLIMBING_LESS).path();
 
         // Round Road runs 0.006 degrees south of Hill Road.
         assertThat(usual).allSatisfy(point -> assertThat(point.latitude()).isCloseTo(-36.9000, within(0.0001)));

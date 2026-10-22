@@ -486,9 +486,11 @@ class RoutePlanningServiceTest {
                 {new ClimbAndDescent(0, 20), new ClimbAndDescent(30, 0), ClimbAndDescent.LEVEL},
             });
 
-    /** A road on the map, drawn by which roads it was asked along. */
+    /** A road on the map, drawn by which roads it was asked along, and a turn named the same way. */
     private static final GeoPoint ON_THE_USUAL_ROADS = new GeoPoint(0, 0);
     private static final GeoPoint ON_THE_ROADS_CLIMBING_LESS = new GeoPoint(1, 1);
+    private static final Turn ONTO_THE_USUAL_ROAD = Turn.onto(Turn.Way.LEFT, "Usual Road", 100);
+    private static final Turn ONTO_THE_ROAD_CLIMBING_LESS = Turn.onto(Turn.Way.LEFT, "Low Road", 100);
 
     /** One provider for the usual roads and another for those that climb less, and what was asked. */
     private static final class TwoKindsOfRoads implements TravelMatrixProvider {
@@ -509,8 +511,10 @@ class RoutePlanningServiceTest {
         }
 
         @Override
-        public List<GeoPoint> pathBetween(Location from, Location to, Roads roads) {
-            return List.of(roads == Roads.USUAL ? ON_THE_USUAL_ROADS : ON_THE_ROADS_CLIMBING_LESS);
+        public Directions directionsBetween(Location from, Location to, Roads roads) {
+            return roads == Roads.USUAL
+                    ? new Directions(List.of(ON_THE_USUAL_ROADS), List.of(ONTO_THE_USUAL_ROAD))
+                    : new Directions(List.of(ON_THE_ROADS_CLIMBING_LESS), List.of(ONTO_THE_ROAD_CLIMBING_LESS));
         }
     }
 
@@ -539,6 +543,21 @@ class RoutePlanningServiceTest {
         // From the Office to the Shop both roads are the same, and the usual one is kept.
         assertThat(plan.legs()).extracting(RoutePlan.Leg::path)
                 .containsExactly(List.of(ON_THE_ROADS_CLIMBING_LESS), List.of(ON_THE_USUAL_ROADS));
+    }
+
+    @Test
+    void writesOutEachLegsTurnsAlongTheRoadsItsDriveFollowed() {
+        RoutePlan plan = countingTheClimb(roundTheRidge, ChosenFor.DISTANCE_AND_CLIMB);
+
+        assertThat(plan.legs()).extracting(RoutePlan.Leg::turns)
+                .containsExactly(List.of(ONTO_THE_ROAD_CLIMBING_LESS), List.of(ONTO_THE_USUAL_ROAD));
+    }
+
+    @Test
+    void hasNoTurnsToWriteOutOnStraightLines() {
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, true);
+
+        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.turns()).isEmpty());
     }
 
     /**

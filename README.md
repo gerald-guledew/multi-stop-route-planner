@@ -28,6 +28,7 @@ Develop an application that can accept a starting point and a list of places. It
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
 - An order, and roads between the stops, that factor in road climbs when asked: a little longer, to climb less. Off unless ticked
+- The turns of each leg written out, along the roads drawn on the map, from setting off to arriving
 - The fastest order when asked, with the minutes it saves over the shortest. Another order is taken only when it saves a minute or more
 - The order that takes the least fuel in your vehicle when asked. Another order is taken only when it saves a tenth of a litre, so most often it is the shortest order, and the screen says so
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped

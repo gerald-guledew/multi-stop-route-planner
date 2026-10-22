@@ -233,15 +233,17 @@ public class RoutePlanningService {
         for (int step = 0; step < path.length - 1; step++) {
             Location from = places.get(path[step]);
             Location to = places.get(path[step + 1]);
+            // Only the legs that made it into the answer are drawn and written out, so this costs
+            // one lookup per leg rather than one per pair.
+            Directions directions = travelMatrixProvider.directionsBetween(from, to, drives.roads(path[step], path[step + 1]));
             legs.add(new RoutePlan.Leg(
                     from.name(),
                     to.name(),
                     matrix.distanceKm(path[step], path[step + 1]),
                     matrix.durationSeconds(path[step], path[step + 1]),
                     matrix.climbAndDescent(path[step], path[step + 1]),
-                    // Only the legs that made it into the answer are drawn, so this costs one
-                    // lookup per leg rather than one per pair.
-                    travelMatrixProvider.pathBetween(from, to, drives.roads(path[step], path[step + 1]))));
+                    directions.path(),
+                    directions.turns()));
         }
         return legs;
     }

@@ -22,7 +22,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 2. The service asks a matrix provider for travel figures between every pair of places, along the usual roads. When the request asks to factor in road climbs, it asks for the same along the roads that climb less, and keeps those roads for a pair where they are worth it.
 3. The service turns those figures into a cost matrix. Cost means distance. When the request asks to factor in road climbs, it means distance with the climb counted as extra road. When it asks for the fastest order, it means driving time. When it asks for the least fuel, it means the litres the vehicle sent uses up for good.
 4. The solver returns the cheapest order it can find.
-5. The service builds the answer: the ordered stops, each leg, and the totals.
+5. The service builds the answer: the ordered stops, each leg with its road and its turns, and the totals.
 
 ## Components
 
@@ -45,6 +45,8 @@ Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances
 **Travel figures arrive through an interface.** The service never calls haversine or GraphHopper itself. At step 3 a second implementation replaces straight lines with real driving distances, and the service, the solver and the controller stay untouched.
 
 The interface hands back a whole matrix rather than one pair at a time, because routing engines calculate many-to-many distances in a single pass. Asking pair by pair would be far slower once real roads arrive.
+
+The legs of the answer are asked for again, one by one, for their `Directions`: the road's shape, for the map, and its turns, for following it. GraphHopper works the turns out from OpenStreetMap along with the road. `TurnsFromTheEngine` keeps what the engine knows of each: which way, the road, where the signs point, the motorway exit. For a turn onto a road the map leaves unnamed, an on-ramp most often, it takes the road the stretch after it mostly follows, from the names the engine gives along the drive. The words are left to the screen, `turns.ts`.
 
 **The solver minimises a cost matrix without knowing what cost means.** Distance, seconds or litres fill it. That turns "fastest or most fuel-efficient" into a decision about how the matrix is built, not a rewrite of the algorithm.
 
