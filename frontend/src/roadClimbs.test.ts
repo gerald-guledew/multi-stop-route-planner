@@ -20,8 +20,8 @@ function aPlan(more: Partial<RoutePlan> = {}): RoutePlan {
   }
 }
 
-const SHORTER_AND_HILLIER = { distanceKm: 62.58, durationSeconds: 4930, climbMetres: 666, descentMetres: 666 }
-const THE_SAME = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 561, descentMetres: 561 }
+const SHORTER_AND_HILLIER = { distanceKm: 62.58, durationSeconds: 4930, climbMetres: 666, descentMetres: 666, fuelLitres: null }
+const THE_SAME = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 561, descentMetres: 561, fuelLitres: null }
 
 describe('saying what factoring in road climbs came to', () => {
   it('says how much longer the route is than the shortest order, and how much less it climbs', () => {
@@ -36,7 +36,7 @@ describe('saying what factoring in road climbs came to', () => {
       totalDistanceKm: 66.71,
       totalClimbMetres: 575,
       totalDescentMetres: 531,
-      shortestOrder: { distanceKm: 66.16, durationSeconds: 5190, climbMetres: 678, descentMetres: 634 },
+      shortestOrder: { distanceKm: 66.16, durationSeconds: 5190, climbMetres: 678, descentMetres: 634, fuelLitres: null },
     })
 
     expect(roadClimbsSaid(true, oneWay)).toBe(
@@ -64,7 +64,7 @@ describe('saying what factoring in road climbs came to', () => {
   })
 
   it('calls a route as long as the shortest order no longer', () => {
-    const asLong = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 600, descentMetres: 600 }
+    const asLong = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 600, descentMetres: 600, fuelLitres: null }
 
     expect(roadClimbsSaid(true, aPlan({ shortestOrder: asLong }))).toBe(
       'This route is no longer than the shortest order and climbs 39 m less.',
@@ -72,7 +72,7 @@ describe('saying what factoring in road climbs came to', () => {
   })
 
   it('puts a comma in the thousands', () => {
-    const farHillier = { distanceKm: 60.08, durationSeconds: 4790, climbMetres: 1761, descentMetres: 1761 }
+    const farHillier = { distanceKm: 60.08, durationSeconds: 4790, climbMetres: 1761, descentMetres: 1761, fuelLitres: null }
 
     expect(roadClimbsSaid(true, aPlan({ shortestOrder: farHillier }))).toBe(
       'This route is 2.80 km longer than the shortest order and climbs 1,200 m less.',
@@ -80,8 +80,8 @@ describe('saying what factoring in road climbs came to', () => {
   })
 
   it('calls a few metres either way about as much, which is as near as the heights can tell', () => {
-    const aMetreTheWrongWay = { distanceKm: 62.87, durationSeconds: 4975, climbMetres: 560, descentMetres: 560 }
-    const nineMetresHigher = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 570, descentMetres: 570 }
+    const aMetreTheWrongWay = { distanceKm: 62.87, durationSeconds: 4975, climbMetres: 560, descentMetres: 560, fuelLitres: null }
+    const nineMetresHigher = { distanceKm: 62.88, durationSeconds: 4980, climbMetres: 570, descentMetres: 570, fuelLitres: null }
 
     expect(roadClimbsSaid(true, aPlan({ shortestOrder: aMetreTheWrongWay }))).toBe(
       'This route is 0.01 km longer than the shortest order and climbs about as much.',
@@ -93,7 +93,7 @@ describe('saying what factoring in road climbs came to', () => {
 
   it('says how much more a shorter route climbs, when it is more than the heights can tell', () => {
     // Roads that climb less between two stops can open a shorter order that climbs more.
-    const longerAndLower = { distanceKm: 63.9, durationSeconds: 5050, climbMetres: 541, descentMetres: 541 }
+    const longerAndLower = { distanceKm: 63.9, durationSeconds: 5050, climbMetres: 541, descentMetres: 541, fuelLitres: null }
 
     expect(roadClimbsSaid(true, aPlan({ shortestOrder: longerAndLower }))).toBe(
       'This route is no longer than the shortest order and climbs 20 m more.',

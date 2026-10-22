@@ -781,4 +781,192 @@ class RoutePlanningServiceTest {
         assertThat(plan.totalDistanceKm()).isCloseTo(51.76, within(0.01));
         assertThat(plan.shortestOrder()).isEmpty();
     }
+
+    // An order chosen for the least fuel.
+
+    /** A car of 1,225 kg at 7.5 L/100 km. With the driver it weighs 1,300 kg. */
+    private static final Optional<FuelUse> A_MEDIUM_CAR = Optional.of(new FuelUse(7.5, OptionalDouble.of(1225)));
+
+    private static final ClimbAndDescent THREE_HUNDRED_METRES_UP = new ClimbAndDescent(300, 0);
+
+    private static ClimbAndDescent down(double metres, double overMetres) {
+        return new ClimbAndDescent(0, metres, List.of(new ClimbAndDescent.Descent(metres, overMetres)));
+    }
+
+    /**
+     * The Office is on a hill 300 m above Home and the Shop, which are 2 km apart on the level.
+     * Up from Home is 4 km and up from the Shop 2 km. Down to the Shop is 2 km, at 15%, and down
+     * to Home is as long as given.
+     *
+     * <p>There and back, Home, Office, Shop is the shortest at 4 + 2 + 2 = 8 km. Climbing the
+     * hill takes 0.39 L in the car above, and the steep way down to the Shop gives back only the
+     * 0.15 L its 2 km take on the level. So the trip takes 0.6 + 0.39 - 0.15 = 0.84 L. Home, Shop,
+     * Office is 2 + 2 km and the way down to Home. That way at 5 km gives back 0.375 L, and the
+     * trip takes 0.675 + 0.39 - 0.375 = 0.69 L. At 6 km it gives back the whole climb, and the
+     * trip takes 0.75 L.
+     */
+    private static TravelMatrixProvider aHillWithTheWayDownToHome(double km) {
+        return (places, roads) -> new TravelMatrix(
+                new double[][] {
+                    {0, 4, 2},
+                    {km, 0, 2},
+                    {2, 2, 0},
+                },
+                new double[][] {
+                    {0, 400, 120},
+                    {km * 60, 0, 200},
+                    {120, 200, 0},
+                },
+                new ClimbAndDescent[][] {
+                    {ClimbAndDescent.LEVEL, THREE_HUNDRED_METRES_UP, ClimbAndDescent.LEVEL},
+                    {down(300, km * 1000), ClimbAndDescent.LEVEL, down(300, 2000)},
+                    {ClimbAndDescent.LEVEL, THREE_HUNDRED_METRES_UP, ClimbAndDescent.LEVEL},
+                });
+    }
+
+    private static RoutePlan forFuel(TravelMatrixProvider roads, boolean returnToStart, Optional<FuelUse> vehicle) {
+        return new RoutePlanningService(roads, new BruteForceRouteSolver(), AS_SHIPPED)
+                .plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, returnToStart, ChosenFor.FUEL, vehicle);
+    }
+
+    @Test
+    void goesFurtherToKeepOffASteepDescent() {
+        // 0.15 L less, for a kilometre more.
+        RoutePlan plan = forFuel(aHillWithTheWayDownToHome(5), THERE_AND_BACK, A_MEDIUM_CAR);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office", "Home");
+        assertThat(plan.totalDistanceKm()).isEqualTo(9);
+    }
+
+    @Test
+    void saysWhatTheShortestOrderComesToWhenChoosingForFuel() {
+        RoutePlan plan = forFuel(aHillWithTheWayDownToHome(5), THERE_AND_BACK, A_MEDIUM_CAR);
+
+        assertThat(plan.shortestOrder()).contains(new RoutePlan.ShortestOrder(
+                8, OptionalDouble.of(720), Optional.of(THREE_HUNDRED_METRES_UP.plus(down(300, 2000)))));
+    }
+
+    @Test
+    void keepsTheShortestOrderWhenNoOtherSavesATenthOfALitre() {
+        // With 6 km down to Home, the other way round saves 0.09 L, for 2 km more.
+        RoutePlan plan = forFuel(aHillWithTheWayDownToHome(6), THERE_AND_BACK, A_MEDIUM_CAR);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        // Still held against the shortest order, which it is.
+        assertThat(plan.shortestOrder()).isPresent();
+    }
+
+    /**
+     * One way, with the Shop on a hill 200 m above Home and the Office. Home, Office, Shop is the
+     * shortest at 3 + 2 = 5 km and ends at the top. Home, Shop, Office is 2.5 + 3 = 5.5 km and
+     * ends at the bottom, having come down at 6.7%, too steep to give back all the climb cost.
+     */
+    private static final TravelMatrixProvider A_SHOP_ON_A_HILL = (places, roads) -> new TravelMatrix(
+            new double[][] {
+                {0, 3, 2.5},
+                {3, 0, 2},
+                {2.5, 3, 0},
+            },
+            new double[][] {
+                {0, 180, 150},
+                {180, 0, 120},
+                {150, 180, 0},
+            },
+            new ClimbAndDescent[][] {
+                {ClimbAndDescent.LEVEL, ClimbAndDescent.LEVEL, new ClimbAndDescent(200, 0)},
+                {ClimbAndDescent.LEVEL, ClimbAndDescent.LEVEL, new ClimbAndDescent(200, 0)},
+                {down(200, 2500), down(200, 3000), ClimbAndDescent.LEVEL},
+            });
+
+    @Test
+    void doesNotEndAOneWayTripLowerToSaveFuel() {
+        // Ending at the bottom takes 0.19 L less as driven, but only because the car is left 200 m
+        // lower, and the next drive up takes that back. The way down was steep and gave back less.
+        RoutePlan plan = forFuel(A_SHOP_ON_A_HILL, ONE_WAY, A_MEDIUM_CAR);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+    }
+
+    /**
+     * One way, with the Office on a hill 300 m above Home and the Shop. Home, Office, Shop is the
+     * shortest at 3 + 1.5 = 4.5 km, and comes down to the Shop at 20%. Home, Shop, Office is
+     * 2 + 3 = 5 km and ends at the top.
+     */
+    private static final TravelMatrixProvider AN_OFFICE_ON_A_STEEP_HILL = (places, roads) -> new TravelMatrix(
+            new double[][] {
+                {0, 3, 2},
+                {3, 0, 1.5},
+                {2, 3, 0},
+            },
+            new double[][] {
+                {0, 180, 120},
+                {180, 0, 90},
+                {120, 180, 0},
+            },
+            new ClimbAndDescent[][] {
+                {ClimbAndDescent.LEVEL, THREE_HUNDRED_METRES_UP, ClimbAndDescent.LEVEL},
+                {down(300, 3000), ClimbAndDescent.LEVEL, down(300, 1500)},
+                {ClimbAndDescent.LEVEL, THREE_HUNDRED_METRES_UP, ClimbAndDescent.LEVEL},
+            });
+
+    @Test
+    void keepsTheShortestOrderWhenTheOtherTakesMoreFuelAsDriven() {
+        // Ending at the top keeps off the steep way down, and uses up 0.24 L less for good. But it
+        // takes 0.15 L more as driven, since the car is left 300 m higher.
+        RoutePlan plan = forFuel(AN_OFFICE_ON_A_STEEP_HILL, ONE_WAY, A_MEDIUM_CAR);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
+    }
+
+    @Test
+    void choosesForDistanceWhenTheVehiclesWeightIsNotKnown() {
+        RoutePlan plan = forFuel(aHillWithTheWayDownToHome(5), THERE_AND_BACK, Optional.of(new FuelUse(7.5)));
+
+        // The fuel goes with the distance, so the shortest order takes the least.
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.shortestOrder()).isEmpty();
+    }
+
+    @Test
+    void choosesForDistanceWhenTheRoadsHaveNoHeightsAndTheFuelIsAskedFor() {
+        RoutePlan plan = forFuel(ROADS_WITH_TIMES, THERE_AND_BACK, A_MEDIUM_CAR);
+
+        assertThat(plan.totalDistanceKm()).isEqualTo(35);
+        assertThat(plan.shortestOrder()).isEmpty();
+    }
+
+    @Test
+    void refusesToChooseForFuelWithoutAVehicle() {
+        assertThatThrownBy(() -> forFuel(aHillWithTheWayDownToHome(5), THERE_AND_BACK, Optional.empty()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("vehicle");
+    }
+
+    @Test
+    void leavesAKeptStopAtItsTurnWhenChoosingForFuel() {
+        RoutePlan plan = new RoutePlanningService(aHillWithTheWayDownToHome(5), new BruteForceRouteSolver(), AS_SHIPPED)
+                .plan(HOME, OFFICE_AND_SHOP, Set.of(0), THERE_AND_BACK, ChosenFor.FUEL, A_MEDIUM_CAR);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.ordersChecked()).isEqualTo(1);
+    }
+
+    @Test
+    void keepsToTheUsualRoadsWhenChoosingForFuel() {
+        TwoKindsOfRoads roads = new TwoKindsOfRoads(aHillWithTheWayDownToHome(5), ROUND_THE_RIDGE);
+
+        RoutePlan plan = forFuel(roads, THERE_AND_BACK, A_MEDIUM_CAR);
+
+        assertThat(roads.asked).containsExactly(Roads.USUAL);
+        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).containsExactly(ON_THE_USUAL_ROADS));
+    }
+
+    @Test
+    void choosesForDistanceWhenAVehicleIsSentWithoutAskingForFuel() {
+        RoutePlan plan = new RoutePlanningService(aHillWithTheWayDownToHome(5), new BruteForceRouteSolver(), AS_SHIPPED)
+                .plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE, A_MEDIUM_CAR);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.shortestOrder()).isEmpty();
+    }
 }

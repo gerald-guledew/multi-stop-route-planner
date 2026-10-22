@@ -19,6 +19,7 @@ import com.solvelify.routeplanner.vehicle.VehicleSize;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
@@ -301,6 +302,20 @@ class RealHeightsTest {
         assertThat(plan.totalDistanceKm() - shortest.distanceKm()).isBetween(0.1, 1.0);
         assertThat(plan.route()).extracting(Location::name)
                 .containsExactly("Sky Tower", "Takapuna", "Devonport", "Sylvia Park", "Airport", "Sky Tower");
+    }
+
+    @Test
+    void findsNoOrderForTheFiveStopsThatTakesATenthOfALitreLess() {
+        Optional<FuelUse> aMediumCar = Optional.of(new FuelUse(7.5, OptionalDouble.of(VehicleSize.MEDIUM.kilograms())));
+
+        RoutePlan plan = planner().plan(
+                THE_ROUND.getFirst(), THE_ROUND.subList(1, THE_ROUND.size()), Set.of(), true, ChosenFor.FUEL, aMediumCar);
+
+        // Measured: the shortest order, 76.91 km, takes 5.77 L either way round. On a round trip
+        // most descents give back what the climbs cost, so the fuel goes with the distance.
+        RoutePlan.ShortestOrder shortest = plan.shortestOrder().orElseThrow();
+        assertThat(plan.totalDistanceKm()).isEqualTo(shortest.distanceKm());
+        assertThat(plan.totalClimbAndDescent()).isEqualTo(shortest.climbAndDescent());
     }
 
     private static RoutePlanningService planner() {

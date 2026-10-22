@@ -87,6 +87,37 @@ class FuelUseTest {
         assertThat(MEDIUM_CAR.litresFor(10, Optional.of(new ClimbAndDescent(0, 1000)))).isZero();
     }
 
+    // The fuel a drive uses up for good, which an order chosen for fuel is chosen by.
+
+    @Test
+    void usesUpNothingForAClimbItKeepsAsHeight() {
+        // Up 100 m and not down: the car keeps the climb, and the next drive down gets it back.
+        assertThat(MEDIUM_CAR.litresUsedUpFor(10, Optional.of(new ClimbAndDescent(100, 0)))).isCloseTo(0.75, within(1e-9));
+    }
+
+    @Test
+    void usesUpWhatASteepDescentBrakesAway() {
+        // 100 m down in 1 km, as above: the slope saves 0.075 L of what the height was worth.
+        ClimbAndDescent steepDown = new ClimbAndDescent(0, 100, List.of(new Descent(100, 1000)));
+
+        assertThat(MEDIUM_CAR.litresUsedUpFor(10, Optional.of(steepDown)))
+                .isCloseTo(0.75 + HUNDRED_METRES_UP - 0.075, within(1e-9));
+    }
+
+    @Test
+    void usesUpWhatADriveTakesWhenItEndsAsHighAsItBegan() {
+        ClimbAndDescent steepOverTheHill = new ClimbAndDescent(100, 100, List.of(new Descent(100, 1000)));
+
+        assertThat(MEDIUM_CAR.litresUsedUpFor(10, Optional.of(steepOverTheHill)))
+                .isCloseTo(MEDIUM_CAR.litresFor(10, Optional.of(steepOverTheHill)), within(1e-9));
+    }
+
+    @Test
+    void usesUpTheFigureForEveryKilometreWhenTheHillsCannotBeCounted() {
+        assertThat(new FuelUse(7.5).litresUsedUpFor(10, Optional.of(new ClimbAndDescent(0, 300)))).isCloseTo(0.75, within(1e-9));
+        assertThat(MEDIUM_CAR.litresUsedUpFor(10, Optional.empty())).isCloseTo(0.75, within(1e-9));
+    }
+
     @Test
     void refusesAWeightThatIsNotOne() {
         for (double notAWeight : new double[] {0, -1200, Double.NaN, Double.POSITIVE_INFINITY}) {

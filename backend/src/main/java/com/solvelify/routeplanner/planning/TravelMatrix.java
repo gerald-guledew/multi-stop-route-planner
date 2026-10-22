@@ -8,8 +8,8 @@ import java.util.OptionalDouble;
  *
  * <p>A class rather than a record, for two reasons. Records compare arrays by identity, which
  * would make equality meaningless here. And this type is meant to grow: it began with distances,
- * now carries durations and climbs, and step 6 adds fuel, each an extra method here instead of a
- * changed signature everywhere.
+ * and now carries durations and climbs, each an extra method here instead of a changed signature
+ * everywhere.
  */
 public final class TravelMatrix {
 
@@ -81,8 +81,8 @@ public final class TravelMatrix {
     }
 
     /**
-     * The table a solver minimises to find the shortest order: the distances. Step 6 can supply
-     * litres instead without the solver knowing the difference.
+     * The table a solver minimises to find the shortest order: the distances. The tables below
+     * hold seconds or litres instead, without the solver knowing the difference.
      */
     public double[][] asCostMatrix() {
         return copyOf(distancesKm);
@@ -113,6 +113,29 @@ public final class TravelMatrix {
             for (int to = 0; to < cost[from].length; to++) {
                 double roadForTheClimb = climbs[from][to].climbMetres() * roadMetresPerMetreClimbed;
                 cost[from][to] += roadForTheClimb / METRES_IN_A_KILOMETRE;
+            }
+        }
+        return Optional.of(cost);
+    }
+
+    /**
+     * The table for an order chosen for the least fuel: the litres each drive uses up for good in
+     * one vehicle, on the level and on descents too steep to give back what climbing them cost.
+     * Over a round trip they add up to the fuel it takes. A one-way trip is not made to end at its
+     * lowest stop, which would only leave the car lower: see {@link FuelUse#litresUsedUpFor}.
+     *
+     * <p>Empty when the hills cannot be counted, because the heights of the roads or the
+     * vehicle's weight are not known. The fuel then goes with the distance, and the shortest
+     * order already takes the least.
+     */
+    public Optional<double[][]> asCostMatrixOfFuel(FuelUse vehicle) {
+        if (climbs == null || !vehicle.countsHills()) {
+            return Optional.empty();
+        }
+        double[][] cost = new double[distancesKm.length][distancesKm.length];
+        for (int from = 0; from < cost.length; from++) {
+            for (int to = 0; to < cost[from].length; to++) {
+                cost[from][to] = vehicle.litresUsedUpFor(distancesKm[from][to], Optional.of(climbs[from][to]));
             }
         }
         return Optional.of(cost);

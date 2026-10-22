@@ -29,6 +29,7 @@ Develop an application that can accept a starting point and a list of places. It
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
 - An order, and roads between the stops, that factor in road climbs when asked: a little longer, to climb less. Off unless ticked
 - The fastest order when asked, with the minutes it saves over the shortest. Another order is taken only when it saves a minute or more
+- The order that takes the least fuel in your vehicle when asked. Another order is taken only when it saves a tenth of a litre, so most often it is the shortest order, and the screen says so
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
 - Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes, with what each climb costs and each descent gives back
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
@@ -92,6 +93,8 @@ The first start with heights on fetches the height of the ground for New Zealand
 With heights on, ticking "Factor in road climbs" on the screen has the order and the roads between the stops chosen for distance and climb together. Without them the box changes nothing, and the screen says so. The roads are prepared with the graph, so a copy whose graph with heights was built before this needs one more start that builds it again, in `backend/data/graph-cache-heights-2`. That took under a minute where it was measured, and fetches nothing.
 
 On real roads, picking "Fastest order" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so too.
+
+With a vehicle saved, picking "Least fuel" has the order chosen for the fuel it takes, hills included. That needs heights on and a vehicle whose weight is known. Without them the fuel goes with the distance, the answer is the shortest order, and the screen says why.
 
 ### Address search
 

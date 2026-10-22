@@ -150,7 +150,7 @@ Results are empty until the data is imported: LINZ addresses for `address`, Over
 
 ## POST /api/v1/routes/optimize
 
-Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in road climbs, it returns the order, and the roads between the stops, that come out best with the climb counted as well. Asked for the fastest order, it returns the order with the least driving time.
+Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in road climbs, it returns the order, and the roads between the stops, that come out best with the climb counted as well. Asked for the fastest order, it returns the order with the least driving time. Asked for the least fuel, it returns the order that takes the least fuel in the vehicle sent.
 
 Distances are straight lines for now. Step 3 replaces them with real driving distances.
 
@@ -167,6 +167,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `returnToStart` | boolean | Optional, defaults to `true` |
 | `factorInRoadClimbs` | boolean | Optional, defaults to `false`. See "Factoring in road climbs" below |
 | `fastest` | boolean | Optional, defaults to `false`. Not together with `factorInRoadClimbs`. See "The fastest order" below |
+| `leastFuel` | boolean | Optional, defaults to `false`. Needs `vehicle`. Not together with `fastest` or `factorInRoadClimbs`. See "The least fuel" below |
 | `vehicle` | object | Optional. The vehicle to work out the fuel for. See "Fuel" below |
 | `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows, or the register's figure for a car found there |
 | `vehicle.kilograms` | number | Optional, 400 to 4,000. What the vehicle weighs empty. Without it the fuel does not count the hills |
@@ -203,7 +204,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `totalFuelLitres` | number | The fuel the whole trip takes. `null` when no `vehicle` was sent |
 | `fuelCountsHills` | boolean | Whether the fuel counts the hills. `false` when the roads were read without heights or the `vehicle` came without `kilograms`. `null` when no `vehicle` was sent |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
-| `shortestOrder` | object | Only when road climbs were factored in or the fastest order was asked for: the `distanceKm`, `durationSeconds`, `climbMetres` and `descentMetres` of the shortest order, to hold this one against. Its time is `null` on straight lines and its climb and descent without heights, as for the plan. `null` otherwise |
+| `shortestOrder` | object | Only when road climbs were factored in, or the fastest order or the least fuel was asked for: the `distanceKm`, `durationSeconds`, `climbMetres`, `descentMetres` and `fuelLitres` of the shortest order, to hold this one against. Its time is `null` on straight lines, its climb and descent without heights, and its fuel without a `vehicle`, as for the plan. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
 
 ```json
@@ -437,10 +438,37 @@ On roads read with their heights, and with `kilograms`, the fuel counts the hill
 The rest:
 
 - **Speed does not change it yet.** A trip that keeps to the motorway takes more or less than this says.
-- **The order is chosen as it would be without a vehicle.** Fuel is worked out for the order chosen, not used to choose it.
+- **The order is chosen as it would be without a vehicle**, unless the least fuel is asked for. See below.
 - **Rounded to a hundredth of a litre**, as distances are to a hundredth of a kilometre. The legs can add up to a hundredth more or less than the total.
 
 The screen sends the vehicle saved in the planner and its weight, see "The vehicle" below.
+
+### The least fuel
+
+Send `"leastFuel": true` with a `vehicle` and the order is chosen for the fuel that vehicle takes, counted as under "Fuel" above. Left out, the order is chosen for distance. The hills can be counted only on roads read with their heights, for a vehicle sent with its `kilograms`.
+
+The answer says what the shortest order comes to, in `shortestOrder`, with its `fuelLitres`. The five stops further up, with the Airport on its forecourt, in a medium car at 7.5 L/100 km:
+
+```json
+{
+  "totalDistanceKm": 76.91,
+  "totalFuelLitres": 5.77,
+  "fuelCountsHills": true,
+  "shortestOrder": { "distanceKm": 76.91, "durationSeconds": 5063, "climbMetres": 478, "descentMetres": 478, "fuelLitres": 5.77 }
+}
+```
+
+Things to know.
+
+- **Most often the shortest order takes the least fuel.** The fuel goes with the distance, and on a trip that ends where it began most descents give back what the climbs cost. Only a descent too steep to give it all back costs anything on top. On the 400 round trips around Auckland measured for the fastest order, 85 km at the middle, another order took less fuel in 25, and none by more than 0.02 L. On 400 round trips of four to eight stops between businesses in Wellington, whose hills are steeper, 69 changed and none saved more than 0.05 L. Both in a medium car, 1,270 kg at 7.5 L/100 km.
+- **Another order has to save a tenth of a litre to be taken**, as the fastest has to save a minute. The screen gives fuel to a tenth of a litre, worked out from a figure that is an average. None of the trips measured did: on 400 round trips and 400 one-way trips in each city, the answer was the shortest order every time. In Wellington it was the same for a small car, 1,020 kg at 5.5 L/100 km, and a large one, 1,570 kg at 10.
+- **A one-way trip is not sent to its lowest stop.** A trip that ends lower takes less fuel, but only because the car is left lower, and the next drive up takes that fuel back. Counted as driven, 15 of the 800 one-way trips would have changed order to save 0.1 to 0.33 L, every one by ending 113 to 334 m lower, for up to 2.9 km and 7 minutes more. So the order is chosen for the fuel a trip uses up for good: what its roads take on the level, and what its steep descents brake away. Over a round trip that is the fuel it takes. Another order is taken only when it saves a tenth of a litre both that way and as driven.
+- **Without what it needs, the shortest order.** On straight lines, on roads read without heights, and for a vehicle sent without `kilograms`, the fuel goes with the distance and the shortest order takes the least. `shortestOrder` is then `null`. It is not an error.
+- **A `vehicle` is needed**, and a request without one is refused with a 400.
+- **Not together with the fastest order or road climbs.** The fuel counts the climbs itself. A request with either is refused with a 400.
+- **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way.
+- **Speed does not change the fuel yet**, as said under "Fuel", so the order is chosen for distance and hills alone.
+- **A stop kept in its place stays there.**
 
 ### Keeping a stop in its place
 
@@ -478,7 +506,7 @@ Validation failures return **400** as RFC 9457 Problem Details, with the media t
 
 | Status | When |
 | --- | --- |
-| 400 | A field is missing, a coordinate is out of range, there are no stops, there are more than 10, or both `fastest` and `factorInRoadClimbs` are true |
+| 400 | A field is missing, a coordinate is out of range, there are no stops, there are more than 10, both `fastest` and `factorInRoadClimbs` are true, or `leastFuel` is true without a `vehicle` or with `fastest` or `factorInRoadClimbs` |
 | 422 | A place has no road near it, so no car can reach it. Only possible on the `graphhopper` provider |
 | 500 | Anything unexpected. The response carries no internal details |
 
