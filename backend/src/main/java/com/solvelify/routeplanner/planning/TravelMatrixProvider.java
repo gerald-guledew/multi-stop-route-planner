@@ -24,21 +24,23 @@ public interface TravelMatrixProvider {
     }
 
     /**
-     * The shape of the drive between two places, for drawing on a map.
+     * How to drive between two places: the shape of the road, for drawing on a map, and its
+     * turns, for following it.
      *
      * <p>Optional because it is meaningless for straight lines: two points already describe
-     * them. A provider that knows roads returns the points the road actually follows, and the
-     * map can then show the drive instead of a line through the harbour.
+     * them, and they have no turns. A provider that knows roads returns the points the road
+     * actually follows, and the map can then show the drive instead of a line through the
+     * harbour.
      *
      * <p>Asked for only on the legs that end up in the answer, rather than for every pair in
      * the matrix, because a plan of n stops uses n legs out of n squared possibilities.
      */
-    default List<GeoPoint> pathBetween(Location from, Location to, Roads roads) {
-        return List.of();
+    default Directions directionsBetween(Location from, Location to, Roads roads) {
+        return Directions.NONE;
     }
 
-    /** The shape of the drive between two places along the usual roads. */
-    default List<GeoPoint> pathBetween(Location from, Location to) {
-        return pathBetween(from, to, Roads.USUAL);
+    /** How to drive between two places along the usual roads. */
+    default Directions directionsBetween(Location from, Location to) {
+        return directionsBetween(from, to, Roads.USUAL);
     }
 }

@@ -452,6 +452,46 @@ button:disabled {
   font-size: 12px;
 }
 
+/* A stop's row makes room under itself for the turns that lead there. */
+.legs li {
+  flex-wrap: wrap;
+}
+
+/* The turns of a leg, under the stop's name, past its pin. Closed until opened. */
+.legs .turns {
+  flex-basis: 100%;
+  margin-left: 38px;
+}
+
+.legs .turns summary {
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.legs .turns ol {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.legs .turns li {
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.legs .turn-said {
+  flex: 1;
+}
+
+.legs .turn-km {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .checked {
   color: var(--muted);
   font-size: 12px;
@@ -996,5 +1036,10 @@ button:disabled {
 
   .legs {
     font-size: 15px;
+  }
+
+  .legs .turns summary {
+    font-size: 14px;
+    padding: 8px 0;
   }
 }

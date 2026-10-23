@@ -26,7 +26,7 @@ export function withLabelsInStep(before: Place[], after: Place[]): Place[] {
   })
 }
 
-/** "1st", "2nd", "3rd", "11th": a stop's turn, the way it is said. */
+/** "1st", "2nd", "3rd", "11th": a stop's turn, or a roundabout's exit, the way it is said. */
 export function ordinal(turn: number): string {
   const lastTwo = turn % 100
   if (lastTwo >= 11 && lastTwo <= 13) {

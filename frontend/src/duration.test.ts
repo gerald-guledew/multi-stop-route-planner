@@ -49,6 +49,7 @@ describe('saying how far and how long a leg is', () => {
     descentMetres: null,
     fuelLitres: null,
     path: [],
+    turns: [],
   }
 
   it('gives the distance and the time when the roads say how long', () => {

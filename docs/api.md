@@ -197,6 +197,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `legs[].climbMetres` | integer | How much that leg goes up, counting rises of 10 m or more. `null` unless the roads were read with their heights. See "Climb and descent" below |
 | `legs[].descentMetres` | integer | How much that leg comes down, as a number above zero. `null` whenever the climb is |
 | `legs[].fuelLitres` | number | The fuel that leg takes. `null` when no `vehicle` was sent |
+| `legs[].turns` | array | The turns along that leg's road, from setting off to arriving. Empty on straight lines. See "Turns" below |
 | `totalDistanceKm` | number | Distance of the whole trip in the returned order |
 | `totalDurationSeconds` | integer | Driving time for the whole trip. `null` on straight lines |
 | `totalClimbMetres` | integer | Climb of the whole trip. `null` unless the roads were read with their heights |
@@ -253,6 +254,42 @@ Three things to know about these figures.
 - **The order is chosen for distance unless the fastest is asked for.** The time is then how long the shortest order takes, and another order can be quicker and longer. See "The fastest order" below.
 
 On straight lines both fields are `null`, not zero. A straight line says how far apart two places are, and nothing about how fast anybody gets from one to the other.
+
+### Turns
+
+On the `graphhopper` provider each leg also lists its turns along the road drawn for it, from setting off to arriving. From Sylvia Park to Devonport Wharf, the first five of twelve:
+
+```json
+"turns": [
+  { "turn": "setOff", "street": null, "follows": null, "towards": null, "motorwayExit": null, "roundaboutExit": null, "heading": 347, "distanceMetres": 99 },
+  { "turn": "left", "street": "Te Putu Avenue", "follows": null, "towards": null, "motorwayExit": null, "roundaboutExit": null, "heading": null, "distanceMetres": 68 },
+  { "turn": "roundabout", "street": "Te Putu Avenue", "follows": null, "towards": null, "motorwayExit": null, "roundaboutExit": 2, "heading": null, "distanceMetres": 52 },
+  { "turn": "keepLeft", "street": null, "follows": "Mount Wellington Highway", "towards": null, "motorwayExit": null, "roundaboutExit": null, "heading": null, "distanceMetres": 363 },
+  { "turn": "sharpRight", "street": null, "follows": "Auckland Southern Motorway", "towards": null, "motorwayExit": null, "roundaboutExit": null, "heading": null, "distanceMetres": 13431 }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `turn` | Which way: `setOff`, `continue`, `slightLeft`, `left`, `sharpLeft`, `slightRight`, `right`, `sharpRight`, `keepLeft`, `keepRight`, `uTurn`, `roundabout`, `leaveRoundabout`, `ferry` or `arrive` |
+| `street` | The road it goes onto, by its name, or by its number when the map gives it none. `null` when the map gives neither |
+| `follows` | When `street` is `null`: the road the drive after the turn mostly follows. `null` otherwise |
+| `towards` | Where the signs point. `null` where none do |
+| `motorwayExit` | The name of the motorway exit it takes. `null` for any other turn |
+| `roundaboutExit` | Which exit to take, counting from where the roundabout is entered. `null` for any other turn |
+| `heading` | The bearing it sets off on, in whole degrees clockwise from north. `null` for any turn but `setOff` |
+| `distanceMetres` | How far to drive after it, before the next turn. Nought on arriving |
+
+The answer gives what each turn is and leaves the words to the screen. It says these "Head north", "Turn left onto Te Putu Avenue", "At the roundabout, take the 2nd exit onto Te Putu Avenue", "Keep left, then follow Mount Wellington Highway" and "Turn sharp right, then follow Auckland Southern Motorway".
+
+Things to know.
+
+- **They come from OpenStreetMap**, through the routing engine: the names and numbers of the roads, where the signs point, and the names of motorway exits. On the 400 round trips measured for the fastest order, 95.4% of the 2,053 street names in the turns are roads with LINZ addresses. Most of the rest are motorways, road numbers, lanes and bridges with no addresses, or names written another way, such as "Mount Saint John Avenue" for "Mount St John Avenue".
+- **A turn onto a road the map does not name names the road after it.** That is an on-ramp most often, and `follows` names the motorway it leads to. On those trips the share of the driving that came after a turn naming no road fell from 10.4% to 0.5%.
+- **Where the map names nothing, a turn says only which way.** 11% of turns on those trips did, a driveway or a slip lane mostly.
+- **They add up to the leg, near enough.** With heights on, the engine measures each stretch along its slope, and the leg is measured on the map. On legs of 5 km or more the two were within 0.5%. From Featherston up the Remutaka hill the turns come to 0.9% more.
+- **They follow the roads drawn on the map**, which the plan's distance and time are for. The Google Maps link carries the stops only, so Google's own directions can take other roads.
+- **On straight lines `turns` is empty.**
 
 ### Climb and descent
 

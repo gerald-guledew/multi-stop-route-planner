@@ -15,6 +15,7 @@ import com.solvelify.routeplanner.planning.PlanningProperties;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
 import com.solvelify.routeplanner.planning.TravelMatrix;
+import com.solvelify.routeplanner.planning.Turn;
 import com.solvelify.routeplanner.vehicle.VehicleSize;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -126,6 +127,36 @@ class RealHeightsTest {
         // The same road both ways, give or take where the two lanes part.
         assertThat(down.descentMetres()).isCloseTo(up.climbMetres(), within(5.0));
         assertThat(down.climbMetres()).isCloseTo(up.descentMetres(), within(5.0));
+    }
+
+    // The turns of a drive.
+
+    @Test
+    void signpostsTheWayFromTheSkyTowerToTheAirport() {
+        List<Turn> turns = provider.directionsBetween(THE_ROUND.get(0), THE_ROUND.get(1)).turns();
+
+        // Measured: off the motorway at the Gillies Avenue exit, by the signs for the airport.
+        assertThat(turns).anySatisfy(turn -> {
+            assertThat(turn.motorwayExit()).contains("Gillies Avenue");
+            assertThat(turn.towards()).contains("Airport");
+        });
+        assertThat(turns.getLast().way()).isEqualTo(Turn.Way.ARRIVE);
+    }
+
+    @Test
+    void addsUpTheTurnsToTheLegAlongTheSlopeOfItsRoads() {
+        Location featherston = new Location("Featherston", -41.11705, 175.32434);
+        Location summit = new Location("Remutaka summit", -41.11532, 175.23369);
+
+        double legMetres = provider.matrixFor(List.of(featherston, summit)).distanceKm(0, 1) * 1000;
+        double turnMetres = provider.directionsBetween(featherston, summit).turns().stream()
+                .mapToDouble(Turn::metres)
+                .sum();
+
+        // The engine measures each stretch along its slope, and the leg is measured on the map.
+        // Measured on one of the steepest roads there is: 10,521 m of turns against 10,426 m of
+        // leg, 0.9% more.
+        assertThat(turnMetres / legMetres).isBetween(1.0, 1.015);
     }
 
     // Roads that are level.

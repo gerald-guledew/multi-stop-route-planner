@@ -18,10 +18,12 @@ import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
 import com.solvelify.routeplanner.planning.RoutePlanningService;
+import com.solvelify.routeplanner.planning.Turn;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -596,6 +598,77 @@ class RouteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.shortestOrder", hasKey("fuelLitres")))
                 .andExpect(jsonPath("$.shortestOrder.fuelLitres").value(nullValue()));
+    }
+
+    // The turns of each leg.
+
+    @Test
+    void givesTheTurnsOfEachLeg() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithTurns());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.legs[0].turns.length()").value(6))
+                // Setting off, on a bearing to the whole degree, down a drive with no name.
+                .andExpect(jsonPath("$.legs[0].turns[0].turn").value("setOff"))
+                .andExpect(jsonPath("$.legs[0].turns[0].heading").value(347))
+                .andExpect(jsonPath("$.legs[0].turns[0].street").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].turns[0].distanceMetres").value(99))
+                .andExpect(jsonPath("$.legs[0].turns[1].turn").value("left"))
+                .andExpect(jsonPath("$.legs[0].turns[1].street").value("Te Putu Avenue"))
+                .andExpect(jsonPath("$.legs[0].turns[1].heading").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].turns[2].turn").value("roundabout"))
+                .andExpect(jsonPath("$.legs[0].turns[2].roundaboutExit").value(2))
+                // Onto a ramp the map does not name, and the motorway it leads to.
+                .andExpect(jsonPath("$.legs[0].turns[3].turn").value("sharpRight"))
+                .andExpect(jsonPath("$.legs[0].turns[3].street").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].turns[3].follows").value("Auckland Southern Motorway"))
+                .andExpect(jsonPath("$.legs[0].turns[4].turn").value("keepLeft"))
+                .andExpect(jsonPath("$.legs[0].turns[4].motorwayExit").value("Market Road"))
+                .andExpect(jsonPath("$.legs[0].turns[4].towards").value("Newmarket"))
+                .andExpect(jsonPath("$.legs[0].turns[4].follows").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].turns[4].roundaboutExit").value(nullValue()))
+                .andExpect(jsonPath("$.legs[0].turns[5].turn").value("arrive"))
+                .andExpect(jsonPath("$.legs[0].turns[5].distanceMetres").value(0));
+    }
+
+    @Test
+    void givesNoTurnsOnStraightLines() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.legs[0].turns").isArray())
+                .andExpect(jsonPath("$.legs[0].turns.length()").value(0));
+    }
+
+    /** Sylvia Park to the museum, as far as the motorway exit, and one leg back on straight lines. */
+    private static RoutePlan aPlanWithTurns() {
+        Location sylviaPark = new Location("Sylvia Park", -36.9170, 174.8414);
+        Location museum = new Location("Museum", -36.8604, 174.7777);
+        Turn setOff = new Turn(Turn.Way.SET_OFF, Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), OptionalInt.empty(), OptionalDouble.of(346.5), 99.4);
+        Turn roundabout = new Turn(Turn.Way.ROUNDABOUT, Optional.of("Te Putu Avenue"), Optional.empty(),
+                Optional.empty(), Optional.empty(), OptionalInt.of(2), OptionalDouble.empty(), 52);
+        Turn ontoTheMotorway = new Turn(Turn.Way.SHARP_RIGHT, Optional.empty(), Optional.of("Auckland Southern Motorway"),
+                Optional.empty(), Optional.empty(), OptionalInt.empty(), OptionalDouble.empty(), 6255);
+        Turn offTheMotorway = new Turn(Turn.Way.KEEP_LEFT, Optional.empty(), Optional.empty(), Optional.of("Newmarket"),
+                Optional.of("Market Road"), OptionalInt.empty(), OptionalDouble.empty(), 349);
+
+        return new RoutePlan(
+                List.of(sylviaPark, museum, sylviaPark),
+                List.of(
+                        new RoutePlan.Leg("Sylvia Park", "Museum", 10.744, OptionalDouble.of(642), Optional.empty(),
+                                List.of(), List.of(setOff, Turn.onto(Turn.Way.LEFT, "Te Putu Avenue", 68), roundabout,
+                                        ontoTheMotorway, offTheMotorway, Turn.of(Turn.Way.ARRIVE, 0))),
+                        new RoutePlan.Leg("Museum", "Sylvia Park", 8.62, List.of())),
+                19.364,
+                19.364,
+                1);
     }
 
     private static RoutePlan aPlanChosenForDistanceAndClimb() {
