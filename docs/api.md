@@ -150,7 +150,7 @@ Results are empty until the data is imported: LINZ addresses for `address`, Over
 
 ## POST /api/v1/routes/optimize
 
-Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in road climbs, it returns the order, and the roads between the stops, that come out best with the climb counted as well. Asked for the fastest order, it returns the order with the least driving time. Asked for the least fuel, it returns the order that takes the least fuel in the vehicle sent.
+Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked for the fastest order, it returns the order with the least driving time. Asked for the least fuel, it returns the order that takes the least fuel in the vehicle sent.
 
 Distances are straight lines unless real roads are switched on, as under "Straight lines or real roads" above.
 
@@ -165,9 +165,8 @@ Distances are straight lines unless real roads are switched on, as under "Straig
 | `stops` | array | Required, 1 to 10 items, each shaped like `start` |
 | `stops[].keepInPlace` | boolean | Optional, defaults to `false`. See "Keeping a stop in its place" below |
 | `returnToStart` | boolean | Optional, defaults to `true` |
-| `factorInRoadClimbs` | boolean | Optional, defaults to `false`. See "Factoring in road climbs" below |
-| `fastest` | boolean | Optional, defaults to `false`. Not together with `factorInRoadClimbs`. See "The fastest order" below |
-| `leastFuel` | boolean | Optional, defaults to `false`. Needs `vehicle`. Not together with `fastest` or `factorInRoadClimbs`. See "The least fuel" below |
+| `fastest` | boolean | Optional, defaults to `false`. See "The fastest order" below |
+| `leastFuel` | boolean | Optional, defaults to `false`. Needs `vehicle`. Not together with `fastest`. See "The least fuel" below |
 | `vehicle` | object | Optional. The vehicle to work out the fuel for. See "Fuel" below |
 | `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows, or the register's figure for a car found there |
 | `vehicle.kilograms` | number | Optional, 400 to 4,000. What the vehicle weighs empty. Without it the fuel does not count the hills |
@@ -184,6 +183,8 @@ Distances are straight lines unless real roads are switched on, as under "Straig
   "returnToStart": true
 }
 ```
+
+A field the request does not know is ignored. So is `factorInRoadClimbs`, which earlier versions read: the order is chosen as if it were not there.
 
 ### Response, 200
 
@@ -206,7 +207,7 @@ Distances are straight lines unless real roads are switched on, as under "Straig
 | `totalFuelLitres` | number | The fuel the whole trip takes. `null` when no `vehicle` was sent |
 | `fuelCountsHills` | boolean | Whether the fuel counts the hills. `false` when the roads were read without heights or the `vehicle` came without `kilograms`. `null` when no `vehicle` was sent |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
-| `shortestOrder` | object | Only when road climbs were factored in, or the fastest order or the least fuel was asked for: the `distanceKm`, `durationSeconds`, `climbMetres`, `descentMetres` and `fuelLitres` of the shortest order, to hold this one against. Its time is `null` on straight lines, its climb and descent without heights, and its fuel without a `vehicle`, as for the plan. `null` otherwise |
+| `shortestOrder` | object | Only when the fastest order or the least fuel was asked for: the `distanceKm`, `durationSeconds`, `climbMetres`, `descentMetres` and `fuelLitres` of the shortest order, to hold this one against. Its time is `null` on straight lines, its climb and descent without heights, and its fuel without a `vehicle`, as for the plan. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
 
 ```json
@@ -304,7 +305,7 @@ routeplanner:
       enabled: true
 ```
 
-The first start with this on fetches the height of the ground for every part of the map that has a road in it, which for New Zealand is 70 files and 480 MB, and prepares a second graph beside the first. That took a minute and a half where it was measured. Later starts fetch nothing. The files go to `backend/data/heights` and the graph to `backend/data/graph-cache-heights-2`, both out of git. The graph also holds the roads that climb less, see "Factoring in road climbs" below. A graph in `backend/data/graph-cache-heights`, prepared before there were any, is no longer read and can be deleted.
+The first start with this on fetches the height of the ground for every part of the map that has a road in it, which for New Zealand is 70 files and 480 MB, and prepares a second graph beside the first. That took a minute and a half where it was measured. Later starts fetch nothing. The files go to `backend/data/heights` and the graph to `backend/data/graph-cache-heights`, both out of git. A graph in `backend/data/graph-cache-heights-2`, which held roads that climb less as well, is no longer read and can be deleted.
 
 Each leg then says how much it goes up and how much it comes down, and the plan says the same for the whole trip, all in whole metres. By road the five stops above climb 478 m and descend 478 m:
 
@@ -318,7 +319,7 @@ What these figures are, and are not.
 - **The descent is a number above zero**, like the climb. The climb less the descent is how much higher the leg ends than it began.
 - **On a round trip the two totals come out equal**, give or take a metre of rounding, because the trip ends where it began.
 - **A level leg is `0` and `0`.** That is an answer. With heights off, and on straight lines, all four fields are `null`, which means not known.
-- **The order is chosen for distance unless asked otherwise.** The climb is then what the shortest order climbs on the usual roads, and another order or other roads can climb less and be longer. See "Factoring in road climbs" below.
+- **The order is chosen for distance unless asked otherwise.** The climb is then what the shortest order climbs. The least fuel counts it, see "The least fuel" below.
 
 #### How the climb is counted
 
@@ -352,85 +353,16 @@ The figure for a city leg moves by a third or so if 10 m is changed to 5 m or to
 #### What heights do not change
 
 - **The distance.** It is measured on the map, with heights or without. The routing engine itself measures a road with heights along its slope, bumps of the grid included, which made the road through the Otira Gorge 1.3% longer than it measures on the map.
-- **The order of the stops and the roads between them**, unless the request asks to factor in road climbs. Left alone the order is chosen for distance, and the roads are the routing engine's usual ones.
+- **The roads between the stops.** They are the routing engine's usual ones, with heights or without.
+- **The order of the stops**, unless the least fuel is asked for. Its fuel counts the hills.
 
 The driving time does move a little, because the engine times each road along its slope: 5,063 seconds for the five stops against 5,057.
-
-### Factoring in road climbs
-
-Send `"factorInRoadClimbs": true` and the order of the stops and the roads between them are chosen for distance and climb together. Left out, the order is chosen for distance alone, along the usual roads. Every metre a leg climbs then counts as 10 m of road on top of its length, so an order that is 1 km longer comes out ahead when it climbs more than 100 m less.
-
-The roads between two stops are chosen in two steps:
-
-- **The routing engine finds the roads that climb less.** It weighs each stretch of road as it usually does, and then as if it were 10 m longer for every metre the stretch climbs. A road round a hill can then come out ahead of the road over it.
-- **The planner keeps them where they are worth it.** The engine counts every rise of the ground along a road, wobbles of the height grid included, where the planner evens the heights out first. So by the planner's count the engine's roads can come out longer and climbing more. A leg takes them only when they climb at least 10 m less than the usual roads and come to less, with the climb counted as road. Otherwise it keeps the usual roads.
-
-The order is then chosen over the roads each leg would take, so the order and the roads are chosen together.
-
-The answer also says what the shortest order comes to, in `shortestOrder`, so that what was given up for what can be seen. Four stops from Avondale and back, by road with heights:
-
-```json
-{
-  "start": { "name": "Avondale", "latitude": -36.8990, "longitude": 174.6990 },
-  "stops": [
-    { "name": "Glen Eden",      "latitude": -36.9110, "longitude": 174.6500 },
-    { "name": "Blockhouse Bay", "latitude": -36.9200, "longitude": 174.7010 },
-    { "name": "Takapuna",       "latitude": -36.7870, "longitude": 174.7740 },
-    { "name": "Mission Bay",    "latitude": -36.8490, "longitude": 174.8310 }
-  ],
-  "factorInRoadClimbs": true
-}
-```
-
-| | Order of the stops | Distance | Climb |
-| --- | --- | --- | --- |
-| Shortest | Glen Eden, Blockhouse Bay, Mission Bay, Takapuna | 62.58 km | 666 m |
-| The order below, on the usual roads | Glen Eden, Blockhouse Bay, Takapuna, Mission Bay | 62.88 km | 561 m |
-| With road climbs factored in | Glen Eden, Blockhouse Bay, Takapuna, Mission Bay | 62.92 km | 524 m |
-
-Two legs take other roads. From Takapuna to Mission Bay the road keeps to Quay Street along the waterfront instead of Customs Street a block inland, and climbs 59 m instead of 78 m for 0.03 km less.
-
-```json
-{
-  "totalDistanceKm": 62.92,
-  "totalClimbMetres": 524,
-  "totalDescentMetres": 524,
-  "shortestOrder": { "distanceKm": 62.58, "durationSeconds": 4728, "climbMetres": 666, "descentMetres": 666, "fuelLitres": null }
-}
-```
-
-Things to know.
-
-- **Often the shortest order stands, on the usual roads.** `shortestOrder` then repeats the plan's own figures. The five stops further up are one such trip.
-- **What it came to on 400 made-up round trips**, the ones measured for the fastest order below: four to eight stops around Auckland, 85 km and 659 m of climb at the middle. The order changed in 82 and the roads alone in another 132. Where either did, the trip climbed 30 m less at the middle of the range, 5% of its climb, and up to 155 m. It was 0.06 km longer at the middle, and from 1.42 km shorter to 0.68 km longer. Over all 400 the climb came down 3.0% and the distance did not move. When the order alone was chosen for climb, the climb came down 1.0%.
-- **The driving time can go up**, since a road that climbs less can be slower. 7 seconds at the middle of the trips that changed. Of the 400, 28 took a minute or more longer, 4 of them five minutes or more, and 21 took a minute or more less.
-- **A shorter route can climb a little more.** Roads that climb less on one leg can open a shorter order that climbs more on another. Two of the 400 came out 0.75 km and 0.96 km shorter than the shortest order, and climbed 3 m and 5 m more.
-- **Without heights there is no climb to count.** On straight lines, and on roads read without their heights, the order is chosen for distance as if nothing had been asked, and `shortestOrder` is `null`. It is not an error.
-- **Coming down counts for nothing.** A car gets some of a climb back on the way down. That is left out.
-- **`totalDistanceKm` is the distance driven.** The road that the climb was counted as is used to choose the order and the roads, and appears in no figure.
-- **`enteredOrderDistanceKm` is the order sent, along the same roads as the plan**, so the two orders are compared on the same roads.
-- **Google Maps picks its own roads.** The link keeps the order of the stops and lets Google choose the roads between them, so the roads that climb less are the ones on this map, and not those in Google's directions.
-- **The trip can be longer than the order sent**, so `enteredOrderDistanceKm` can be the smaller of the two.
-- **A stop kept in its place stays there.**
-- **The climb is an estimate**, as said above, and so is a saving worked out from it. A small one may not be there on the road.
-
-The 10 is a setting, read for the order and for the roads:
-
-```yaml
-routeplanner:
-  planning:
-    road-metres-per-metre-climbed: 10
-```
-
-The routing engine prepares the roads that climb less with it ahead, so after changing it the graph with heights has to be prepared again. The application refuses to start on a graph prepared with another figure, and says which folder to delete.
-
-It is a round figure, and not a fuel estimate. A [study that simulated cars on graded roads](https://vtechworks.lib.vt.edu/handle/10919/46178) put the extra fuel at over 9% for each 1% of slope, and a slope of 1% is a metre climbed in every 100 m of road. The order is not chosen for the vehicle, so one figure serves for every car.
 
 ### The fastest order
 
 Send `"fastest": true` and the order is chosen for driving time. Left out, it is chosen for distance. An order that is longer and keeps to faster roads then comes out ahead when it takes less time.
 
-The answer says what the shortest order comes to, in `shortestOrder`, as it does for road climbs. The five stops further up, by road with heights:
+The answer says what the shortest order comes to, in `shortestOrder`. The five stops further up, by road with heights:
 
 | | Order of the stops | Distance | Driving time |
 | --- | --- | --- | --- |
@@ -451,7 +383,6 @@ Things to know.
 - **How often it changes the order.** On 400 made-up round trips of four to eight stops around Auckland, between places picked at random from the business names, with 87 minutes of driving at the middle, the order changed in 202. Where it did, it saved 2.5 minutes at the middle, 3% of the trip, and was 1.57 km longer. None saved more than 8.8 minutes, and none was more than 8.75 km longer. On 400 one-way trips the order changed in 148, saving 2.4 minutes at the middle and 10 at most.
 - **The times are for clear roads**, as said under "Driving times" above. From the Sky Tower to the Airport they give 21 minutes, where travel guides give about 25 off-peak. At rush hour the motorway the fastest order keeps to can be slower than the streets it avoids.
 - **A longer order takes more fuel.** The fuel is worked out for the order chosen, whatever it was chosen for.
-- **Not together with road climbs.** Road climbs are counted as road, which the shortest order is chosen for and the fastest is not. A request with both is refused with a 400.
 - **On straight lines there is no time to choose by.** The order is chosen for distance as if nothing had been asked, and `shortestOrder` is `null`. It is not an error.
 - **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way.
 - **A stop kept in its place stays there.**
@@ -503,8 +434,8 @@ Things to know.
 - **A one-way trip is not sent to its lowest stop.** A trip that ends lower takes less fuel, but only because the car is left lower, and the next drive up takes that fuel back. Counted as driven, 15 of the 800 one-way trips would have changed order to save 0.1 to 0.33 L, every one by ending 113 to 334 m lower, for up to 2.9 km and 7 minutes more. So the order is chosen for the fuel a trip uses up for good: what its roads take on the level, and what its steep descents brake away. Over a round trip that is the fuel it takes. Another order is taken only when it saves a tenth of a litre both that way and as driven.
 - **Without what it needs, the shortest order.** On straight lines, on roads read without heights, and for a vehicle sent without `kilograms`, the fuel goes with the distance and the shortest order takes the least. `shortestOrder` is then `null`. It is not an error.
 - **A `vehicle` is needed**, and a request without one is refused with a 400.
-- **Not together with the fastest order or road climbs.** The fuel counts the climbs itself. A request with either is refused with a 400.
-- **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way.
+- **Not together with the fastest order.** A request with both is refused with a 400.
+- **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way. Roads chosen to climb less were tried, together with the order: on the 400 round trips around Auckland, in the medium car, they cut the climb by 3% and the fuel by 0.02%.
 - **Speed does not change the fuel yet**, as said under "Fuel", so the order is chosen for distance and hills alone.
 - **A stop kept in its place stays there.**
 
@@ -545,7 +476,7 @@ There is no `type`, which RFC 9457 reads as `about:blank`.
 
 | Status | When |
 | --- | --- |
-| 400 | A field is missing, a coordinate is out of range, there are no stops, there are more than 10, both `fastest` and `factorInRoadClimbs` are true, or `leastFuel` is true without a `vehicle` or with `fastest` or `factorInRoadClimbs` |
+| 400 | A field is missing, a coordinate is out of range, there are no stops, there are more than 10, or `leastFuel` is true without a `vehicle` or with `fastest` |
 | 422 | A place has no road near it, so no car can reach it. Only possible on the `graphhopper` provider |
 | 500 | Anything unexpected. The response carries no internal details |
 

@@ -9,7 +9,6 @@ import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { googleMapsLink, leavesOutTheDriveBack } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
-import { roadClimbsSaid } from '../roadClimbs'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
@@ -31,10 +30,7 @@ interface Props {
   onToggleKeepInPlace: (index: number) => void
   onChangeTurn: (index: number, direction: Direction) => void
   onReturnToStartChange: (returnToStart: boolean) => void
-  /** Whether the order is to be chosen for distance and climb together, when it is the shortest. */
-  factorInRoadClimbs: boolean
-  onFactorInRoadClimbsChange: (factorInRoadClimbs: boolean) => void
-  /** Whether the order is to be the shortest, the fastest, or the one taking the least fuel. */
+  /** Whether the order is to take the least fuel or be the fastest. */
   order: Order
   onOrderChange: (order: Order) => void
   onPlan: () => void
@@ -60,9 +56,8 @@ interface Props {
 
 /** The orders to pick from, in the order they are offered. */
 const ORDERS: { order: Order; says: string }[] = [
-  { order: 'shortest', says: 'Shortest order' },
-  { order: 'fastest', says: 'Fastest order' },
   { order: 'leastFuel', says: 'Least fuel' },
+  { order: 'fastest', says: 'Fastest' },
 ]
 
 const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
@@ -169,8 +164,7 @@ export default function RoutePanel(props: Props) {
   const fuel = plan && plan.totalFuelLitres !== null ? litresSaid(plan.totalFuelLitres) : null
   // A plan is cleared whenever the vehicle changes, so one shown was made with the vehicle there is.
   const hasVehicle = props.vehicleFigureFrom !== null
-  const chosen = chosenFor({ order: props.order, factorInRoadClimbs: props.factorInRoadClimbs, hasVehicle })
-  const roadClimbs = plan ? roadClimbsSaid(chosen === 'distanceAndClimb', plan) : null
+  const chosen = chosenFor({ order: props.order, hasVehicle })
   const quickest = plan ? fastestSaid(chosen === 'time', plan) : null
   const leastFuel = plan ? leastFuelSaid(props.order === 'leastFuel', hasVehicle, plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
@@ -415,21 +409,6 @@ export default function RoutePanel(props: Props) {
                     : 'Add your vehicle above to plan for the least fuel.'}
                 </p>
               )}
-              {/* Road climbs are counted as road, so they count for the shortest order alone. */}
-              {props.order === 'shortest' && (
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={props.factorInRoadClimbs}
-                    disabled={planning}
-                    onChange={(event) => props.onFactorInRoadClimbsChange(event.target.checked)}
-                  />
-                  Factor in road climbs
-                </label>
-              )}
-              {chosen === 'distanceAndClimb' && (
-                <p className="note">The order and the roads may come out a little longer, to climb less.</p>
-              )}
 
               <div className="buttons">
                 <button
@@ -497,7 +476,6 @@ export default function RoutePanel(props: Props) {
                 )}
               </dl>
 
-              {roadClimbs && <p className="note">{roadClimbs}</p>}
               {quickest && <p className="note">{quickest}</p>}
               {leastFuel && <p className="note">{leastFuel}</p>}
               {plan.totalDurationSeconds !== null && (

@@ -30,11 +30,10 @@ import java.util.stream.IntStream;
  *                             without heights or the vehicle came without its weight. Null when
  *                             no vehicle was sent
  * @param shortestOrder        what the shortest order comes to, given when the order was chosen
- *                             for distance and climb together, for driving time or for fuel, so
- *                             the two can be held against each other. Null when the order was
- *                             chosen for distance alone, and when what it was to be chosen for is
- *                             not known: heights for the climb, times for the time, heights and
- *                             the vehicle's weight for the fuel
+ *                             for driving time or for fuel, so the two can be held against each
+ *                             other. Null when the order was chosen for distance alone, and when
+ *                             what it was to be chosen for is not known: times for the time,
+ *                             heights and the vehicle's weight for the fuel
  */
 public record OptimizeRouteResponse(
         List<Place> route,

@@ -96,13 +96,6 @@ class TravelMatrixTest {
     }
 
     @Test
-    void saysWhetherItKnowsTheClimb() {
-        assertThat(new TravelMatrix(KM, SECONDS, CLIMBS).knowsClimb()).isTrue();
-        assertThat(new TravelMatrix(KM, SECONDS).knowsClimb()).isFalse();
-        assertThat(new TravelMatrix(KM).knowsClimb()).isFalse();
-    }
-
-    @Test
     void tellsALevelDriveFromOneItKnowsNothingAbout() {
         TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS);
 
@@ -181,49 +174,6 @@ class TravelMatrixTest {
         assertThat(matrix.durationSeconds(0, 1)).hasValue(600);
     }
 
-    // The table for an order chosen for distance and climb together.
-
-    @Test
-    void countsEveryMetreClimbedAsSoManyMetresOfRoad() {
-        TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS);
-
-        double[][] cost = matrix.asCostMatrixCountingClimb(10).orElseThrow();
-
-        // 80 m up at 10 m of road each is 800 m on top of the 10 km. The way back climbs 50 m.
-        assertThat(cost[0][1]).isCloseTo(10.8, within(1e-9));
-        assertThat(cost[1][0]).isCloseTo(12.5, within(1e-9));
-        // Staying where you are costs nothing either way.
-        assertThat(cost[0][0]).isZero();
-        assertThat(cost[1][1]).isZero();
-    }
-
-    @Test
-    void countsNothingForComingDown() {
-        ClimbAndDescent[][] downhillOneWay = {
-            {ClimbAndDescent.LEVEL, new ClimbAndDescent(0, 70)},
-            {new ClimbAndDescent(70, 0), ClimbAndDescent.LEVEL},
-        };
-        TravelMatrix matrix = new TravelMatrix(KM, SECONDS, downhillOneWay);
-
-        double[][] cost = matrix.asCostMatrixCountingClimb(10).orElseThrow();
-
-        assertThat(cost[0][1]).isEqualTo(10);
-        assertThat(cost[1][0]).isCloseTo(12.7, within(1e-9));
-    }
-
-    @Test
-    void isTheDistancesAgainWhenAMetreClimbedCountsAsNoRoadAtAll() {
-        TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS);
-
-        assertThat(matrix.asCostMatrixCountingClimb(0).orElseThrow()).isDeepEqualTo(KM);
-    }
-
-    @Test
-    void hasNoClimbToCountWhenTheRoadsHaveNoHeights() {
-        assertThat(new TravelMatrix(KM, SECONDS).asCostMatrixCountingClimb(10)).isEmpty();
-        assertThat(new TravelMatrix(KM).asCostMatrixCountingClimb(10)).isEmpty();
-    }
-
     // The table for an order chosen for fuel.
 
     /** A car of 1,225 kg at 7.5 L/100 km. With the driver it weighs 1,300 kg. */
@@ -252,12 +202,11 @@ class TravelMatrixTest {
     }
 
     @Test
-    void keepsItsDistancesAsTheyWereAfterCountingTheClimb() {
+    void keepsItsDistancesAsTheyWereWhenTheTableIsChanged() {
         TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS);
 
-        matrix.asCostMatrixCountingClimb(10);
+        matrix.asCostMatrix()[0][1] = 1;
 
         assertThat(matrix.distanceKm(0, 1)).isEqualTo(10);
-        assertThat(matrix.asCostMatrix()).isDeepEqualTo(KM);
     }
 }

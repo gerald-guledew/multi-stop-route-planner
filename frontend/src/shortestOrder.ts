@@ -1,5 +1,4 @@
 import type { ChosenFor } from './chosenFor'
-import { metres } from './climb'
 import { howLong } from './duration'
 import { litresSaid } from './fuel'
 import type { RoutePlan, ShortestOrder } from './types'
@@ -59,16 +58,13 @@ export function differsFromTheShortest(plan: RoutePlan): boolean {
 
 /**
  * The shortest order in a few words, for the row beside the order chosen: how far it is, and
- * what the order was chosen for besides. "62.58 km, 666 m up" beside an order chosen to climb
- * less, "62.58 km, 1 h 12 min" beside the fastest, and "62.58 km, 4.9 L" beside the least fuel.
+ * what the order was chosen for besides. "62.58 km, 1 h 12 min" beside the fastest, and
+ * "62.58 km, 4.9 L" beside the least fuel.
  */
 export function shortestSaid(shortest: ShortestOrder, chosenFor: ChosenFor): string {
   const parts = [`${shortest.distanceKm.toFixed(2)} km`]
   if (chosenFor === 'time' && shortest.durationSeconds !== null) {
     parts.push(howLong(shortest.durationSeconds))
-  }
-  if (chosenFor === 'distanceAndClimb' && shortest.climbMetres !== null) {
-    parts.push(`${metres(shortest.climbMetres)} up`)
   }
   if (chosenFor === 'fuel' && shortest.fuelLitres !== null) {
     parts.push(litresSaid(shortest.fuelLitres))

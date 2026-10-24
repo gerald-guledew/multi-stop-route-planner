@@ -402,32 +402,6 @@ class RouteControllerTest {
                 .andExpect(jsonPath("$.totalDurationSeconds").value(1556));
     }
 
-    // An order chosen for distance and climb together.
-
-    @Test
-    void asksForDistanceAndClimbTogetherWhenToldToFactorInRoadClimbs() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
-
-        mockMvc.perform(post("/api/v1/routes/optimize")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInRoadClimbs\": true")))
-                .andExpect(status().isOk());
-
-        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE_AND_CLIMB), any());
-    }
-
-    @Test
-    void asksForDistanceAloneWhenToldNotToFactorInRoadClimbs() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
-
-        mockMvc.perform(post("/api/v1/routes/optimize")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"factorInRoadClimbs\": false")))
-                .andExpect(status().isOk());
-
-        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE), any());
-    }
-
     // An order chosen for driving time.
 
     @Test
@@ -455,18 +429,6 @@ class RouteControllerTest {
     }
 
     @Test
-    void refusesTheFastestOrderWithRoadClimbsFactoredIn() throws Exception {
-        mockMvc.perform(post("/api/v1/routes/optimize")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_REQUEST.replace(
-                                "\"returnToStart\": true", "\"fastest\": true, \"factorInRoadClimbs\": true")))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors[0].field").value("fastestOrRoadClimbs"))
-                .andExpect(jsonPath("$.errors[0].message")
-                        .value("must ask for the fastest order or for road climbs factored in, not both"));
-    }
-
-    @Test
     void saysHowLongTheShortestOrderTakesWhenTheOrderWasChosenForTime() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanChosenForTime());
 
@@ -486,7 +448,7 @@ class RouteControllerTest {
     @Test
     void saysWhatTheShortestOrderComesTo() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
-                .willReturn(aPlanChosenForDistanceAndClimb());
+                .willReturn(aPlanChosenForFuel());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -560,24 +522,13 @@ class RouteControllerTest {
                         .content(FOR_THE_LEAST_FUEL.replace("\"leastFuel\": true", "\"leastFuel\": true, \"fastest\": true")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("leastFuelAlone"))
-                .andExpect(jsonPath("$.errors[0].message").value(
-                        "must ask for the least fuel on its own, not with the fastest order or road climbs factored in"));
-    }
-
-    @Test
-    void refusesTheLeastFuelWithRoadClimbsFactoredIn() throws Exception {
-        mockMvc.perform(post("/api/v1/routes/optimize")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(FOR_THE_LEAST_FUEL.replace(
-                                "\"leastFuel\": true", "\"leastFuel\": true, \"factorInRoadClimbs\": true")))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors[0].field").value("leastFuelAlone"));
+                .andExpect(jsonPath("$.errors[0].message").value("must ask for the least fuel or the fastest order, not both"));
     }
 
     @Test
     void saysWhatFuelTheShortestOrderTakes() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
-                .willReturn(aPlanChosenForDistanceAndClimb());
+                .willReturn(aPlanChosenForFuel());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -590,7 +541,7 @@ class RouteControllerTest {
     @Test
     void saysNullForTheFuelOfTheShortestOrderWithoutAVehicle() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
-                .willReturn(aPlanChosenForDistanceAndClimb());
+                .willReturn(aPlanChosenForFuel());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -671,7 +622,8 @@ class RouteControllerTest {
                 1);
     }
 
-    private static RoutePlan aPlanChosenForDistanceAndClimb() {
+    /** The plan with climbs further up, chosen for fuel, and longer than the shortest order. */
+    private static RoutePlan aPlanChosenForFuel() {
         RoutePlan chosen = aPlanWithClimbs();
 
         return new RoutePlan(

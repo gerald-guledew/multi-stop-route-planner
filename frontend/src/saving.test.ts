@@ -11,7 +11,7 @@ describe('saying what the order chosen saves over the order entered', () => {
   })
 
   it('calls an order that is longer than the one entered longer, and not a saving below nought', () => {
-    // Chosen for distance and climb together, an order can be longer than the one clicked.
+    // Chosen for time or fuel, an order can be longer than the one clicked.
     expect(savingSaid(62.78, 63.21)).toEqual({
       label: 'Longer than you clicked by',
       figure: '0.43 km',

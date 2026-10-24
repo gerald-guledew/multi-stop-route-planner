@@ -7,13 +7,12 @@ import type { Place } from './types'
  */
 
 /**
- * Everything about the trip that a change can be undone in: the places, the two boxes, and
- * whether the order is to be the shortest, the fastest or the one taking the least fuel.
+ * Everything about the trip that a change can be undone in: the places, whether it returns to
+ * the start, and whether the order is to take the least fuel or be the fastest.
  */
 export interface Trip {
   places: Place[]
   returnToStart: boolean
-  factorInRoadClimbs: boolean
   order: Order
 }
 
@@ -42,7 +41,6 @@ function same(one: Trip, other: Trip): boolean {
   return (
     one.places === other.places &&
     one.returnToStart === other.returnToStart &&
-    one.factorInRoadClimbs === other.factorInRoadClimbs &&
     one.order === other.order
   )
 }
