@@ -10,13 +10,21 @@ Contributions are welcome. Open an issue before starting anything large, so two 
 
 ## Setup
 
-Java 25 and Git. The build uses Maven through the `./mvnw` wrapper, so Maven itself does not need to be installed. PostgreSQL arrives at step 2 of the roadmap.
+Java 25, Git, and PostgreSQL with PostGIS. The build uses Maven through the `./mvnw` wrapper, so Maven itself does not need to be installed.
+
+The tests use a database of their own, so they never touch the one the app imports into:
+
+```bash
+createdb routeplanner_test
+```
 
 ```bash
 cd backend && ./mvnw verify
 ```
 
-That runs on straight-line distances and needs nothing else. For real driving distances, download the 385 MB map extract, which stays out of git, and switch the provider in `application.yaml`:
+The migrations switch on the `postgis`, `pg_trgm` and `unaccent` extensions where they are not on yet, which takes a role allowed to do that. The connection defaults suit Postgres.app on a Mac, where the role is your own username with no password. Anywhere else, set `DB_USERNAME` and `DB_PASSWORD`.
+
+That runs on straight-line distances. For real driving distances, download the 385 MB map extract, which stays out of git, and switch the provider in `application.yaml`:
 
 ```bash
 curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf

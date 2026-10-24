@@ -152,7 +152,7 @@ Results are empty until the data is imported: LINZ addresses for `address`, Over
 
 Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked to factor in road climbs, it returns the order, and the roads between the stops, that come out best with the climb counted as well. Asked for the fastest order, it returns the order with the least driving time. Asked for the least fuel, it returns the order that takes the least fuel in the vehicle sent.
 
-Distances are straight lines for now. Step 3 replaces them with real driving distances.
+Distances are straight lines unless real roads are switched on, as under "Straight lines or real roads" above.
 
 ### Request
 
@@ -177,7 +177,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
   "start": { "name": "Sky Tower", "latitude": -36.8485, "longitude": 174.7621 },
   "stops": [
     { "name": "Takapuna",    "latitude": -36.7870, "longitude": 174.7740 },
-    { "name": "Airport",     "latitude": -37.0082, "longitude": 174.7850 },
+    { "name": "Airport",     "latitude": -37.0070, "longitude": 174.7830 },
     { "name": "Devonport",   "latitude": -36.8330, "longitude": 174.7955 },
     { "name": "Sylvia Park", "latitude": -36.9170, "longitude": 174.8414 }
   ],
@@ -197,6 +197,7 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
 | `legs[].climbMetres` | integer | How much that leg goes up, counting rises of 10 m or more. `null` unless the roads were read with their heights. See "Climb and descent" below |
 | `legs[].descentMetres` | integer | How much that leg comes down, as a number above zero. `null` whenever the climb is |
 | `legs[].fuelLitres` | number | The fuel that leg takes. `null` when no `vehicle` was sent |
+| `legs[].path` | array | The road that leg follows, as `[latitude, longitude]` pairs, for drawing it. Empty on straight lines |
 | `legs[].turns` | array | The turns along that leg's road, from setting off to arriving. Empty on straight lines. See "Turns" below |
 | `totalDistanceKm` | number | Distance of the whole trip in the returned order |
 | `totalDurationSeconds` | integer | Driving time for the whole trip. `null` on straight lines |
@@ -215,29 +216,29 @@ Distances are straight lines for now. Step 3 replaces them with real driving dis
     { "name": "Takapuna",    "latitude": -36.7870, "longitude": 174.7740 },
     { "name": "Devonport",   "latitude": -36.8330, "longitude": 174.7955 },
     { "name": "Sylvia Park", "latitude": -36.9170, "longitude": 174.8414 },
-    { "name": "Airport",     "latitude": -37.0082, "longitude": 174.7850 },
+    { "name": "Airport",     "latitude": -37.0070, "longitude": 174.7830 },
     { "name": "Sky Tower",   "latitude": -36.8485, "longitude": 174.7621 }
   ],
   "legs": [
-    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
-    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
-    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
-    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.31, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null },
-    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.87, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null }
+    { "from": "Sky Tower",   "to": "Takapuna",    "distanceKm": 6.92,  "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null, "path": [], "turns": [] },
+    { "from": "Takapuna",    "to": "Devonport",   "distanceKm": 5.46,  "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null, "path": [], "turns": [] },
+    { "from": "Devonport",   "to": "Sylvia Park", "distanceKm": 10.19, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null, "path": [], "turns": [] },
+    { "from": "Sylvia Park", "to": "Airport",     "distanceKm": 11.27, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null, "path": [], "turns": [] },
+    { "from": "Airport",     "to": "Sky Tower",   "distanceKm": 17.72, "durationSeconds": null, "climbMetres": null, "descentMetres": null, "fuelLitres": null, "path": [], "turns": [] }
   ],
-  "totalDistanceKm": 51.76,
+  "totalDistanceKm": 51.57,
   "totalDurationSeconds": null,
   "totalClimbMetres": null,
   "totalDescentMetres": null,
   "totalFuelLitres": null,
   "fuelCountsHills": null,
-  "enteredOrderDistanceKm": 71.61,
+  "enteredOrderDistanceKm": 71.35,
   "shortestOrder": null,
   "ordersChecked": 24
 }
 ```
 
-Two things that look like bugs and are not. The legs above add up to 51.75 rather than 51.76, because totals are calculated before rounding. And on a round trip the reverse order is exactly as short, so either direction is a correct answer.
+Two things that look like bugs and are not. The legs above add up to 51.56 rather than 51.57, because totals are calculated before rounding. And on a round trip the reverse order is exactly as short, so either direction is a correct answer.
 
 ### Driving times
 
@@ -394,7 +395,7 @@ Two legs take other roads. From Takapuna to Mission Bay the road keeps to Quay S
   "totalDistanceKm": 62.92,
   "totalClimbMetres": 524,
   "totalDescentMetres": 524,
-  "shortestOrder": { "distanceKm": 62.58, "durationSeconds": 4728, "climbMetres": 666, "descentMetres": 666 }
+  "shortestOrder": { "distanceKm": 62.58, "durationSeconds": 4728, "climbMetres": 666, "descentMetres": 666, "fuelLitres": null }
 }
 ```
 
@@ -429,7 +430,7 @@ It is a round figure, and not a fuel estimate. A [study that simulated cars on g
 
 Send `"fastest": true` and the order is chosen for driving time. Left out, it is chosen for distance. An order that is longer and keeps to faster roads then comes out ahead when it takes less time.
 
-The answer says what the shortest order comes to, in `shortestOrder`, as it does for road climbs. The five stops further up, by road with heights and with the Airport moved to its forecourt, at `-37.0070, 174.7830`:
+The answer says what the shortest order comes to, in `shortestOrder`, as it does for road climbs. The five stops further up, by road with heights:
 
 | | Order of the stops | Distance | Driving time |
 | --- | --- | --- | --- |
@@ -440,7 +441,7 @@ The answer says what the shortest order comes to, in `shortestOrder`, as it does
 {
   "totalDistanceKm": 77.33,
   "totalDurationSeconds": 4952,
-  "shortestOrder": { "distanceKm": 76.91, "durationSeconds": 5063, "climbMetres": 478, "descentMetres": 478 }
+  "shortestOrder": { "distanceKm": 76.91, "durationSeconds": 5063, "climbMetres": 478, "descentMetres": 478, "fuelLitres": null }
 }
 ```
 
@@ -463,7 +464,7 @@ Send the vehicle with the request and every leg says how much fuel it takes, and
 "vehicle": { "litresPer100Km": 7.5, "kilograms": 1270 }
 ```
 
-For the five stops above that is 3.88 L: 51.76 km at 7.5 L for every 100 km, on straight lines, which have no hills. Without a `vehicle`, `totalFuelLitres`, `fuelCountsHills` and each leg's `fuelLitres` are `null`.
+For the five stops above that is 3.87 L: 51.57 km at 7.5 L for every 100 km, on straight lines, which have no hills. Without a `vehicle`, `totalFuelLitres`, `fuelCountsHills` and each leg's `fuelLitres` are `null`.
 
 On roads read with their heights, and with `kilograms`, the fuel counts the hills and `fuelCountsHills` is `true`:
 
@@ -484,7 +485,7 @@ The screen sends the vehicle saved in the planner and its weight, see "The vehic
 
 Send `"leastFuel": true` with a `vehicle` and the order is chosen for the fuel that vehicle takes, counted as under "Fuel" above. Left out, the order is chosen for distance. The hills can be counted only on roads read with their heights, for a vehicle sent with its `kilograms`.
 
-The answer says what the shortest order comes to, in `shortestOrder`, with its `fuelLitres`. The five stops further up, with the Airport on its forecourt, in a medium car at 7.5 L/100 km:
+The answer says what the shortest order comes to, in `shortestOrder`, with its `fuelLitres`. The five stops further up, in a medium car at 7.5 L/100 km:
 
 ```json
 {
@@ -514,10 +515,10 @@ Some stops cannot go wherever is shortest. The first call of the day that cannot
 Take the request above and keep the Airport, which was sent second, in its place:
 
 ```json
-{ "name": "Airport", "latitude": -37.0082, "longitude": 174.7850, "keepInPlace": true }
+{ "name": "Airport", "latitude": -37.0070, "longitude": 174.7830, "keepInPlace": true }
 ```
 
-The route becomes Sky Tower, Sylvia Park, **Airport**, Devonport, Takapuna and back to Sky Tower. That is 53.58 km, where 51.76 km was possible with every stop free. `ordersChecked` falls from 24 to 6, because only three stops are left to arrange.
+The route becomes Sky Tower, Sylvia Park, **Airport**, Devonport, Takapuna and back to Sky Tower. That is 53.41 km, where 51.57 km was possible with every stop free. `ordersChecked` falls from 24 to 6, because only three stops are left to arrange.
 
 - Keeping a stop can only cost distance or leave it the same. It never saves any.
 - With every stop kept there is one order, the one sent, and the answer is that trip.
@@ -529,7 +530,6 @@ Validation failures return **400** as RFC 9457 Problem Details, with the media t
 
 ```json
 {
-  "type": "about:blank",
   "title": "Bad Request",
   "status": 400,
   "detail": "Validation failed",
@@ -541,6 +541,8 @@ Validation failures return **400** as RFC 9457 Problem Details, with the media t
 }
 ```
 
+There is no `type`, which RFC 9457 reads as `about:blank`.
+
 | Status | When |
 | --- | --- |
 | 400 | A field is missing, a coordinate is out of range, there are no stops, there are more than 10, both `fastest` and `factorInRoadClimbs` are true, or `leastFuel` is true without a `vehicle` or with `fastest` or `factorInRoadClimbs` |
@@ -551,7 +553,6 @@ A 422 names the place that cannot be reached, so the caller knows which pin to m
 
 ```json
 {
-  "type": "about:blank",
   "title": "Unroutable place",
   "status": 422,
   "detail": "Cannot route to Airport. No road was found near those coordinates. Move the point closer to a street.",
@@ -638,7 +639,6 @@ A name can be saved once, whatever the capitals. Saving "HOME" while "Home" is t
 
 ```json
 {
-  "type": "about:blank",
   "title": "Name already saved",
   "status": 409,
   "detail": "A place called \"HOME\" is already saved. Remove it first, or save this one under another name.",

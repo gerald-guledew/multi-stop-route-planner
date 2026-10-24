@@ -6,7 +6,7 @@ How the pieces fit together, and the two decisions that keep the later steps che
 
 ```mermaid
 flowchart TD
-    Client["Client: curl, tests, web app later"] -->|"POST /api/v1/routes/optimize"| Controller[RouteController]
+    Client["Client: the map screen, curl, tests"] -->|"POST /api/v1/routes/optimize"| Controller[RouteController]
     Controller --> Service[RoutePlanningService]
     Service --> Provider["TravelMatrixProvider (interface)"]
     Service --> Solver["RouteSolver (interface)"]
@@ -42,9 +42,9 @@ Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances
 
 ## The two seams
 
-**Travel figures arrive through an interface.** The service never calls haversine or GraphHopper itself. At step 3 a second implementation replaces straight lines with real driving distances, and the service, the solver and the controller stay untouched.
+**Travel figures arrive through an interface.** The service never calls haversine or GraphHopper itself. At step 3 a second implementation replaced straight lines with real driving distances, and the service, the solver and the controller were not touched.
 
-The interface hands back a whole matrix rather than one pair at a time, because routing engines calculate many-to-many distances in a single pass. Asking pair by pair would be far slower once real roads arrive.
+The interface hands back a whole matrix rather than one pair at a time, so an engine that works out many places to many in one pass can fill it that way. The GraphHopper provider fills it one drive at a time, every ordered pair in turn: 110 drives for a start and ten stops. With road climbs factored in on roads with heights, it fills a second one along the roads that climb less.
 
 The legs of the answer are asked for again, one by one, for their `Directions`: the road's shape, for the map, and its turns, for following it. GraphHopper works the turns out from OpenStreetMap along with the road. `TurnsFromTheEngine` keeps what the engine knows of each: which way, the road, where the signs point, the motorway exit. For a turn onto a road the map leaves unnamed, an on-ramp most often, it takes the road the stretch after it mostly follows, from the names the engine gives along the drive. The words are left to the screen, `turns.ts`.
 
@@ -173,7 +173,7 @@ The map has no heights in it. GraphHopper can read them off a grid of the ground
 
 ## Deliberately absent
 
-Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication. Saved places are private, and what keeps them so is that the app answers only the machine it runs on, so anything put in front of it has to bring a lock of its own. Turn by turn navigation, which is handed to Google Maps or Waze.
+Traffic data, because OpenStreetMap has none and live traffic costs money. Several drivers, time windows and vehicle capacity, until the single driver version is stable. Authentication. Saved places are private, and what keeps them so is that the app answers only the machine it runs on, so anything put in front of it has to bring a lock of its own. Guidance while driving. The turns of each leg are written out, and the driving itself is handed to Google Maps.
 
 ## What each step changes
 
