@@ -169,6 +169,8 @@ Distances are straight lines unless real roads are switched on, as under "Straig
 | `leastFuel` | boolean | Optional, defaults to `false`. Needs `vehicle`. Not together with `fastest`. See "The least fuel" below |
 | `vehicle` | object | Optional. The vehicle to work out the fuel for. See "Fuel" below |
 | `vehicle.litresPer100Km` | number | Required with `vehicle`, 2 to 30. What its dashboard shows, or the register's figure for a car found there |
+| `vehicle.townLitresPer100Km` | number | Optional, 2 to 40, with `openRoadLitresPer100Km`. What town roads take. Left out, both are worked out from `litresPer100Km`. See "Town and the open road" below |
+| `vehicle.openRoadLitresPer100Km` | number | Optional, 2 to 40, with `townLitresPer100Km`. What the open road takes |
 | `vehicle.kilograms` | number | Optional, 400 to 4,000. What the vehicle weighs empty. Without it the fuel does not count the hills |
 
 ```json
@@ -206,6 +208,7 @@ A field the request does not know is ignored. So is `factorInRoadClimbs`, which 
 | `totalDescentMetres` | integer | Descent of the whole trip. `null` whenever the climb is |
 | `totalFuelLitres` | number | The fuel the whole trip takes. `null` when no `vehicle` was sent |
 | `fuelCountsHills` | boolean | Whether the fuel counts the hills. `false` when the roads were read without heights or the `vehicle` came without `kilograms`. `null` when no `vehicle` was sent |
+| `fuelCountsSpeed` | boolean | Whether the fuel takes the town figure on town roads and the open road's elsewhere. `false` on straight lines. `null` when no `vehicle` was sent |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
 | `shortestOrder` | object | Only when the fastest order or the least fuel was asked for: the `distanceKm`, `durationSeconds`, `climbMetres`, `descentMetres` and `fuelLitres` of the shortest order, to hold this one against. Its time is `null` on straight lines, its climb and descent without heights, and its fuel without a `vehicle`, as for the plan. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
@@ -253,7 +256,7 @@ Three things to know about these figures.
 
 - **They are for clear roads.** The time is what each road's speed allows with nothing in the way. OpenStreetMap carries no traffic, so the same drive at five in the afternoon takes longer.
 - **They are driving time alone.** Nothing is added for the time spent at a stop.
-- **The order is chosen for distance unless the fastest is asked for.** The time is then how long the shortest order takes, and another order can be quicker and longer. See "The fastest order" below.
+- **The order is chosen for distance unless the fastest or the least fuel is asked for.** The time is then how long the shortest order takes, and another order can be quicker and longer. See "The fastest order" below.
 
 On straight lines both fields are `null`, not zero. A straight line says how far apart two places are, and nothing about how fast anybody gets from one to the other.
 
@@ -382,7 +385,7 @@ Things to know.
 - **Another order has to save a minute to be taken.** The times are for clear roads and the screen gives them to the minute. So when no order is a minute or more quicker than the shortest, the answer is the shortest order, and `shortestOrder` repeats its figures. Without that rule, 103 of the 400 round trips below changed order to save less than a minute, and one went 8.50 km further to save under half a minute.
 - **How often it changes the order.** On 400 made-up round trips of four to eight stops around Auckland, between places picked at random from the business names, with 87 minutes of driving at the middle, the order changed in 202. Where it did, it saved 2.5 minutes at the middle, 3% of the trip, and was 1.57 km longer. None saved more than 8.8 minutes, and none was more than 8.75 km longer. On 400 one-way trips the order changed in 148, saving 2.4 minutes at the middle and 10 at most.
 - **The times are for clear roads**, as said under "Driving times" above. From the Sky Tower to the Airport they give 21 minutes, where travel guides give about 25 off-peak. At rush hour the motorway the fastest order keeps to can be slower than the streets it avoids.
-- **A longer order takes more fuel.** The fuel is worked out for the order chosen, whatever it was chosen for.
+- **The fuel is worked out for the order chosen**, whatever it was chosen for. A longer order on the motorway can take less than a shorter one through town.
 - **On straight lines there is no time to choose by.** The order is chosen for distance as if nothing had been asked, and `shortestOrder` is `null`. It is not an error.
 - **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way.
 - **A stop kept in its place stays there.**
@@ -392,51 +395,65 @@ Things to know.
 Send the vehicle with the request and every leg says how much fuel it takes, and the plan says the same for the whole trip, in litres:
 
 ```json
-"vehicle": { "litresPer100Km": 7.5, "kilograms": 1270 }
+"vehicle": { "litresPer100Km": 7.5, "townLitresPer100Km": 9.8, "openRoadLitresPer100Km": 6.1, "kilograms": 1270 }
 ```
 
-For the five stops above that is 3.87 L: 51.57 km at 7.5 L for every 100 km, on straight lines, which have no hills. Without a `vehicle`, `totalFuelLitres`, `fuelCountsHills` and each leg's `fuelLitres` are `null`.
+For the five stops above that is 3.87 L: 51.57 km at 7.5 L for every 100 km, on straight lines, which have neither town roads nor hills. Without a `vehicle`, `totalFuelLitres`, `fuelCountsHills`, `fuelCountsSpeed` and each leg's `fuelLitres` are `null`.
 
-On roads read with their heights, and with `kilograms`, the fuel counts the hills and `fuelCountsHills` is `true`:
+#### Town and the open road
+
+On real roads a kilometre in town takes more fuel than one on the open road, with its stops, starts and low gears, and `fuelCountsSpeed` is `true`.
+
+- **Town is a road the engine drives at 60 km/h or less.** It drives a road at 90% of its limit, so that is a limit of 60 or less, and the open road starts at 70. Takapuna to Devonport along Lake Road is all town. Sylvia Park to Takapuna, 17 of its 21 km on the motorway, is 15% town, and the Sky Tower to the Airport 49%.
+- **Each leg takes the town figure for its kilometres in town and the open road's for the rest.**
+- **The two figures come from the register where it has them.** NZTA's register gives many cars a figure for each of the two parts of the test they were approved with, one in town and one on the open road: 4,357 of the 8,315 engines it lists, half the cars. A 2020 Corolla 2.0 sold new reads 7.5 in town and 5.1 on the open road.
+- **Otherwise they are worked out from the one figure.** Town takes 1.6 times the open road, and the two weighed as the test weighs them, with 37% of its distance in town, come to the one figure. Over the 4,888 engines the register gives all three figures, that weighing gives the combined figure to within 0.5% at the middle, and town takes 1.62 times the open road at the middle, 1.58 counted by their cars. So a dashboard figure of 7.5 is 9.8 in town and 6.1 on the open road.
+- **A car found in the register keeps its own split**, whether it goes by the register's figure or the dashboard's.
+- **Sent without them**, `townLitresPer100Km` and `openRoadLitresPer100Km` are worked out from `litresPer100Km` as above. Send both or neither. One alone is a 400.
+- **Traffic is not in it.** The town figure is the test's stops and starts, and not the day's traffic, as the driving times are for clear roads.
+
+#### Hills
+
+On roads read with their heights, and with `kilograms`, the fuel counts the hills too and `fuelCountsHills` is `true`:
 
 - **A climb costs the work of lifting the car and the driver.** That is their weight times the height, with 75 kg for the driver. The engine turns 30% of the extra fuel into that work, and a litre of petrol gives 33 MJ. So a 1,270 kg car takes about 0.13 L more for every 100 m up. Checked against a measurement on the road: a car climbing an average of 4% uses 1.5 to 2 times its fuel on the level. This gives 1.8 for cars from 1,000 to 1,800 kg.
-- **A descent gives that back, but never more than the same stretch takes on the level.** Once the slope does all the pulling, the engine burns next to nothing, and anything steeper is braked away. So a gentle hill gives back on the way down what it cost on the way up, and a steep one costs more than it gives. Measured on the road, descents of 1 to 3% made up for their climbs, and steeper ones did not. Each descent is counted on its own, from one turn of the road to the next, with the road it falls over.
-- **A round trip's hills cost little.** It comes down as far as it went up, and most descents are gentle. Measured over 142 drives across Auckland, the hills add 0.2% to the fuel. In Wellington, whose descents are steeper, they add 3%, and in Christchurch 0.1%. On real roads the five stops above take 5.77 L in a medium car at 7.5 L/100 km either way, while the legs run from 3.5% less, down to the airport, to 5.5% more, up from Devonport.
+- **A descent gives that back, but never more than the same stretch takes on the level** at the one figure, `litresPer100Km`. Once the slope does all the pulling, the engine burns next to nothing, and anything steeper is braked away. So a gentle hill gives back on the way down what it cost on the way up, and a steep one costs more than it gives. Measured on the road, descents of 1 to 3% made up for their climbs, and steeper ones did not. Each descent is counted on its own, from one turn of the road to the next, with the road it falls over.
+- **A round trip's hills cost little.** It comes down as far as it went up, and most descents are gentle. Measured over 142 drives across Auckland, the hills add 0.2% to the fuel. In Wellington, whose descents are steeper, they add 3%, and in Christchurch 0.1%. On real roads the five stops above take 6.19 L in a medium car at 7.5 L/100 km either way, while the legs run from 0.06 L less, down to the airport, to 0.06 L more, up from Devonport.
 - **A dashboard figure is taken as the figure for level road.** It is an average over the driving the car has done, hills included, and those hills add so little over time that this trip's are counted on top.
 
 The rest:
 
-- **Speed does not change it yet.** A trip that keeps to the motorway takes more or less than this says.
 - **The order is chosen as it would be without a vehicle**, unless the least fuel is asked for. See below.
 - **Rounded to a hundredth of a litre**, as distances are to a hundredth of a kilometre. The legs can add up to a hundredth more or less than the total.
 
-The screen sends the vehicle saved in the planner and its weight, see "The vehicle" below.
+The screen sends the vehicle saved in the planner, its figures in town and on the open road and its weight, see "The vehicle" below.
 
 ### The least fuel
 
-Send `"leastFuel": true` with a `vehicle` and the order is chosen for the fuel that vehicle takes, counted as under "Fuel" above. Left out, the order is chosen for distance. The hills can be counted only on roads read with their heights, for a vehicle sent with its `kilograms`.
+Send `"leastFuel": true` with a `vehicle` and the order is chosen for the fuel that vehicle takes, counted as under "Fuel" above: the town and open-road figures on real roads, and the hills on roads read with their heights, for a vehicle sent with its `kilograms`. Left out, the order is chosen for distance.
 
-The answer says what the shortest order comes to, in `shortestOrder`, with its `fuelLitres`. The five stops further up, in a medium car at 7.5 L/100 km:
+The answer says what the shortest order comes to, in `shortestOrder`, with its `fuelLitres`. In a medium car at 7.5 L/100 km, the five stops further up keep to the motorway. That is the fastest order, Takapuna first, 0.42 km longer for 0.08 L less:
 
 ```json
 {
-  "totalDistanceKm": 76.91,
-  "totalFuelLitres": 5.77,
+  "totalDistanceKm": 77.33,
+  "totalFuelLitres": 6.11,
   "fuelCountsHills": true,
-  "shortestOrder": { "distanceKm": 76.91, "durationSeconds": 5063, "climbMetres": 478, "descentMetres": 478, "fuelLitres": 5.77 }
+  "fuelCountsSpeed": true,
+  "shortestOrder": { "distanceKm": 76.91, "durationSeconds": 5063, "climbMetres": 478, "descentMetres": 478, "fuelLitres": 6.19 }
 }
 ```
 
 Things to know.
 
-- **Most often the shortest order takes the least fuel.** The fuel goes with the distance, and on a trip that ends where it began most descents give back what the climbs cost. Only a descent too steep to give it all back costs anything on top. On the 400 round trips around Auckland measured for the fastest order, 85 km at the middle, another order took less fuel in 25, and none by more than 0.02 L. On 400 round trips of four to eight stops between businesses in Wellington, whose hills are steeper, 69 changed and none saved more than 0.05 L. Both in a medium car, 1,270 kg at 7.5 L/100 km.
-- **Another order has to save a tenth of a litre to be taken**, as the fastest has to save a minute. The screen gives fuel to a tenth of a litre, worked out from a figure that is an average. None of the trips measured did: on 400 round trips and 400 one-way trips in each city, the answer was the shortest order every time. In Wellington it was the same for a small car, 1,020 kg at 5.5 L/100 km, and a large one, 1,570 kg at 10.
-- **A one-way trip is not sent to its lowest stop.** A trip that ends lower takes less fuel, but only because the car is left lower, and the next drive up takes that fuel back. Counted as driven, 15 of the 800 one-way trips would have changed order to save 0.1 to 0.33 L, every one by ending 113 to 334 m lower, for up to 2.9 km and 7 minutes more. So the order is chosen for the fuel a trip uses up for good: what its roads take on the level, and what its steep descents brake away. Over a round trip that is the fuel it takes. Another order is taken only when it saves a tenth of a litre both that way and as driven.
-- **Without what it needs, the shortest order.** On straight lines, on roads read without heights, and for a vehicle sent without `kilograms`, the fuel goes with the distance and the shortest order takes the least. `shortestOrder` is then `null`. It is not an error.
+- **The open road often takes less fuel than a shorter way through town.** On the 400 round trips around Auckland measured for the fastest order, 85 km at the middle, in a medium car, 1,270 kg at 7.5 L/100 km, another order than the shortest took less fuel in 265. It saved 0.09 L at the middle, 1.4%, and 0.58 L at most, 8.3%, for 0.95 km more at the middle and 7.03 km at most. It was 111 s quicker at the middle, and none was a minute or more slower. Over the 400 it took 1.2% less fuel than the shortest orders. On 400 round trips between businesses in Wellington, 23 km at the middle, 135 changed, saving 0.04 L at the middle and 0.40 L at most, and 1.0% over the 400.
+- **It is often the fastest order as well.** The two gave the same order on 261 of the Auckland round trips and 301 of Wellington's.
+- **Another order has to save a hundredth of a litre to be taken**, the least the answer gives. At a tenth, as it was before town and the open road were told apart, the fastest order took less fuel than the least fuel on 70 of the Auckland round trips, by saving a few hundredths that the least fuel left out. On a round trip it now never does.
+- **A one-way trip is not sent to its lowest stop.** A trip that ends lower takes less fuel, but only because the car is left lower, and the next drive up takes that fuel back. So the order is chosen for the fuel a trip uses up for good: what its roads take on the level, and what its steep descents brake away. Over a round trip that is the fuel it takes. Another order is taken only when it saves a hundredth of a litre both that way and as driven. So on 5 of 400 one-way trips around Auckland, the fastest order took 0.01 to 0.03 L less as driven, by ending lower.
+- **Without what it needs, the shortest order.** On straight lines the planner knows neither how fast the roads are nor how high, so the fuel goes with the distance and the shortest order takes the least. `shortestOrder` is then `null`. It is not an error. On roads read without heights, and for a vehicle sent without `kilograms`, town and the open road still count.
 - **A `vehicle` is needed**, and a request without one is refused with a 400.
 - **Not together with the fastest order.** A request with both is refused with a 400.
 - **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way. Roads chosen to climb less were tried, together with the order: on the 400 round trips around Auckland, in the medium car, they cut the climb by 3% and the fuel by 0.02%.
-- **Speed does not change the fuel yet**, as said under "Fuel", so the order is chosen for distance and hills alone.
 - **A stop kept in its place stays there.**
 
 ### Keeping a stop in its place
@@ -607,7 +624,7 @@ It is given one of two ways. Entered by hand: its size and what its dashboard sh
 Entered by hand:
 
 ```json
-{ "litresPer100Km": 7.5, "figureFrom": "dashboard", "size": "medium", "car": null, "kilograms": 1270 }
+{ "litresPer100Km": 7.5, "figureFrom": "dashboard", "townLitresPer100Km": 9.8, "openRoadLitresPer100Km": 6.1, "size": "medium", "car": null, "kilograms": 1270 }
 ```
 
 Found in the register, and going by the register's figure:
@@ -616,6 +633,8 @@ Found in the register, and going by the register's figure:
 {
   "litresPer100Km": 4.8,
   "figureFrom": "register",
+  "townLitresPer100Km": 5.8,
+  "openRoadLitresPer100Km": 4.2,
   "size": null,
   "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 },
   "kilograms": 890
@@ -626,6 +645,7 @@ Found in the register, and going by the register's figure:
 | --- | --- |
 | `litresPer100Km` | The fuel use plans go by, 2 to 30 |
 | `figureFrom` | `dashboard`: what the dashboard shows. `register`: the register's official figure, which real driving exceeds |
+| `townLitresPer100Km`, `openRoadLitresPer100Km` | What town roads and the open road take, to a tenth: the figure split as the register splits this car's, or the usual way for a vehicle entered by hand and a car it gives no split. See "Town and the open road" above |
 | `size` | For a vehicle entered by hand. `null` for a car found in the register |
 | `car` | For a car found in the register, as it describes it. `null` for a vehicle entered by hand |
 | `kilograms` | What it weighs empty, to the nearest 10 kg, see "The weight" below. `null` when the register no longer lists the car |
@@ -706,6 +726,7 @@ A missing `make`, `model` or `year` is a **400**.
 
 - **Laboratory figures, which real driving exceeds.** NZTA's road tests of 26 light vehicles found real use from 9% lower to 40% higher than the official figures. A dashboard figure is closer, so the screen asks for one too.
 - **A used import keeps the figure of the country it came from.** For the same car and engine it reads 1 to 13% lower than one sold new here. A 2018 Swift 1.2 reads 4.2 imported used and 4.8 sold new. A driver is not asked which theirs is, so each engine goes by the figure of whichever has more cars: 4.8 for that Swift, of which 1,344 were sold new and 552 imported used.
+- **Half the cars have a figure in town and one on the open road as well.** The register gives both for 4,357 of the 8,315 engines listed, from either origin. See "Town and the open road" above.
 - **The makers' own.** A 2020 Corolla GX 2.0 reads 6.0 and a Swift GLX 1.2 4.8, as Toyota and Suzuki published them.
 - **A car listed fewer than ten times is left out.** That is where the register's mistakes are, such as a 2005 Mondeo at 2.0 L/100 km or a Corolla with a 57.6 L engine. It leaves 9,342 makes, models, years and engines, for 2,061,242 cars: 74% of the country's petrol cars. Most of the rest are older: under half the cars made before 2004 have a figure at all.
 - **Some hybrids are listed as petrol.** An Aqua or a Prius imported used reads 2.6 or 2.7. That is its own figure.

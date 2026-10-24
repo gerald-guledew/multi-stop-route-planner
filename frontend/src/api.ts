@@ -142,20 +142,23 @@ export async function searchPlaces(
  * no heights to go on, or with no times, answers with the shortest order all the same.
  *
  * `vehicle` is what the fuel is worked out for. Without one the plan says nothing about fuel, and
- * the least fuel cannot be asked for. Its fuel use and its weight are sent, since that is all the
- * planner reads of it so far. Without the weight, the fuel does not count the hills.
+ * the least fuel cannot be asked for. Its figures, in town and on the open road as well, and its
+ * weight are sent: all the planner reads of it. Without the weight, the fuel does not count the
+ * hills.
  */
 export async function optimizeRoute(
   start: Place,
   stops: Place[],
   returnToStart: boolean,
   chosenFor: ChosenFor,
-  vehicle: Pick<Vehicle, 'litresPer100Km' | 'kilograms'> | null,
+  vehicle: Pick<Vehicle, 'litresPer100Km' | 'townLitresPer100Km' | 'openRoadLitresPer100Km' | 'kilograms'> | null,
 ): Promise<RoutePlan> {
   const fuel = vehicle
     ? {
         vehicle: {
           litresPer100Km: vehicle.litresPer100Km,
+          townLitresPer100Km: vehicle.townLitresPer100Km,
+          openRoadLitresPer100Km: vehicle.openRoadLitresPer100Km,
           ...(vehicle.kilograms === null ? {} : { kilograms: vehicle.kilograms }),
         },
       }

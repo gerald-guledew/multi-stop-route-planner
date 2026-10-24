@@ -84,6 +84,26 @@ public class CarRegister {
     }
 
     /**
+     * How many times the open road's fuel this car takes in town, from the register's town and
+     * open-road figures, of whichever origin has more cars among those it gives both. Empty when
+     * it gives this car neither, as for most cars imported used.
+     */
+    public OptionalDouble townOverOpenRoadOf(Car car) {
+        return jdbc.sql("""
+                        SELECT urban_litres_per_100_km / extra_urban_litres_per_100_km FROM car_variant
+                        WHERE make = ? AND model = ? AND year = ? AND engine_litres = ?
+                          AND urban_litres_per_100_km > 0 AND extra_urban_litres_per_100_km > 0
+                        ORDER BY cars DESC, imported_used
+                        LIMIT 1
+                        """)
+                .params(car.make(), car.model(), car.year(), car.engineLitres())
+                .query(Double.class)
+                .optional()
+                .map(OptionalDouble::of)
+                .orElse(OptionalDouble.empty());
+    }
+
+    /**
      * What this car weighs empty, from the gross mass the register gives it: see
      * {@link CarWeights}. When the register has no weight for most of these cars, the middle
      * weight of the cars with the same engine size. Empty when the register does not list it.

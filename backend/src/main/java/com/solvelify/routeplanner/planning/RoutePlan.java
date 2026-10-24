@@ -69,17 +69,28 @@ public record RoutePlan(
 
     /**
      * What the shortest order comes to, to hold a plan chosen for more than distance against.
-     * Its time is known wherever the roads are, and its climb where they were read with their
-     * heights.
+     * Its time and its kilometres in town are known wherever the roads are, and its climb where
+     * they were read with their heights.
      */
     public record ShortestOrder(
-            double distanceKm, OptionalDouble durationSeconds, Optional<ClimbAndDescent> climbAndDescent) {
+            double distanceKm,
+            OptionalDouble durationSeconds,
+            Optional<ClimbAndDescent> climbAndDescent,
+            OptionalDouble kmInTown) {
+
+        /** The shortest order on roads whose speeds are not known. */
+        public ShortestOrder(
+                double distanceKm, OptionalDouble durationSeconds, Optional<ClimbAndDescent> climbAndDescent) {
+            this(distanceKm, durationSeconds, climbAndDescent, OptionalDouble.empty());
+        }
     }
 
     /**
      * @param durationSeconds how long the drive takes, empty when distances are straight lines
      * @param climbAndDescent how much the drive goes up and comes down, empty unless the roads
      *                        were read with their heights
+     * @param kmInTown        how much of the drive is on town roads, where the fuel is the town
+     *                        figure. Empty when distances are straight lines
      * @param path            the road the drive follows, empty when distances are straight lines
      * @param turns           the turns along that road, from setting off to arriving, empty when
      *                        distances are straight lines
@@ -90,12 +101,25 @@ public record RoutePlan(
             double distanceKm,
             OptionalDouble durationSeconds,
             Optional<ClimbAndDescent> climbAndDescent,
+            OptionalDouble kmInTown,
             List<GeoPoint> path,
             List<Turn> turns) {
 
         public Leg {
             path = List.copyOf(path);
             turns = List.copyOf(turns);
+        }
+
+        /** A leg on roads whose speeds are not known. */
+        public Leg(
+                String from,
+                String to,
+                double distanceKm,
+                OptionalDouble durationSeconds,
+                Optional<ClimbAndDescent> climbAndDescent,
+                List<GeoPoint> path,
+                List<Turn> turns) {
+            this(from, to, distanceKm, durationSeconds, climbAndDescent, OptionalDouble.empty(), path, turns);
         }
 
         /** A leg whose turns are not known. */

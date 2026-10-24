@@ -54,6 +54,17 @@ public class Vehicles {
                 .orElseGet(() -> OptionalDouble.of(vehicle.getSize().kilograms()));
     }
 
+    /**
+     * How many times the open road's fuel the vehicle takes in town, by the register's figures for
+     * a car found there. Empty for a vehicle entered by hand, and for a car the register gives no
+     * such figures, which then go the usual way.
+     */
+    public OptionalDouble townOverOpenRoadOf(Vehicle vehicle) {
+        return vehicle.getCar()
+                .map(register::townOverOpenRoadOf)
+                .orElse(OptionalDouble.empty());
+    }
+
     /** Nothing happens when no vehicle is saved: removing nothing is not a mistake. */
     public void remove() {
         repository.deleteById(Vehicle.THE_ONE);

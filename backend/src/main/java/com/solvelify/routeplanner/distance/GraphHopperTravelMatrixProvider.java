@@ -7,6 +7,7 @@ import com.graphhopper.ResponsePath;
 import com.graphhopper.util.DistanceCalcEarth;
 import com.graphhopper.util.Parameters;
 import com.graphhopper.util.PointList;
+import com.graphhopper.util.details.PathDetail;
 import com.graphhopper.util.exceptions.PointNotFoundException;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.Directions;
@@ -44,6 +45,9 @@ import org.springframework.stereotype.Component;
  * On the real map that made a gorge road 1.3% longer than it measures on the map. So with heights
  * the distance is still taken off the map, as it is without them, and switching heights on does
  * not move it.
+ *
+ * <p>How much of a drive is in town is read off the speed the engine drives each stretch at, so
+ * the fuel can take a town figure there and the open road's elsewhere.
  */
 @Component
 @ConditionalOnProperty(name = "routeplanner.routing.provider", havingValue = RoutingProperties.GRAPHHOPPER)
@@ -54,6 +58,13 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
 
     private static final boolean EVERY_POINT = true;
     private static final boolean THINNED_FOR_DRAWING = false;
+
+    /**
+     * A stretch the engine drives at this speed or less counts as town for the fuel, and a faster
+     * one as the open road. The engine drives a road at 90% of its limit, so this puts a limit of
+     * 60 km/h or less in town and one of 70 or more on the open road.
+     */
+    static final double TOWN_KM_PER_HOUR = 60;
 
     private final GraphHopper graphHopper;
     private final String profile;
@@ -72,6 +83,7 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
         double[][] distances = new double[size][size];
         double[][] durations = new double[size][size];
         ClimbAndDescent[][] climbs = new ClimbAndDescent[size][size];
+        double[][] kmInTown = new double[size][size];
 
         for (int from = 0; from < size; from++) {
             for (int to = 0; to < size; to++) {
@@ -84,19 +96,22 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
                     distances[from][to] = road.metresOnTheMap() / METRES_PER_KM;
                     durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
                     climbs[from][to] = HeightProfile.climbAndDescent(road.metresAlong(), road.heights());
+                    kmInTown[from][to] = distances[from][to] * shareInTown(road.metresAlong(), drive);
                 } else {
                     ResponsePath drive = bestPath(places.get(from), places.get(to), THINNED_FOR_DRAWING);
                     distances[from][to] = drive.getDistance() / METRES_PER_KM;
                     durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
+                    kmInTown[from][to] = distances[from][to] * shareInTown(metresAlong(drive.getPoints()), drive);
                 }
             }
         }
 
         // Without heights there is nothing to say about climb, which is not the same as a level
         // road. The engine itself answers nought for every drive on such a graph.
-        return roadsHaveHeights
+        return (roadsHaveHeights
                 ? new TravelMatrix(distances, durations, climbs)
-                : new TravelMatrix(distances, durations);
+                : new TravelMatrix(distances, durations))
+                .withKmInTown(kmInTown);
     }
 
     @Override
@@ -122,7 +137,8 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
      *                   and the heights of a straight road go with them
      */
     private ResponsePath bestPath(Location from, Location to, boolean everyPoint) {
-        GHRequest request = requestFor(from, to, profile);
+        GHRequest request = requestFor(from, to, profile)
+                .setPathDetails(List.of(Parameters.Details.AVERAGE_SPEED));
         if (everyPoint) {
             request.putHint(Parameters.Routing.WAY_POINT_MAX_DISTANCE, 0);
         }
@@ -146,23 +162,46 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
     }
 
     /**
+     * The share of a drive on town roads, from the speed the engine gives each stretch of it.
+     * Measured along its points, so it holds whichever way the drive itself was measured.
+     */
+    private static double shareInTown(double[] metresAlong, ResponsePath drive) {
+        double total = metresAlong.length == 0 ? 0 : metresAlong[metresAlong.length - 1];
+        if (total == 0) {
+            return 0;
+        }
+        double inTown = 0;
+        for (PathDetail stretch : drive.getPathDetails().getOrDefault(Parameters.Details.AVERAGE_SPEED, List.of())) {
+            if (stretch.getValue() instanceof Number speed && speed.doubleValue() <= TOWN_KM_PER_HOUR) {
+                inTown += metresAlong[stretch.getLast()] - metresAlong[stretch.getFirst()];
+            }
+        }
+        return inTown / total;
+    }
+
+    /** How far along a drive each of its points is, measured on the map. */
+    private static double[] metresAlong(PointList points) {
+        double[] metresAlong = new double[points.size()];
+        for (int at = 1; at < points.size(); at++) {
+            metresAlong[at] = metresAlong[at - 1] + DistanceCalcEarth.DIST_EARTH.calcDist(
+                    points.getLat(at - 1), points.getLon(at - 1),
+                    points.getLat(at), points.getLon(at));
+        }
+        return metresAlong;
+    }
+
+    /**
      * One drive as a line of points: how far along the drive each one is, measured on the map,
      * and how high it is.
      */
     private record Road(double[] metresAlong, double[] heights) {
 
         static Road along(PointList points) {
-            double[] metresAlong = new double[points.size()];
             double[] heights = new double[points.size()];
             for (int at = 0; at < points.size(); at++) {
                 heights[at] = points.getEle(at);
-                if (at > 0) {
-                    metresAlong[at] = metresAlong[at - 1] + DistanceCalcEarth.DIST_EARTH.calcDist(
-                            points.getLat(at - 1), points.getLon(at - 1),
-                            points.getLat(at), points.getLon(at));
-                }
             }
-            return new Road(metresAlong, heights);
+            return new Road(GraphHopperTravelMatrixProvider.metresAlong(points), heights);
         }
 
         double metresOnTheMap() {

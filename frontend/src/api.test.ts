@@ -266,22 +266,25 @@ describe('planning a route', () => {
     })
   })
 
-  it('sends the fuel use of the vehicle and its weight, when there is one', async () => {
+  /** A medium car's figures, as the planner gives them for a vehicle entered by hand. */
+  const A_MEDIUM_CAR = { litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, kilograms: 1270 }
+
+  it('sends the fuel use of the vehicle, in town and on the open road, and its weight, when there is one', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, true, 'distance', { litresPer100Km: 7.5, kilograms: 1270 })
+    await optimizeRoute(start, stops, true, 'distance', A_MEDIUM_CAR)
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
-    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, kilograms: 1270 })
+    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, kilograms: 1270 })
   })
 
   it('sends the fuel use alone for a vehicle whose weight is not known', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, true, 'distance', { litresPer100Km: 7.5, kilograms: null })
+    await optimizeRoute(start, stops, true, 'distance', { ...A_MEDIUM_CAR, kilograms: null })
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
-    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5 })
+    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1 })
   })
 
   it('sends no vehicle when there is none', async () => {
@@ -307,12 +310,12 @@ describe('planning a route', () => {
   it('asks for the least fuel of the vehicle when told to', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
-    await optimizeRoute(start, stops, true, 'fuel', { litresPer100Km: 7.5, kilograms: 1270 })
+    await optimizeRoute(start, stops, true, 'fuel', A_MEDIUM_CAR)
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.leastFuel).toBe(true)
     expect(sent.fastest).toBe(false)
-    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, kilograms: 1270 })
+    expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, kilograms: 1270 })
   })
 
   it('says which stops have to keep their place', async () => {

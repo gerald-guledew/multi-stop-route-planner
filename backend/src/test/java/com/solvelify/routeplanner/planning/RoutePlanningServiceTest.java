@@ -549,9 +549,10 @@ class RoutePlanningServiceTest {
     }
 
     @Test
-    void keepsTheShortestOrderWhenNoOtherSavesATenthOfALitre() {
-        // With 6 km down to Home, the other way round saves 0.09 L, for 2 km more.
-        RoutePlan plan = forFuel(aHillWithTheWayDownToHome(6), THERE_AND_BACK, A_MEDIUM_CAR);
+    void keepsTheShortestOrderWhenNoOtherSavesAHundredthOfALitre() {
+        // With 7.1 km down to Home, the other way round gives back the whole climb and takes the
+        // 11.1 km on the level: 0.8325 L, under a hundredth less, for 3.1 km more.
+        RoutePlan plan = forFuel(aHillWithTheWayDownToHome(7.1), THERE_AND_BACK, A_MEDIUM_CAR);
 
         assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
         // Still held against the shortest order, which it is.
@@ -630,7 +631,7 @@ class RoutePlanningServiceTest {
     }
 
     @Test
-    void choosesForDistanceWhenTheRoadsHaveNoHeightsAndTheFuelIsAskedFor() {
+    void choosesForDistanceWhenNeitherTheSpeedsNorTheHillsAreKnown() {
         RoutePlan plan = forFuel(ROADS_WITH_TIMES, THERE_AND_BACK, A_MEDIUM_CAR);
 
         assertThat(plan.totalDistanceKm()).isEqualTo(35);
@@ -660,5 +661,40 @@ class RoutePlanningServiceTest {
 
         assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
         assertThat(plan.shortestOrder()).isEmpty();
+    }
+
+    // The least fuel on roads whose speeds are known.
+
+    /**
+     * The roads with times, where one way round keeps to the open road and the other to town:
+     * Home, Office, Shop and back is 36 km of open road, and Home, Shop, Office and back, the
+     * shortest, is 35 km in town.
+     */
+    private static final TravelMatrixProvider TOWN_ONE_WAY_ROUND = places -> ROADS_WITH_TIMES.matrixFor(places)
+            .withKmInTown(new double[][] {
+                {0, 0, 20},
+                {10, 0, 0},
+                {0, 5, 0},
+            });
+
+    /** A car that takes 9 L/100 km in town and 6 on the open road, its weight not known. */
+    private static final Optional<FuelUse> TOWN_AND_OPEN_ROAD = Optional.of(new FuelUse(7.5, 9.0, 6.0, OptionalDouble.empty()));
+
+    @Test
+    void goesFurtherToKeepToTheOpenRoad() {
+        // 36 km at 6 L/100 km is 2.16 L. The shortest, 35 km at 9, is 3.15 L.
+        RoutePlan plan = forFuel(TOWN_ONE_WAY_ROUND, THERE_AND_BACK, TOWN_AND_OPEN_ROAD);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.totalDistanceKm()).isEqualTo(36);
+    }
+
+    @Test
+    void givesEachLegAndTheShortestOrderTheirKilometresInTown() {
+        RoutePlan plan = forFuel(TOWN_ONE_WAY_ROUND, THERE_AND_BACK, TOWN_AND_OPEN_ROAD);
+
+        assertThat(plan.legs()).extracting(RoutePlan.Leg::kmInTown)
+                .containsExactly(OptionalDouble.of(0), OptionalDouble.of(0), OptionalDouble.of(0));
+        assertThat(plan.shortestOrder().orElseThrow().kmInTown()).hasValue(35);
     }
 }

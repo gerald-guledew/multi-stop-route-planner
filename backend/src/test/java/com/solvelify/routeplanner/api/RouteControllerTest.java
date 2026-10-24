@@ -96,6 +96,64 @@ class RouteControllerTest {
                 .andExpect(jsonPath("$.totalFuelLitres").value(1.04));
     }
 
+    // Town and the open road.
+
+    @Test
+    void passesOnTheTownAndOpenRoadFiguresSent() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"returnToStart\": true, \"vehicle\": "
+                                + "{ \"litresPer100Km\": 7.5, \"townLitresPer100Km\": 9.0, \"openRoadLitresPer100Km\": 6.0, \"kilograms\": 1225 }")))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE),
+                eq(Optional.of(new FuelUse(7.5, 9.0, 6.0, OptionalDouble.of(1225)))));
+    }
+
+    @Test
+    void refusesATownFigureWithoutTheOpenRoads() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"returnToStart\": true, \"vehicle\": "
+                                + "{ \"litresPer100Km\": 7.5, \"townLitresPer100Km\": 9.0 }")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("vehicle.townAndOpenRoad"))
+                .andExpect(jsonPath("$.errors[0].message")
+                        .value("must send townLitresPer100Km and openRoadLitresPer100Km together, or neither"));
+    }
+
+    @Test
+    void takesTheTownFigureForTheKilometresInTown() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+                .willReturn(aPlanWhoseRoadsSpeedsAreKnown());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"returnToStart\": true, \"vehicle\": "
+                                + "{ \"litresPer100Km\": 7.5, \"townLitresPer100Km\": 9.0, \"openRoadLitresPer100Km\": 6.0 }")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fuelCountsSpeed").value(true))
+                // 4 km in town at 9 L/100 km and 5.412 km on the open road at 6: 0.685 L.
+                .andExpect(jsonPath("$.legs[0].fuelLitres").value(0.68))
+                // 5 km in town and 4.873 km on the open road: 0.742 L.
+                .andExpect(jsonPath("$.legs[1].fuelLitres").value(0.74))
+                .andExpect(jsonPath("$.totalFuelLitres").value(1.43));
+    }
+
+    @Test
+    void saysTheFuelDoesNotCountTheSpeedOnStraightLines() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5 }")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fuelCountsSpeed").value(false));
+    }
+
     @Test
     void saysNothingAboutFuelWithoutAVehicle() throws Exception {
         given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
@@ -107,6 +165,7 @@ class RouteControllerTest {
                 .andExpect(jsonPath("$", hasKey("totalFuelLitres")))
                 .andExpect(jsonPath("$.totalFuelLitres").value(nullValue()))
                 .andExpect(jsonPath("$.fuelCountsHills").value(nullValue()))
+                .andExpect(jsonPath("$.fuelCountsSpeed").value(nullValue()))
                 .andExpect(jsonPath("$.legs[0].fuelLitres").value(nullValue()));
     }
 
@@ -651,6 +710,24 @@ class RouteControllerTest {
                 chosen.enteredOrderDistanceKm(),
                 chosen.ordersChecked(),
                 Optional.of(new RoutePlan.ShortestOrder(18.936, OptionalDouble.of(1745.6), Optional.empty())));
+    }
+
+    /** Sky Tower to Takapuna and back on roads whose speeds are known, 4 km and 5 km of it in town. */
+    private static RoutePlan aPlanWhoseRoadsSpeedsAreKnown() {
+        Location skyTower = new Location("Sky Tower", -36.8485, 174.7621);
+        Location takapuna = new Location("Takapuna", -36.7870, 174.7740);
+
+        return new RoutePlan(
+                List.of(skyTower, takapuna, skyTower),
+                List.of(
+                        new RoutePlan.Leg("Sky Tower", "Takapuna", 9.412, OptionalDouble.of(754.4), Optional.empty(),
+                                OptionalDouble.of(4), List.of(), List.of()),
+                        new RoutePlan.Leg("Takapuna", "Sky Tower", 9.873, OptionalDouble.of(801.6), Optional.empty(),
+                                OptionalDouble.of(5), List.of(), List.of())),
+                19.285,
+                OptionalDouble.of(1556.0),
+                19.285,
+                1);
     }
 
     private static RoutePlan aPlanWithClimbs() {

@@ -72,6 +72,29 @@ class VehicleControllerTest {
     }
 
     @Test
+    void givesTheTownAndOpenRoadFiguresSplitTheUsualWay() throws Exception {
+        given(vehicles.current()).willReturn(Optional.of(new Vehicle(7.5, VehicleSize.MEDIUM)));
+
+        // 7.5 split with town 1.6 times the open road, weighed as the approval test weighs them.
+        mockMvc.perform(get("/api/v1/vehicle"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.townLitresPer100Km").value(9.8))
+                .andExpect(jsonPath("$.openRoadLitresPer100Km").value(6.1));
+    }
+
+    @Test
+    void splitsTheFigureAsTheRegisterSplitsTheCar() throws Exception {
+        Vehicle found = new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null);
+        given(vehicles.current()).willReturn(Optional.of(found));
+        given(vehicles.townOverOpenRoadOf(found)).willReturn(OptionalDouble.of(6.0 / 4.1));
+
+        mockMvc.perform(get("/api/v1/vehicle"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.townLitresPer100Km").value(6.0))
+                .andExpect(jsonPath("$.openRoadLitresPer100Km").value(4.1));
+    }
+
+    @Test
     void givesTheCarFoundInTheRegister() throws Exception {
         given(vehicles.current()).willReturn(Optional.of(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null)));
 

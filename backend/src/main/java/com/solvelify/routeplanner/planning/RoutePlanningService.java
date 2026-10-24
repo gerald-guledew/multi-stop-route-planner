@@ -27,11 +27,12 @@ public class RoutePlanningService {
 
     /**
      * How much an order found for fuel has to save over the shortest to be taken, both in the fuel
-     * it uses up for good and in the fuel it takes as driven. The screen gives fuel to a tenth of a
-     * litre, worked out from a figure that is an average, so less than that is no reason to drive
-     * further.
+     * it uses up for good and in the fuel it takes as driven: a hundredth of a litre, the least the
+     * answer gives. Less is two orders taking the same. At a tenth, as it was, the fastest order
+     * took less fuel than the least fuel on 70 of 400 round trips around Auckland, by saving a few
+     * hundredths on the motorway that the least fuel then left out.
      */
-    static final double LEAST_LITRES_SAVED = 0.1;
+    static final double LEAST_LITRES_SAVED = 0.01;
 
     private final TravelMatrixProvider travelMatrixProvider;
     private final RouteSolver routeSolver;
@@ -212,6 +213,7 @@ public class RoutePlanningService {
                     matrix.distanceKm(path[step], path[step + 1]),
                     matrix.durationSeconds(path[step], path[step + 1]),
                     matrix.climbAndDescent(path[step], path[step + 1]),
+                    matrix.kmInTown(path[step], path[step + 1]),
                     directions.path(),
                     directions.turns()));
         }
@@ -250,12 +252,17 @@ public class RoutePlanningService {
         return Optional.of(total);
     }
 
-    /** The fuel for the whole trip, with the hills of each leg where the matrix knows them. */
+    /**
+     * The fuel for the whole trip, with each leg's kilometres in town and its hills where the
+     * matrix knows them.
+     */
     private static double litresAlong(int[] path, TravelMatrix matrix, FuelUse vehicle) {
         double total = 0;
         for (int step = 0; step < path.length - 1; step++) {
+            int from = path[step];
+            int to = path[step + 1];
             total += vehicle.litresFor(
-                    matrix.distanceKm(path[step], path[step + 1]), matrix.climbAndDescent(path[step], path[step + 1]));
+                    matrix.distanceKm(from, to), matrix.kmInTown(from, to), matrix.climbAndDescent(from, to));
         }
         return total;
     }
@@ -264,15 +271,31 @@ public class RoutePlanningService {
     private static double litresUsedUpAlong(int[] path, TravelMatrix matrix, FuelUse vehicle) {
         double total = 0;
         for (int step = 0; step < path.length - 1; step++) {
+            int from = path[step];
+            int to = path[step + 1];
             total += vehicle.litresUsedUpFor(
-                    matrix.distanceKm(path[step], path[step + 1]), matrix.climbAndDescent(path[step], path[step + 1]));
+                    matrix.distanceKm(from, to), matrix.kmInTown(from, to), matrix.climbAndDescent(from, to));
         }
         return total;
     }
 
     private static RoutePlan.ShortestOrder shortestOrderAlong(int[] path, TravelMatrix matrix) {
         return new RoutePlan.ShortestOrder(
-                distanceAlong(path, matrix), durationAlong(path, matrix), climbAlong(path, matrix));
+                distanceAlong(path, matrix), durationAlong(path, matrix), climbAlong(path, matrix),
+                kmInTownAlong(path, matrix));
+    }
+
+    /** The kilometres in town of the whole trip, or empty when the matrix has none. */
+    private static OptionalDouble kmInTownAlong(int[] path, TravelMatrix matrix) {
+        double total = 0;
+        for (int step = 0; step < path.length - 1; step++) {
+            OptionalDouble leg = matrix.kmInTown(path[step], path[step + 1]);
+            if (leg.isEmpty()) {
+                return OptionalDouble.empty();
+            }
+            total += leg.getAsDouble();
+        }
+        return OptionalDouble.of(total);
     }
 
     private static double distanceAlong(int[] path, TravelMatrix matrix) {
