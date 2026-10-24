@@ -261,7 +261,6 @@ describe('planning a route', () => {
       start,
       stops,
       returnToStart: false,
-      factorInRoadClimbs: false,
       fastest: false,
       leastFuel: false,
     })
@@ -294,17 +293,6 @@ describe('planning a route', () => {
     expect(sent).not.toHaveProperty('vehicle')
   })
 
-  it('asks for road climbs to be factored in when told to', async () => {
-    const fetched = apiThatAnswers(200, { route: [], legs: [] })
-
-    await optimizeRoute(start, stops, true, 'distanceAndClimb', null)
-
-    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
-    expect(sent.factorInRoadClimbs).toBe(true)
-    expect(sent.fastest).toBe(false)
-    expect(sent.returnToStart).toBe(true)
-  })
-
   it('asks for the fastest order when told to', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
 
@@ -312,8 +300,8 @@ describe('planning a route', () => {
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.fastest).toBe(true)
-    expect(sent.factorInRoadClimbs).toBe(false)
     expect(sent.leastFuel).toBe(false)
+    expect(sent.returnToStart).toBe(true)
   })
 
   it('asks for the least fuel of the vehicle when told to', async () => {
@@ -324,7 +312,6 @@ describe('planning a route', () => {
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.leastFuel).toBe(true)
     expect(sent.fastest).toBe(false)
-    expect(sent.factorInRoadClimbs).toBe(false)
     expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, kilograms: 1270 })
   })
 

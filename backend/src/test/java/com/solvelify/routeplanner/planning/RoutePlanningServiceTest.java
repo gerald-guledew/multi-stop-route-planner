@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import com.solvelify.routeplanner.distance.HaversineTravelMatrixProvider;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -26,11 +25,8 @@ class RoutePlanningServiceTest {
 
     private static final List<Location> STOPS = List.of(TAKAPUNA, AIRPORT, DEVONPORT, SYLVIA_PARK);
 
-    /** The settings as shipped: a metre climbed counts as 10 m of road. */
-    private static final PlanningProperties AS_SHIPPED = new PlanningProperties(null);
-
     private final RoutePlanningService service = new RoutePlanningService(
-            new HaversineTravelMatrixProvider(), new BruteForceRouteSolver(), AS_SHIPPED);
+            new HaversineTravelMatrixProvider(), new BruteForceRouteSolver());
 
     @Test
     void findsTheShortestRoundTrip() {
@@ -158,7 +154,7 @@ class RoutePlanningServiceTest {
      * 20 + 5 + 10 = 35 km and 1500 + 300 + 600 = 2400 seconds. So the shortest order is not
      * the order entered, and not the quickest either.
      */
-    private static final TravelMatrixProvider ROADS_WITH_TIMES = (places, roads) -> new TravelMatrix(
+    private static final TravelMatrixProvider ROADS_WITH_TIMES = places -> new TravelMatrix(
             new double[][] {
                 {0, 11, 20},
                 {10, 0, 5},
@@ -171,7 +167,7 @@ class RoutePlanningServiceTest {
             });
 
     private final RoutePlanningService onRoadsWithTimes =
-            new RoutePlanningService(ROADS_WITH_TIMES, new BruteForceRouteSolver(), AS_SHIPPED);
+            new RoutePlanningService(ROADS_WITH_TIMES, new BruteForceRouteSolver());
 
     @Test
     void saysHowLongEachLegOfTheChosenOrderTakes() {
@@ -223,7 +219,7 @@ class RoutePlanningServiceTest {
      * over a ridge 160 m high, so it climbs 150 m and comes down 100 m. The other two roads
      * slope one way only.
      */
-    private static final TravelMatrixProvider ROADS_WITH_HEIGHTS = (places, roads) -> new TravelMatrix(
+    private static final TravelMatrixProvider ROADS_WITH_HEIGHTS = places -> new TravelMatrix(
             new double[][] {
                 {0, 11, 20},
                 {10, 0, 5},
@@ -241,7 +237,7 @@ class RoutePlanningServiceTest {
             });
 
     private final RoutePlanningService onRoadsWithHeights =
-            new RoutePlanningService(ROADS_WITH_HEIGHTS, new BruteForceRouteSolver(), AS_SHIPPED);
+            new RoutePlanningService(ROADS_WITH_HEIGHTS, new BruteForceRouteSolver());
 
     @Test
     void saysHowMuchEachLegOfTheChosenOrderClimbsAndDescends() {
@@ -305,252 +301,48 @@ class RoutePlanningServiceTest {
         assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.climbAndDescent()).isEmpty());
     }
 
-    // An order chosen for distance and climb together.
+    // The same three places, on trips that keep a stop or not, one way or there and back.
 
     private static final List<Location> OFFICE_AND_SHOP = List.of(OFFICE, SHOP);
     private static final Set<Integer> NONE_KEPT = Set.of();
     private static final boolean ONE_WAY = false;
     private static final boolean THERE_AND_BACK = true;
 
-    /**
-     * The same three places and the same hills, with the Shop nearer Home. One way, Home,
-     * Office, Shop is 11 + 5 = 16 km and goes over the ridge, climbing 150 m. Home, Shop, Office
-     * is 11.5 + 5 = 16.5 km and climbs 20 + 30 = 50 m. So the shortest order climbs 100 m more
-     * to be half a kilometre shorter.
-     *
-     * <p>There and back is another matter. Home, Office, Shop, Home is 11 + 5 + 12 = 28 km and
-     * the other way round is 11.5 + 5 + 14 = 30.5 km. Both climb 150 m, as a round trip over the
-     * same roads must, whichever way it is driven.
-     */
-    private static final TravelMatrixProvider A_RIDGE_ON_THE_SHORT_WAY = (places, roads) -> new TravelMatrix(
-            new double[][] {
-                {0, 11, 11.5},
-                {14, 0, 5},
-                {12, 5, 0},
-            },
-            new double[][] {
-                {0, 100, 1500},
-                {600, 0, 100},
-                {100, 300, 0},
-            },
-            new ClimbAndDescent[][] {
-                {ClimbAndDescent.LEVEL, new ClimbAndDescent(150, 100), new ClimbAndDescent(20, 0)},
-                {new ClimbAndDescent(100, 150), ClimbAndDescent.LEVEL, new ClimbAndDescent(0, 30)},
-                {new ClimbAndDescent(0, 20), new ClimbAndDescent(30, 0), ClimbAndDescent.LEVEL},
-            });
+    // The road of each leg, and its turns.
 
-    private final RoutePlanningService overTheRidge =
-            new RoutePlanningService(A_RIDGE_ON_THE_SHORT_WAY, new BruteForceRouteSolver(), AS_SHIPPED);
+    /** A road on the map and a turn onto it, the same for every drive. */
+    private static final GeoPoint ON_THE_ROAD = new GeoPoint(-36.86, 174.77);
+    private static final Turn ONTO_THE_ROAD = Turn.onto(Turn.Way.LEFT, "Usual Road", 100);
 
-    @Test
-    void goesALittleFurtherToClimbAGoodDealLess() {
-        // The 100 m of climb saved count as a kilometre of road. The way round is half of one.
-        RoutePlan plan = overTheRidge.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(names(plan)).containsExactly("Home", "Shop", "Office");
-        assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(50, 0));
-    }
-
-    @Test
-    void saysHowFarTheOrderGoesAndNotWhatItCameToWithTheClimbCounted() {
-        RoutePlan plan = overTheRidge.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
-
-        // 16.5 km of road. With the climb counted it came to 17.
-        assertThat(plan.totalDistanceKm()).isEqualTo(16.5);
-        assertThat(plan.legs()).extracting(RoutePlan.Leg::distanceKm).containsExactly(11.5, 5.0);
-    }
-
-    @Test
-    void saysWhatTheShortestOrderWouldHaveComeTo() {
-        RoutePlan plan = overTheRidge.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(plan.shortestOrder()).contains(new RoutePlan.ShortestOrder(
-                16, OptionalDouble.of(200), Optional.of(new ClimbAndDescent(150, 130))));
-    }
-
-    @Test
-    void takesTheShortestOrderUnlessAskedToCountTheClimb() {
-        RoutePlan forDistance = overTheRidge.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE);
-        RoutePlan nothingSaid = overTheRidge.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY);
-
-        assertThat(names(forDistance)).containsExactly("Home", "Office", "Shop");
-        assertThat(forDistance.totalDistanceKm()).isEqualTo(16);
-        // Nothing to hold it against. It is the shortest order.
-        assertThat(forDistance.shortestOrder()).isEmpty();
-        assertThat(nothingSaid).isEqualTo(forDistance);
-    }
-
-    @Test
-    void countsTheClimbOfTheDriveHomeAsWell() {
-        // There and back both orders climb 150 m, so the shorter one stands. Judged on the way
-        // out alone, the order would have changed.
-        RoutePlan plan = overTheRidge.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
-        assertThat(plan.totalDistanceKm()).isEqualTo(28);
-    }
-
-    @Test
-    void givesTheSameFiguresTwiceWhenTheShortestOrderStands() {
-        RoutePlan plan = overTheRidge.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(150, 150));
-        assertThat(plan.shortestOrder()).contains(new RoutePlan.ShortestOrder(
-                28, OptionalDouble.of(300), Optional.of(new ClimbAndDescent(150, 150))));
-    }
-
-    @Test
-    void doesNotGoFarOutOfItsWayForTheClimb() {
-        // On the roads further up, going by the Shop first is 9 km longer. The 100 m of climb
-        // it saves count as one.
-        RoutePlan plan = onRoadsWithHeights.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
-        assertThat(plan.totalDistanceKm()).isEqualTo(16);
-    }
-
-    @Test
-    void leavesAKeptStopAtItsTurnWhenCountingTheClimb() {
-        // With the Office kept first there is one order, and it goes over the ridge.
-        RoutePlan plan = overTheRidge.plan(
-                HOME, OFFICE_AND_SHOP, Set.of(0), ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
-        assertThat(plan.ordersChecked()).isEqualTo(1);
-    }
-
-    @Test
-    void countsAMetreClimbedAsManyMetresOfRoadAsItIsSetTo() {
-        // At 4 m of road each, the 100 m saved count as 400 m. The way round is 500 m.
-        RoutePlanningService countingLessForTheClimb = new RoutePlanningService(
-                A_RIDGE_ON_THE_SHORT_WAY, new BruteForceRouteSolver(), new PlanningProperties(4.0));
-
-        RoutePlan plan = countingLessForTheClimb.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
-        // The climb was counted, though it changed nothing, so the shortest order is given.
-        assertThat(plan.shortestOrder()).isPresent();
-    }
-
-    @Test
-    void choosesForDistanceWhenTheRoadsHaveNoHeights() {
-        RoutePlan plan = onRoadsWithTimes.plan(
-                HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
-        assertThat(plan.totalDistanceKm()).isEqualTo(16);
-        // No climb was counted, and giving no shortest order is how the plan says so.
-        assertThat(plan.shortestOrder()).isEmpty();
-    }
-
-    @Test
-    void choosesForDistanceOnStraightLinesWhateverWasAsked() {
-        RoutePlan plan = service.plan(SKY_TOWER, STOPS, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(plan.totalDistanceKm()).isCloseTo(51.76, within(0.01));
-        assertThat(plan.shortestOrder()).isEmpty();
-    }
-
-    // The roads between the stops, when the climb is counted.
-
-    /**
-     * The roads over the ridge, and other roads that climb less: from Home to the Office one goes
-     * round the ridge, 11.3 km climbing 60 m and coming down 10. Every other drive is the same.
-     *
-     * <p>One way, Home, Office, Shop is then 11.3 + 5 = 16.3 km and climbs 60 m, which with the
-     * climb counted comes to 16.9. Home, Shop, Office still comes to 17. So the order stays as
-     * entered, and the road round the ridge is taken.
-     */
-    private static final TravelMatrixProvider ROUND_THE_RIDGE = (places, roads) -> new TravelMatrix(
-            new double[][] {
-                {0, 11.3, 11.5},
-                {14, 0, 5},
-                {12, 5, 0},
-            },
-            new double[][] {
-                {0, 120, 1500},
-                {600, 0, 100},
-                {100, 300, 0},
-            },
-            new ClimbAndDescent[][] {
-                {ClimbAndDescent.LEVEL, new ClimbAndDescent(60, 10), new ClimbAndDescent(20, 0)},
-                {new ClimbAndDescent(100, 150), ClimbAndDescent.LEVEL, new ClimbAndDescent(0, 30)},
-                {new ClimbAndDescent(0, 20), new ClimbAndDescent(30, 0), ClimbAndDescent.LEVEL},
-            });
-
-    /** A road on the map, drawn by which roads it was asked along, and a turn named the same way. */
-    private static final GeoPoint ON_THE_USUAL_ROADS = new GeoPoint(0, 0);
-    private static final GeoPoint ON_THE_ROADS_CLIMBING_LESS = new GeoPoint(1, 1);
-    private static final Turn ONTO_THE_USUAL_ROAD = Turn.onto(Turn.Way.LEFT, "Usual Road", 100);
-    private static final Turn ONTO_THE_ROAD_CLIMBING_LESS = Turn.onto(Turn.Way.LEFT, "Low Road", 100);
-
-    /** One provider for the usual roads and another for those that climb less, and what was asked. */
-    private static final class TwoKindsOfRoads implements TravelMatrixProvider {
-
-        private final TravelMatrixProvider usual;
-        private final TravelMatrixProvider climbingLess;
-        private final List<Roads> asked = new ArrayList<>();
-
-        TwoKindsOfRoads(TravelMatrixProvider usual, TravelMatrixProvider climbingLess) {
-            this.usual = usual;
-            this.climbingLess = climbingLess;
+    /** The roads with times, and how to drive them. */
+    private static final TravelMatrixProvider ROADS_DRAWN = new TravelMatrixProvider() {
+        @Override
+        public TravelMatrix matrixFor(List<Location> places) {
+            return ROADS_WITH_TIMES.matrixFor(places);
         }
 
         @Override
-        public TravelMatrix matrixFor(List<Location> places, Roads roads) {
-            asked.add(roads);
-            return (roads == Roads.USUAL ? usual : climbingLess).matrixFor(places, roads);
+        public Directions directionsBetween(Location from, Location to) {
+            return new Directions(List.of(ON_THE_ROAD), List.of(ONTO_THE_ROAD));
         }
+    };
 
-        @Override
-        public Directions directionsBetween(Location from, Location to, Roads roads) {
-            return roads == Roads.USUAL
-                    ? new Directions(List.of(ON_THE_USUAL_ROADS), List.of(ONTO_THE_USUAL_ROAD))
-                    : new Directions(List.of(ON_THE_ROADS_CLIMBING_LESS), List.of(ONTO_THE_ROAD_CLIMBING_LESS));
-        }
-    }
-
-    private final TwoKindsOfRoads roundTheRidge = new TwoKindsOfRoads(A_RIDGE_ON_THE_SHORT_WAY, ROUND_THE_RIDGE);
-
-    private RoutePlan countingTheClimb(TravelMatrixProvider roads, ChosenFor chosenFor) {
-        return new RoutePlanningService(roads, new BruteForceRouteSolver(), AS_SHIPPED)
-                .plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, ONE_WAY, chosenFor);
-    }
+    private final RoutePlanningService onRoadsDrawn = new RoutePlanningService(ROADS_DRAWN, new BruteForceRouteSolver());
 
     @Test
-    void takesTheRoadRoundTheRidgeWhenCountingTheClimb() {
-        RoutePlan plan = countingTheClimb(roundTheRidge, ChosenFor.DISTANCE_AND_CLIMB);
+    void drawsEachLegAlongItsRoad() {
+        RoutePlan plan = onRoadsDrawn.plan(HOME, OFFICE_AND_SHOP, ONE_WAY);
 
-        assertThat(names(plan)).containsExactly("Home", "Office", "Shop");
-        assertThat(plan.legs()).extracting(RoutePlan.Leg::distanceKm).containsExactly(11.3, 5.0);
-        assertThat(plan.totalDistanceKm()).isCloseTo(16.3, within(1e-9));
-        assertThat(plan.totalDurationSeconds()).hasValue(220);
-        assertThat(plan.totalClimbAndDescent()).contains(new ClimbAndDescent(60, 40));
-    }
-
-    @Test
-    void drawsEachLegAlongTheRoadsItsDriveFollowed() {
-        RoutePlan plan = countingTheClimb(roundTheRidge, ChosenFor.DISTANCE_AND_CLIMB);
-
-        // From the Office to the Shop both roads are the same, and the usual one is kept.
         assertThat(plan.legs()).extracting(RoutePlan.Leg::path)
-                .containsExactly(List.of(ON_THE_ROADS_CLIMBING_LESS), List.of(ON_THE_USUAL_ROADS));
+                .containsExactly(List.of(ON_THE_ROAD), List.of(ON_THE_ROAD));
     }
 
     @Test
-    void writesOutEachLegsTurnsAlongTheRoadsItsDriveFollowed() {
-        RoutePlan plan = countingTheClimb(roundTheRidge, ChosenFor.DISTANCE_AND_CLIMB);
+    void writesOutTheTurnsOfEachLeg() {
+        RoutePlan plan = onRoadsDrawn.plan(HOME, OFFICE_AND_SHOP, ONE_WAY);
 
         assertThat(plan.legs()).extracting(RoutePlan.Leg::turns)
-                .containsExactly(List.of(ONTO_THE_ROAD_CLIMBING_LESS), List.of(ONTO_THE_USUAL_ROAD));
+                .containsExactly(List.of(ONTO_THE_ROAD), List.of(ONTO_THE_ROAD));
     }
 
     @Test
@@ -558,115 +350,6 @@ class RoutePlanningServiceTest {
         RoutePlan plan = service.plan(SKY_TOWER, STOPS, true);
 
         assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.turns()).isEmpty());
-    }
-
-    /**
-     * Roads that climb less by the engine's count, and not by the planner's. The engine counts
-     * every rise along a road, and the planner evens the heights out first. From Home to the
-     * Office this road is 12 km and climbs 155 m by the planner's count, where the road over the
-     * ridge is 11 km and climbs 150 m.
-     */
-    private static final TravelMatrixProvider LONGER_AND_NO_LOWER = (places, roads) -> new TravelMatrix(
-            new double[][] {
-                {0, 12, 11.5},
-                {14, 0, 5},
-                {12, 5, 0},
-            },
-            new double[][] {
-                {0, 130, 1500},
-                {600, 0, 100},
-                {100, 300, 0},
-            },
-            new ClimbAndDescent[][] {
-                {ClimbAndDescent.LEVEL, new ClimbAndDescent(155, 105), new ClimbAndDescent(20, 0)},
-                {new ClimbAndDescent(100, 150), ClimbAndDescent.LEVEL, new ClimbAndDescent(0, 30)},
-                {new ClimbAndDescent(0, 20), new ClimbAndDescent(30, 0), ClimbAndDescent.LEVEL},
-            });
-
-    /**
-     * From Home to the Office a road 10.5 km long that climbs 145 m: shorter than the road over
-     * the ridge, and 5 m lower, which is less than the heights can tell.
-     */
-    private static final TravelMatrixProvider SHORTER_AND_ALMOST_AS_HIGH = (places, roads) -> new TravelMatrix(
-            new double[][] {
-                {0, 10.5, 11.5},
-                {14, 0, 5},
-                {12, 5, 0},
-            },
-            new double[][] {
-                {0, 100, 1500},
-                {600, 0, 100},
-                {100, 300, 0},
-            },
-            new ClimbAndDescent[][] {
-                {ClimbAndDescent.LEVEL, new ClimbAndDescent(145, 95), new ClimbAndDescent(20, 0)},
-                {new ClimbAndDescent(100, 150), ClimbAndDescent.LEVEL, new ClimbAndDescent(0, 30)},
-                {new ClimbAndDescent(0, 20), new ClimbAndDescent(30, 0), ClimbAndDescent.LEVEL},
-            });
-
-    @Test
-    void changesRoadsOnlyForTenMetresOfClimbOrMore() {
-        RoutePlan plan = countingTheClimb(
-                new TwoKindsOfRoads(A_RIDGE_ON_THE_SHORT_WAY, SHORTER_AND_ALMOST_AS_HIGH), ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(names(plan)).containsExactly("Home", "Shop", "Office");
-        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).containsExactly(ON_THE_USUAL_ROADS));
-    }
-
-    @Test
-    void keepsTheUsualRoadWhereTheOtherComesOutBehindByThePlannersCount() {
-        RoutePlan plan = countingTheClimb(
-                new TwoKindsOfRoads(A_RIDGE_ON_THE_SHORT_WAY, LONGER_AND_NO_LOWER), ChosenFor.DISTANCE_AND_CLIMB);
-
-        // As over the ridge alone: Home, Shop, Office, 16.5 km climbing 50 m.
-        assertThat(names(plan)).containsExactly("Home", "Shop", "Office");
-        assertThat(plan.totalDistanceKm()).isEqualTo(16.5);
-        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).containsExactly(ON_THE_USUAL_ROADS));
-    }
-
-    @Test
-    void holdsThePlanAgainstTheShortestOrderOnTheUsualRoads() {
-        RoutePlan plan = countingTheClimb(roundTheRidge, ChosenFor.DISTANCE_AND_CLIMB);
-
-        // Over the ridge: 16 km, climbing 150 m.
-        assertThat(plan.shortestOrder()).contains(new RoutePlan.ShortestOrder(
-                16, OptionalDouble.of(200), Optional.of(new ClimbAndDescent(150, 130))));
-    }
-
-    @Test
-    void measuresTheOrderEnteredAlongTheSameRoads() {
-        RoutePlan plan = countingTheClimb(roundTheRidge, ChosenFor.DISTANCE_AND_CLIMB);
-
-        // Entered as Home, Office, Shop, the order taken. Round the ridge it is 16.3 km.
-        assertThat(plan.enteredOrderDistanceKm()).isEqualTo(plan.totalDistanceKm());
-    }
-
-    @Test
-    void asksForTheRoadsThatClimbLessOnlyWhenCountingTheClimb() {
-        countingTheClimb(roundTheRidge, ChosenFor.DISTANCE);
-        countingTheClimb(roundTheRidge, ChosenFor.TIME);
-        assertThat(roundTheRidge.asked).containsExactly(Roads.USUAL, Roads.USUAL);
-
-        countingTheClimb(roundTheRidge, ChosenFor.DISTANCE_AND_CLIMB);
-        assertThat(roundTheRidge.asked).endsWith(Roads.USUAL, Roads.CLIMBING_LESS);
-    }
-
-    @Test
-    void keepsToTheUsualRoadsWhenTheirHeightsAreNotKnown() {
-        TwoKindsOfRoads withoutHeights = new TwoKindsOfRoads(ROADS_WITH_TIMES, ROUND_THE_RIDGE);
-
-        RoutePlan plan = countingTheClimb(withoutHeights, ChosenFor.DISTANCE_AND_CLIMB);
-
-        assertThat(withoutHeights.asked).containsExactly(Roads.USUAL);
-        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).containsExactly(ON_THE_USUAL_ROADS));
-    }
-
-    @Test
-    void drawsTheLegsAlongTheUsualRoadsWhenTheClimbIsNotCounted() {
-        RoutePlan plan = countingTheClimb(roundTheRidge, ChosenFor.DISTANCE);
-
-        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).containsExactly(ON_THE_USUAL_ROADS));
-        assertThat(plan.totalDistanceKm()).isEqualTo(16);
     }
 
     // An order chosen for driving time.
@@ -682,7 +365,7 @@ class RoutePlanningServiceTest {
      * minutes slower.
      */
     private static TravelMatrixProvider aMotorwayToTheShopTaking(double seconds) {
-        return (places, roads) -> new TravelMatrix(
+        return places -> new TravelMatrix(
                 new double[][] {
                     {0, 10, 12},
                     {10, 0, 5},
@@ -696,7 +379,7 @@ class RoutePlanningServiceTest {
     }
 
     private final RoutePlanningService byTheMotorway =
-            new RoutePlanningService(aMotorwayToTheShopTaking(600), new BruteForceRouteSolver(), AS_SHIPPED);
+            new RoutePlanningService(aMotorwayToTheShopTaking(600), new BruteForceRouteSolver());
 
     @Test
     void goesFurtherToTakeLessTime() {
@@ -771,7 +454,7 @@ class RoutePlanningServiceTest {
         // With 870 seconds to the Shop, going there first takes 1770 seconds. Half a minute less
         // is no reason to drive a kilometre further.
         RoutePlanningService halfAMinuteQuicker = new RoutePlanningService(
-                aMotorwayToTheShopTaking(870), new BruteForceRouteSolver(), AS_SHIPPED);
+                aMotorwayToTheShopTaking(870), new BruteForceRouteSolver());
 
         RoutePlan plan = halfAMinuteQuicker.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
 
@@ -784,7 +467,7 @@ class RoutePlanningServiceTest {
     @Test
     void takesAnOrderThatSavesAMinute() {
         RoutePlanningService aMinuteQuicker = new RoutePlanningService(
-                aMotorwayToTheShopTaking(840), new BruteForceRouteSolver(), AS_SHIPPED);
+                aMotorwayToTheShopTaking(840), new BruteForceRouteSolver());
 
         RoutePlan plan = aMinuteQuicker.plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.TIME);
 
@@ -825,7 +508,7 @@ class RoutePlanningServiceTest {
      * trip takes 0.75 L.
      */
     private static TravelMatrixProvider aHillWithTheWayDownToHome(double km) {
-        return (places, roads) -> new TravelMatrix(
+        return places -> new TravelMatrix(
                 new double[][] {
                     {0, 4, 2},
                     {km, 0, 2},
@@ -844,7 +527,7 @@ class RoutePlanningServiceTest {
     }
 
     private static RoutePlan forFuel(TravelMatrixProvider roads, boolean returnToStart, Optional<FuelUse> vehicle) {
-        return new RoutePlanningService(roads, new BruteForceRouteSolver(), AS_SHIPPED)
+        return new RoutePlanningService(roads, new BruteForceRouteSolver())
                 .plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, returnToStart, ChosenFor.FUEL, vehicle);
     }
 
@@ -880,7 +563,7 @@ class RoutePlanningServiceTest {
      * shortest at 3 + 2 = 5 km and ends at the top. Home, Shop, Office is 2.5 + 3 = 5.5 km and
      * ends at the bottom, having come down at 6.7%, too steep to give back all the climb cost.
      */
-    private static final TravelMatrixProvider A_SHOP_ON_A_HILL = (places, roads) -> new TravelMatrix(
+    private static final TravelMatrixProvider A_SHOP_ON_A_HILL = places -> new TravelMatrix(
             new double[][] {
                 {0, 3, 2.5},
                 {3, 0, 2},
@@ -911,7 +594,7 @@ class RoutePlanningServiceTest {
      * shortest at 3 + 1.5 = 4.5 km, and comes down to the Shop at 20%. Home, Shop, Office is
      * 2 + 3 = 5 km and ends at the top.
      */
-    private static final TravelMatrixProvider AN_OFFICE_ON_A_STEEP_HILL = (places, roads) -> new TravelMatrix(
+    private static final TravelMatrixProvider AN_OFFICE_ON_A_STEEP_HILL = places -> new TravelMatrix(
             new double[][] {
                 {0, 3, 2},
                 {3, 0, 1.5},
@@ -963,7 +646,7 @@ class RoutePlanningServiceTest {
 
     @Test
     void leavesAKeptStopAtItsTurnWhenChoosingForFuel() {
-        RoutePlan plan = new RoutePlanningService(aHillWithTheWayDownToHome(5), new BruteForceRouteSolver(), AS_SHIPPED)
+        RoutePlan plan = new RoutePlanningService(aHillWithTheWayDownToHome(5), new BruteForceRouteSolver())
                 .plan(HOME, OFFICE_AND_SHOP, Set.of(0), THERE_AND_BACK, ChosenFor.FUEL, A_MEDIUM_CAR);
 
         assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
@@ -971,18 +654,8 @@ class RoutePlanningServiceTest {
     }
 
     @Test
-    void keepsToTheUsualRoadsWhenChoosingForFuel() {
-        TwoKindsOfRoads roads = new TwoKindsOfRoads(aHillWithTheWayDownToHome(5), ROUND_THE_RIDGE);
-
-        RoutePlan plan = forFuel(roads, THERE_AND_BACK, A_MEDIUM_CAR);
-
-        assertThat(roads.asked).containsExactly(Roads.USUAL);
-        assertThat(plan.legs()).allSatisfy(leg -> assertThat(leg.path()).containsExactly(ON_THE_USUAL_ROADS));
-    }
-
-    @Test
     void choosesForDistanceWhenAVehicleIsSentWithoutAskingForFuel() {
-        RoutePlan plan = new RoutePlanningService(aHillWithTheWayDownToHome(5), new BruteForceRouteSolver(), AS_SHIPPED)
+        RoutePlan plan = new RoutePlanningService(aHillWithTheWayDownToHome(5), new BruteForceRouteSolver())
                 .plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.DISTANCE, A_MEDIUM_CAR);
 
         assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");

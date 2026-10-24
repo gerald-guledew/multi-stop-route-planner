@@ -14,7 +14,7 @@ import type { Place } from './types'
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const office: Place = { name: 'Office', latitude: -36.8485, longitude: 174.7621 }
 
-const empty: Trip = { places: [], returnToStart: true, factorInRoadClimbs: false, order: 'shortest' }
+const empty: Trip = { places: [], returnToStart: true, order: 'leastFuel' }
 
 function going(...places: Place[]): Trip {
   return { ...empty, places }
@@ -65,16 +65,16 @@ describe('undoing and redoing changes to the trip', () => {
     expect(redone(changedInstead)).toBe(changedInstead)
   })
 
-  it('undoes a box ticked like any other change', () => {
-    const ticked = afterChange(startingWith(empty), { ...empty, factorInRoadClimbs: true })
+  it('undoes a box unticked like any other change', () => {
+    const unticked = afterChange(startingWith(empty), { ...empty, returnToStart: false })
 
-    expect(undone(ticked).present.factorInRoadClimbs).toBe(false)
+    expect(undone(unticked).present.returnToStart).toBe(true)
   })
 
   it('undoes picking the fastest order like any other change', () => {
     const picked = afterChange(startingWith(empty), { ...empty, order: 'fastest' })
 
-    expect(undone(picked).present.order).toBe('shortest')
+    expect(undone(picked).present.order).toBe('leastFuel')
     expect(redone(undone(picked)).present.order).toBe('fastest')
   })
 
@@ -125,10 +125,10 @@ describe('typing a label', () => {
 
   it('is a change of its own again after anything else is changed', () => {
     const shops = typed(twoPlaces, 0, 'Shops')
-    const ticked = afterChange(shops, { ...shops.present, factorInRoadClimbs: true })
-    const labelledAgain = typed(ticked, 0, 'Shops2')
+    const unticked = afterChange(shops, { ...shops.present, returnToStart: false })
+    const labelledAgain = typed(unticked, 0, 'Shops2')
 
-    expect(undone(labelledAgain).present).toBe(ticked.present)
+    expect(undone(labelledAgain).present).toBe(unticked.present)
   })
 
   it('is a change of its own again after an undo', () => {

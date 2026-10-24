@@ -66,20 +66,10 @@ describe('telling the order chosen from the shortest', () => {
 })
 
 describe('saying what the shortest order comes to', () => {
-  it('gives how far it is and how much it climbs, beside an order chosen to climb less', () => {
-    expect(shortestSaid(SHORTER_AND_HILLIER, 'distanceAndClimb')).toBe('62.58 km, 666 m up')
-  })
+  it('keeps two decimals of the distance', () => {
+    const farLonger = { distanceKm: 141.7, durationSeconds: 9000, climbMetres: 1403, descentMetres: 1403, fuelLitres: null }
 
-  it('gives the climb and not the descent', () => {
-    const oneWay = { distanceKm: 66.16, durationSeconds: 5190, climbMetres: 678, descentMetres: 634, fuelLitres: null }
-
-    expect(shortestSaid(oneWay, 'distanceAndClimb')).toBe('66.16 km, 678 m up')
-  })
-
-  it('puts a comma in the thousands, and keeps two decimals', () => {
-    const farHillier = { distanceKm: 141.7, durationSeconds: 9000, climbMetres: 1403, descentMetres: 1403, fuelLitres: null }
-
-    expect(shortestSaid(farHillier, 'distanceAndClimb')).toBe('141.70 km, 1,403 m up')
+    expect(shortestSaid(farLonger, 'time')).toBe('141.70 km, 2 h 30 min')
   })
 
   it('gives how far it is and how long it takes, beside the fastest order', () => {

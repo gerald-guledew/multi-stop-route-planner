@@ -30,13 +30,10 @@ import VehicleSection from './components/VehicleSection'
 import type { Place, RoutePlan, SavedPlace, Vehicle } from './types'
 
 export default function App() {
-  // The trip, and the trip as it was before each change, so that a change can be undone.
-  // Factor in road climbs is off unless ticked, and the shortest order is picked unless another
-  // is. The order is then chosen for distance alone.
-  const [history, setHistory] = useState(() =>
-    startingWith({ places: [], returnToStart: true, factorInRoadClimbs: false, order: 'shortest' }),
-  )
-  const { places, returnToStart, factorInRoadClimbs, order } = history.present
+  // The trip, and the trip as it was before each change, so that a change can be undone. The
+  // least fuel is picked unless the fastest is. With no vehicle saved, that is the shortest order.
+  const [history, setHistory] = useState(() => startingWith({ places: [], returnToStart: true, order: 'leastFuel' }))
+  const { places, returnToStart, order } = history.present
   const [plan, setPlan] = useState<RoutePlan | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [unroutablePlace, setUnroutablePlace] = useState<string | undefined>()
@@ -323,15 +320,9 @@ export default function App() {
     setPlan(null)
   }
 
-  function changeFactorInRoadClimbs(factorIn: boolean) {
-    change((trip) => ({ ...trip, factorInRoadClimbs: factorIn }))
-    // A plan chosen for distance alone is not the plan for distance and climb together.
-    setPlan(null)
-  }
-
   function changeOrder(picked: Order) {
     change((trip) => ({ ...trip, order: picked }))
-    // The shortest order is not the plan for the fastest or the least fuel, or the other way about.
+    // The plan for the least fuel is not the plan for the fastest, or the other way about.
     setPlan(null)
   }
 
@@ -355,7 +346,7 @@ export default function App() {
           start,
           stops,
           returnToStart,
-          chosenFor({ order, factorInRoadClimbs, hasVehicle: vehicle !== null }),
+          chosenFor({ order, hasVehicle: vehicle !== null }),
           vehicle,
         ),
       )
@@ -388,8 +379,6 @@ export default function App() {
         onToggleKeepInPlace={toggleKeepInPlace}
         onChangeTurn={changeTurn}
         onReturnToStartChange={changeReturnToStart}
-        factorInRoadClimbs={factorInRoadClimbs}
-        onFactorInRoadClimbsChange={changeFactorInRoadClimbs}
         order={order}
         onOrderChange={changeOrder}
         onPlan={planRoute}

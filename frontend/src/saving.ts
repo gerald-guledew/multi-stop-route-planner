@@ -2,9 +2,9 @@
  * How the order chosen compares with the order the stops were entered in, as a label and a
  * figure: "Saved", "0.56 km".
  *
- * An order chosen for distance is never longer than the one entered. An order chosen for
- * distance and climb together can be, and "Saved -0.43 km" would be an odd thing to read. So
- * a longer order is called longer.
+ * An order chosen for distance is never longer than the one entered. An order chosen for time
+ * or fuel can be, and "Saved -0.43 km" would be an odd thing to read. So a longer order is
+ * called longer.
  */
 export interface Saving {
   label: string
