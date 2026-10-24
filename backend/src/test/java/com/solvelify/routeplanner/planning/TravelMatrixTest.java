@@ -194,7 +194,7 @@ class TravelMatrixTest {
     }
 
     @Test
-    void hasNoFuelTableWhenTheHillsCannotBeCounted() {
+    void hasNoFuelTableWhenNeitherTheSpeedsNorTheHillsCanBeCounted() {
         // The fuel then goes with the distance, and the shortest order already takes the least.
         assertThat(new TravelMatrix(KM, SECONDS).asCostMatrixOfFuel(A_MEDIUM_CAR)).isEmpty();
         assertThat(new TravelMatrix(KM).asCostMatrixOfFuel(A_MEDIUM_CAR)).isEmpty();
@@ -208,5 +208,64 @@ class TravelMatrixTest {
         matrix.asCostMatrix()[0][1] = 1;
 
         assertThat(matrix.distanceKm(0, 1)).isEqualTo(10);
+    }
+
+    // How much of each drive is in town.
+
+    private static final double[][] KM_IN_TOWN = {
+        {0, 4},
+        {12, 0},
+    };
+
+    @Test
+    void givesTheKilometresInTownWhenItWasToldThem() {
+        TravelMatrix matrix = new TravelMatrix(KM, SECONDS).withKmInTown(KM_IN_TOWN);
+
+        assertThat(matrix.kmInTown(0, 1)).hasValue(4);
+        assertThat(matrix.kmInTown(1, 0)).hasValue(12);
+        assertThat(matrix.distanceKm(0, 1)).isEqualTo(10);
+        assertThat(matrix.durationSeconds(0, 1)).hasValue(600);
+    }
+
+    @Test
+    void hasNoKilometresInTownToGiveOnStraightLines() {
+        assertThat(new TravelMatrix(KM).kmInTown(0, 1)).isEmpty();
+    }
+
+    @Test
+    void keepsItsClimbsWhenToldTheKilometresInTown() {
+        TravelMatrix matrix = new TravelMatrix(KM, SECONDS, CLIMBS).withKmInTown(KM_IN_TOWN);
+
+        assertThat(matrix.climbAndDescent(0, 1)).contains(CLIMBS[0][1]);
+    }
+
+    @Test
+    void refusesKilometresInTownForADifferentNumberOfPlaces() {
+        assertThatThrownBy(() -> new TravelMatrix(KM, SECONDS).withKmInTown(new double[][] {{0}}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("km in town for 1");
+    }
+
+    @Test
+    void isNotChangedByWhatHappensLaterToTheKilometresInTownItWasGiven() {
+        double[][] kmInTown = {{0, 4}, {12, 0}};
+        TravelMatrix matrix = new TravelMatrix(KM, SECONDS).withKmInTown(kmInTown);
+
+        kmInTown[0][1] = 9;
+
+        assertThat(matrix.kmInTown(0, 1)).hasValue(4);
+    }
+
+    @Test
+    void givesWhatEachDriveTakesInTownAndOnTheOpenRoad() {
+        TravelMatrix matrix = new TravelMatrix(KM, SECONDS).withKmInTown(KM_IN_TOWN);
+        FuelUse car = new FuelUse(6.0, 7.5, 5.1, OptionalDouble.empty());
+
+        double[][] cost = matrix.asCostMatrixOfFuel(car).orElseThrow();
+
+        // 4 km in town and 6 on the open road, and the 12 km back all in town. Without the hills
+        // or the weight, the speeds alone make a table.
+        assertThat(cost[0][1]).isCloseTo(0.606, within(1e-9));
+        assertThat(cost[1][0]).isCloseTo(0.9, within(1e-9));
     }
 }

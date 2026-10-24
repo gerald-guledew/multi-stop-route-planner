@@ -493,7 +493,7 @@ export default function RoutePanel(props: Props) {
               )}
               {fuel ? (
                 <p className="note">
-                  {fuelNote(props.vehicleFigureFrom ?? 'dashboard', plan?.fuelCountsHills === true)}
+                  {fuelNote(props.vehicleFigureFrom ?? 'dashboard', plan?.fuelCountsHills === true, plan?.fuelCountsSpeed === true)}
                 </p>
               ) : (
                 <p className="note">Add your vehicle above to see the fuel this trip takes.</p>

@@ -87,6 +87,45 @@ class FuelEstimateTest {
         assertThat(FuelEstimate.of(ROUND_TRIP, new FuelUse(7.5)).shortestOrderLitres()).isEmpty();
     }
 
+    @Test
+    void takesTheTownFigureForEachLegsKilometresInTown() {
+        // 12 km all in town, 8 km all on the open road, and 20 km half and half.
+        RoutePlan onRoads = new RoutePlan(
+                ROUND_TRIP.route(),
+                List.of(inTown("Home", "Office", 12, 12), inTown("Office", "Shop", 8, 0), inTown("Shop", "Home", 20, 10)),
+                40, 40, 2);
+
+        FuelEstimate estimate = FuelEstimate.of(onRoads, new FuelUse(7.5, 9.0, 6.0, OptionalDouble.empty()));
+
+        assertThat(estimate.countsSpeed()).isTrue();
+        assertThat(estimate.legLitres()).satisfiesExactly(
+                first -> assertThat(first).isCloseTo(1.08, within(1e-9)),
+                second -> assertThat(second).isCloseTo(0.48, within(1e-9)),
+                third -> assertThat(third).isCloseTo(1.5, within(1e-9)));
+    }
+
+    @Test
+    void doesNotCountTheSpeedOnStraightLines() {
+        assertThat(FuelEstimate.of(ROUND_TRIP, new FuelUse(7.5)).countsSpeed()).isFalse();
+    }
+
+    @Test
+    void givesWhatTheShortestOrderTakesInTownAndOnTheOpenRoad() {
+        RoutePlan heldAgainstTheShortest = new RoutePlan(
+                ROUND_TRIP.route(), ROUND_TRIP.legs(), 40, OptionalDouble.empty(), Optional.empty(), 40, 2,
+                Optional.of(new RoutePlan.ShortestOrder(36, OptionalDouble.empty(), Optional.empty(), OptionalDouble.of(6))));
+
+        FuelEstimate estimate = FuelEstimate.of(heldAgainstTheShortest, new FuelUse(7.5, 9.0, 6.0, OptionalDouble.empty()));
+
+        // 6 km in town at 9 and 30 km on the open road at 6.
+        assertThat(estimate.shortestOrderLitres()).hasValueCloseTo(0.54 + 1.8, within(1e-9));
+    }
+
+    private static RoutePlan.Leg inTown(String from, String to, double distanceKm, double kmInTown) {
+        return new RoutePlan.Leg(from, to, distanceKm, OptionalDouble.empty(), Optional.empty(),
+                OptionalDouble.of(kmInTown), List.of(), List.of());
+    }
+
     private static RoutePlan.Leg leg(String from, String to, double distanceKm, ClimbAndDescent hills) {
         return new RoutePlan.Leg(from, to, distanceKm, OptionalDouble.empty(), Optional.of(hills), List.of());
     }

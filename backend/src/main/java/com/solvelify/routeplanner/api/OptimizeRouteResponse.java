@@ -29,11 +29,14 @@ import java.util.stream.IntStream;
  * @param fuelCountsHills      whether the fuel counts the hills. False when the roads were read
  *                             without heights or the vehicle came without its weight. Null when
  *                             no vehicle was sent
+ * @param fuelCountsSpeed      whether the fuel takes the town figure on town roads and the open
+ *                             road's elsewhere. False on straight lines. Null when no vehicle was
+ *                             sent
  * @param shortestOrder        what the shortest order comes to, given when the order was chosen
  *                             for driving time or for fuel, so the two can be held against each
  *                             other. Null when the order was chosen for distance alone, and when
- *                             what it was to be chosen for is not known: times for the time,
- *                             heights and the vehicle's weight for the fuel
+ *                             what it was to be chosen for is not known: times for the time, and
+ *                             for the fuel the roads' speeds or their hills
  */
 public record OptimizeRouteResponse(
         List<Place> route,
@@ -44,6 +47,7 @@ public record OptimizeRouteResponse(
         Long totalDescentMetres,
         Double totalFuelLitres,
         Boolean fuelCountsHills,
+        Boolean fuelCountsSpeed,
         double enteredOrderDistanceKm,
         ShortestOrder shortestOrder,
         long ordersChecked) {
@@ -159,6 +163,7 @@ public record OptimizeRouteResponse(
                 wholeMetresDown(plan.totalClimbAndDescent()),
                 fuel.map(litres -> roundToTwoDecimals(litres.totalLitres())).orElse(null),
                 fuel.map(FuelEstimate::countsHills).orElse(null),
+                fuel.map(FuelEstimate::countsSpeed).orElse(null),
                 roundToTwoDecimals(plan.enteredOrderDistanceKm()),
                 plan.shortestOrder()
                         .map(shortest -> new ShortestOrder(

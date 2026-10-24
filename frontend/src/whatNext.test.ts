@@ -16,6 +16,7 @@ const plan: RoutePlan = {
   totalDescentMetres: null,
   totalFuelLitres: null,
   fuelCountsHills: null,
+  fuelCountsSpeed: null,
   enteredOrderDistanceKm: 21,
   shortestOrder: null,
   ordersChecked: 2,

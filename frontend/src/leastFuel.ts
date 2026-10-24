@@ -3,21 +3,21 @@ import { litresSaid } from './fuel'
 import { against, differsFromTheShortest, NO_FURTHER_KM } from './shortestOrder'
 import type { RoutePlan } from './types'
 
-/** A drive a minute or more longer is said to be. Less than that is lost in the estimate. */
+/** A drive a minute or more longer or shorter is said to be. Less than that is lost in the estimate. */
 const A_MINUTE = 60
 
 /**
  * What asking for the least fuel came to for this plan, in a sentence. Null when it was not
  * asked for, and then nothing is shown.
  *
- * Most often the shortest order takes the least fuel, since on a trip that ends where it began
- * the hills give back nearly all they cost. The planner takes another order only when it takes a
- * tenth of a litre less, and says so, or picking the least fuel would look as if it had done
- * nothing.
+ * Another order than the shortest often takes less fuel, by keeping to the open road, where a
+ * kilometre takes less than in town. It is often quicker too, and that is said. When the shortest
+ * order takes the least, that is said as well, or picking the least fuel would look as if it had
+ * done nothing.
  *
- * Without a vehicle the planner is asked for the shortest order. With one whose weight it does
- * not know, or on roads read without heights, it cannot count the hills and answers with the
- * shortest order, giving nothing to hold it against, which is how this knows.
+ * Without a vehicle the planner is asked for the shortest order. On straight lines it knows
+ * neither how fast the roads are nor how high, and answers with the shortest order, giving nothing
+ * to hold it against, which is how this knows.
  */
 export function leastFuelSaid(askedFor: boolean, hasVehicle: boolean, plan: RoutePlan): string | null {
   if (!askedFor) {
@@ -27,14 +27,19 @@ export function leastFuelSaid(askedFor: boolean, hasVehicle: boolean, plan: Rout
     return 'With no vehicle saved, this is the shortest order.'
   }
   if (plan.shortestOrder === null) {
-    return 'The hills were not counted, so the fuel goes with the distance and the shortest order takes the least.'
+    return 'On straight lines the fuel goes with the distance, so the shortest order takes the least.'
   }
   if (!differsFromTheShortest(plan)) {
-    return 'The shortest order takes the least fuel too, to within a tenth of a litre.'
+    return 'The shortest order takes the least fuel too.'
   }
 
   const { furtherKm, quickerSeconds, lessLitres } = against(plan.shortestOrder, plan)
   const longer = furtherKm < NO_FURTHER_KM ? 'no longer than' : `${furtherKm.toFixed(2)} km longer than`
-  const slower = -quickerSeconds >= A_MINUTE ? ` It takes ${howLong(-quickerSeconds)} more to drive.` : ''
-  return `This order is ${longer} the shortest and takes ${litresSaid(lessLitres)} less fuel.${slower}`
+  const time =
+    quickerSeconds >= A_MINUTE
+      ? ` It is ${howLong(quickerSeconds)} quicker.`
+      : -quickerSeconds >= A_MINUTE
+        ? ` It takes ${howLong(-quickerSeconds)} more to drive.`
+        : ''
+  return `This order is ${longer} the shortest and takes ${litresSaid(lessLitres)} less fuel.${time}`
 }

@@ -16,11 +16,14 @@ export function litresSaid(litres: number): string {
 
 /**
  * What the fuel of a plan rests on, said under it: the dashboard's figure, or the official one
- * from the register when none was typed, and whether the hills were counted.
+ * from the register when none was typed, whether it was taken higher in town than on the open
+ * road, and whether the hills were counted.
  */
-export function fuelNote(figureFrom: FigureFrom, countsHills: boolean): string {
+export function fuelNote(figureFrom: FigureFrom, countsHills: boolean, countsSpeed: boolean): string {
   const figure = figureFrom === 'register' ? "your car's official figure" : "your vehicle's figure"
-  return countsHills
-    ? `Fuel is ${figure} for every kilometre, with more uphill and less downhill. Speed does not change it yet.`
-    : `Fuel is ${figure} for every kilometre. Hills and speed do not change it yet.`
+  const byRoad = countsSpeed ? `${figure}, higher in town and lower on the open road` : `${figure} for every kilometre`
+  if (countsHills) {
+    return `Fuel is ${byRoad}, with more uphill and less downhill.`
+  }
+  return countsSpeed ? `Fuel is ${byRoad}. Hills do not change it.` : `Fuel is ${byRoad}. Hills and speed do not change it.`
 }

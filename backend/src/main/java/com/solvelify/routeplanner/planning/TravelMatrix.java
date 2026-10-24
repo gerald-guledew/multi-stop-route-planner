@@ -8,8 +8,8 @@ import java.util.OptionalDouble;
  *
  * <p>A class rather than a record, for two reasons. Records compare arrays by identity, which
  * would make equality meaningless here. And this type is meant to grow: it began with distances,
- * and now carries durations and climbs, each an extra method here instead of a changed signature
- * everywhere.
+ * and now carries durations, climbs and how much of each drive is in town, each an extra method
+ * here instead of a changed signature everywhere.
  */
 public final class TravelMatrix {
 
@@ -21,11 +21,15 @@ public final class TravelMatrix {
     /** Null when the source of the figures does not know how high the roads are. */
     private final ClimbAndDescent[][] climbs;
 
+    /** Null when the source of the figures does not know how fast each road is driven. */
+    private final double[][] kmInTown;
+
     /** Distances alone, from a source that knows how far and not how long. Straight lines are one. */
     public TravelMatrix(double[][] distancesKm) {
         this.distancesKm = copyOf(distancesKm);
         this.durationsSeconds = null;
         this.climbs = null;
+        this.kmInTown = null;
     }
 
     /** Distances and times, from roads whose heights are not known. */
@@ -34,6 +38,7 @@ public final class TravelMatrix {
         this.distancesKm = copyOf(distancesKm);
         this.durationsSeconds = copyOf(durationsSeconds);
         this.climbs = null;
+        this.kmInTown = null;
     }
 
     /** Distances, times, and how much each drive climbs and descends. */
@@ -43,6 +48,25 @@ public final class TravelMatrix {
         this.distancesKm = copyOf(distancesKm);
         this.durationsSeconds = copyOf(durationsSeconds);
         this.climbs = copyOf(climbs);
+        this.kmInTown = null;
+    }
+
+    /** The tables of another matrix, which are copies already and never change, and one more. */
+    private TravelMatrix(
+            double[][] distancesKm, double[][] durationsSeconds, ClimbAndDescent[][] climbs, double[][] kmInTown) {
+        this.distancesKm = distancesKm;
+        this.durationsSeconds = durationsSeconds;
+        this.climbs = climbs;
+        this.kmInTown = kmInTown;
+    }
+
+    /**
+     * The same figures, with how many kilometres of each drive are on town roads. Roads tell
+     * that from how fast each stretch of them is driven. Straight lines cannot.
+     */
+    public TravelMatrix withKmInTown(double[][] kmInTown) {
+        requireSameSize("km in town", kmInTown.length, distancesKm.length);
+        return new TravelMatrix(distancesKm, durationsSeconds, climbs, copyOf(kmInTown));
     }
 
     public double distanceKm(int from, int to) {
@@ -69,6 +93,15 @@ public final class TravelMatrix {
         return climbs == null ? Optional.empty() : Optional.of(climbs[from][to]);
     }
 
+    /**
+     * How many kilometres of the drive are on town roads, when the source knows how fast each
+     * road is driven. The rest of the drive is open road. Empty on straight lines. A matrix has
+     * this for every pair or for none.
+     */
+    public OptionalDouble kmInTown(int from, int to) {
+        return kmInTown == null ? OptionalDouble.empty() : OptionalDouble.of(kmInTown[from][to]);
+    }
+
     public int size() {
         return distancesKm.length;
     }
@@ -92,22 +125,25 @@ public final class TravelMatrix {
 
     /**
      * The table for an order chosen for the least fuel: the litres each drive uses up for good in
-     * one vehicle, on the level and on descents too steep to give back what climbing them cost.
-     * Over a round trip they add up to the fuel it takes. A one-way trip is not made to end at its
-     * lowest stop, which would only leave the car lower: see {@link FuelUse#litresUsedUpFor}.
+     * one vehicle. On the level, its town figure for the kilometres in town and its open road's
+     * for the rest. On descents too steep to give back what climbing them cost, what they brake
+     * away. Over a round trip they add up to the fuel it takes. A one-way trip is not made to end
+     * at its lowest stop, which would only leave the car lower: see {@link FuelUse#litresUsedUpFor}.
      *
-     * <p>Empty when the hills cannot be counted, because the heights of the roads or the
-     * vehicle's weight are not known. The fuel then goes with the distance, and the shortest
-     * order already takes the least.
+     * <p>Empty when neither how fast the roads are driven nor their hills can be counted, as on
+     * straight lines. The fuel then goes with the distance, and the shortest order already takes
+     * the least.
      */
     public Optional<double[][]> asCostMatrixOfFuel(FuelUse vehicle) {
-        if (climbs == null || !vehicle.countsHills()) {
+        boolean countsHills = climbs != null && vehicle.countsHills();
+        if (kmInTown == null && !countsHills) {
             return Optional.empty();
         }
         double[][] cost = new double[distancesKm.length][distancesKm.length];
         for (int from = 0; from < cost.length; from++) {
             for (int to = 0; to < cost[from].length; to++) {
-                cost[from][to] = vehicle.litresUsedUpFor(distancesKm[from][to], Optional.of(climbs[from][to]));
+                cost[from][to] = vehicle.litresUsedUpFor(
+                        distancesKm[from][to], kmInTown(from, to), climbAndDescent(from, to));
             }
         }
         return Optional.of(cost);

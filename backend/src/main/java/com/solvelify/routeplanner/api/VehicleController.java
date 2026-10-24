@@ -1,6 +1,7 @@
 package com.solvelify.routeplanner.api;
 
 import com.solvelify.routeplanner.cars.Car;
+import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.vehicle.Vehicle;
 import com.solvelify.routeplanner.vehicle.VehicleSize;
 import com.solvelify.routeplanner.vehicle.Vehicles;
@@ -61,7 +62,12 @@ public class VehicleController {
     }
 
     private VehicleResponse responseFor(Vehicle vehicle) {
-        return VehicleResponse.from(vehicle, vehicles.weightOf(vehicle));
+        OptionalDouble townOverOpenRoad = vehicles.townOverOpenRoadOf(vehicle);
+        FuelUse fuel = townOverOpenRoad.isPresent()
+                ? FuelUse.withTownOverOpenRoad(
+                        vehicle.getLitresPer100Km(), townOverOpenRoad.getAsDouble(), OptionalDouble.empty())
+                : new FuelUse(vehicle.getLitresPer100Km());
+        return VehicleResponse.from(vehicle, fuel, vehicles.weightOf(vehicle));
     }
 
     @DeleteMapping
@@ -121,21 +127,38 @@ public class VehicleController {
     }
 
     /**
-     * @param figureFrom dashboard, or register for the register's laboratory figure
-     * @param size       null for a car found in the register
-     * @param car        null for a vehicle entered by hand
-     * @param kilograms  what it weighs empty, to the nearest 10 kg: the register's weight or the
-     *                   size's. Null when the register no longer lists the car
+     * @param figureFrom             dashboard, or register for the register's laboratory figure
+     * @param townLitresPer100Km     what town roads take, to a tenth: the figure split as the
+     *                               register splits this car's, or the usual way when it does not
+     * @param openRoadLitresPer100Km what the open road takes, to a tenth, split the same way
+     * @param size                   null for a car found in the register
+     * @param car                    null for a vehicle entered by hand
+     * @param kilograms              what it weighs empty, to the nearest 10 kg: the register's
+     *                               weight or the size's. Null when the register no longer lists
+     *                               the car
      */
-    public record VehicleResponse(double litresPer100Km, String figureFrom, String size, Car car, Integer kilograms) {
+    public record VehicleResponse(
+            double litresPer100Km,
+            String figureFrom,
+            double townLitresPer100Km,
+            double openRoadLitresPer100Km,
+            String size,
+            Car car,
+            Integer kilograms) {
 
-        static VehicleResponse from(Vehicle vehicle, OptionalDouble kilograms) {
+        static VehicleResponse from(Vehicle vehicle, FuelUse fuel, OptionalDouble kilograms) {
             return new VehicleResponse(
                     vehicle.getLitresPer100Km(),
                     vehicle.getFigureFrom().name().toLowerCase(Locale.ROOT),
+                    toATenth(fuel.townLitresPer100Km()),
+                    toATenth(fuel.openRoadLitresPer100Km()),
                     vehicle.getSize() == null ? null : vehicle.getSize().name().toLowerCase(Locale.ROOT),
                     vehicle.getCar().orElse(null),
                     kilograms.isPresent() ? (int) Math.round(kilograms.getAsDouble() / 10) * 10 : null);
+        }
+
+        private static double toATenth(double litresPer100Km) {
+            return Math.round(litresPer100Km * 10) / 10.0;
         }
     }
 }

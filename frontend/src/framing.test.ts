@@ -29,6 +29,7 @@ function planWith(legs: Leg[]): RoutePlan {
     totalDescentMetres: null,
     totalFuelLitres: null,
     fuelCountsHills: null,
+    fuelCountsSpeed: null,
     enteredOrderDistanceKm: 19.2,
     shortestOrder: null,
     ordersChecked: 1,

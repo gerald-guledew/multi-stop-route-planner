@@ -13,6 +13,7 @@ function aPlan(shortestOrder: ShortestOrder | null): RoutePlan {
     totalDescentMetres: null,
     totalFuelLitres: null,
     fuelCountsHills: null,
+    fuelCountsSpeed: null,
     enteredOrderDistanceKm: 70.1,
     shortestOrder,
     ordersChecked: 24,

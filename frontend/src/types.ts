@@ -61,6 +61,10 @@ export interface Vehicle {
   /** From 2 to 30. */
   litresPer100Km: number
   figureFrom: FigureFrom
+  /** What town roads take: the figure split as the register splits the car's, or the usual way. */
+  townLitresPer100Km: number
+  /** What the open road takes, split the same way. */
+  openRoadLitresPer100Km: number
   /** Null for a car found in the register. */
   size: VehicleSize | null
   /** Null for a vehicle entered by hand. */
@@ -170,6 +174,11 @@ export interface RoutePlan {
    * weight. Null when no vehicle was sent.
    */
   fuelCountsHills: boolean | null
+  /**
+   * Whether the fuel takes the town figure on town roads and the open road's elsewhere: not on
+   * straight lines. Null when no vehicle was sent.
+   */
+  fuelCountsSpeed: boolean | null
   enteredOrderDistanceKm: number
   /**
    * Set when the order was chosen for driving time or for fuel, so that it can be held against

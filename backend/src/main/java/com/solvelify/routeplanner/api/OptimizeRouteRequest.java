@@ -44,9 +44,13 @@ public record OptimizeRouteRequest(
      * The vehicle as the plan needs it. Boxed, so a missing figure is refused rather than read
      * as nought.
      *
-     * @param litresPer100Km what the dashboard shows, or the register's figure, from 2 to 30
-     * @param kilograms      what the vehicle weighs empty, from 400 to 4,000. Left out, the
-     *                       fuel does not count the hills
+     * @param litresPer100Km         what the dashboard shows, or the register's figure, from 2 to 30
+     * @param townLitresPer100Km     what town roads take, from 2 to 40. Left out together with the
+     *                               open road's, the two are worked out from the one figure the
+     *                               usual way
+     * @param openRoadLitresPer100Km what the open road takes, from 2 to 40
+     * @param kilograms              what the vehicle weighs empty, from 400 to 4,000. Left out,
+     *                               the fuel does not count the hills
      */
     public record VehicleRequest(
 
@@ -55,13 +59,29 @@ public record OptimizeRouteRequest(
             @DecimalMax(value = "" + Vehicle.MOST_LITRES_PER_100_KM, message = "must be between 2 and 30")
             Double litresPer100Km,
 
+            @DecimalMin(value = "2", message = "must be between 2 and 40")
+            @DecimalMax(value = "40", message = "must be between 2 and 40")
+            Double townLitresPer100Km,
+
+            @DecimalMin(value = "2", message = "must be between 2 and 40")
+            @DecimalMax(value = "40", message = "must be between 2 and 40")
+            Double openRoadLitresPer100Km,
+
             @DecimalMin(value = "400", message = "must be between 400 and 4000")
             @DecimalMax(value = "4000", message = "must be between 400 and 4000")
             Double kilograms) {
 
+        /** Reported as the field "townAndOpenRoad". One without the other says half of it. */
+        @AssertTrue(message = "must send townLitresPer100Km and openRoadLitresPer100Km together, or neither")
+        public boolean isTownAndOpenRoad() {
+            return (townLitresPer100Km == null) == (openRoadLitresPer100Km == null);
+        }
+
         FuelUse fuelUse() {
-            return new FuelUse(litresPer100Km,
-                    kilograms == null ? OptionalDouble.empty() : OptionalDouble.of(kilograms));
+            OptionalDouble weight = kilograms == null ? OptionalDouble.empty() : OptionalDouble.of(kilograms);
+            return townLitresPer100Km == null
+                    ? new FuelUse(litresPer100Km, weight)
+                    : new FuelUse(litresPer100Km, townLitresPer100Km, openRoadLitresPer100Km, weight);
         }
     }
 
