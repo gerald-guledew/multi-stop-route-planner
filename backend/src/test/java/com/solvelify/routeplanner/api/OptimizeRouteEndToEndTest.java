@@ -88,9 +88,9 @@ class OptimizeRouteEndToEndTest {
     }
 
     @Test
-    void choosesForDistanceWhenAskedToFactorInRoadClimbsOnStraightLines() throws Exception {
-        // Straight lines have no heights, so there is no climb to count and the answer is the
-        // shortest order, as if nothing had been asked.
+    void plansTheShortestOrderForAPageStillAskingToFactorInRoadClimbs() throws Exception {
+        // The screen no longer sends it, but a page opened before it changed can. A field the
+        // request does not know is left out, and the answer is the shortest order.
         String factoringInRoadClimbs = AUCKLAND_ERRANDS
                 .formatted("true")
                 .replace("\"returnToStart\": true", "\"returnToStart\": true, \"factorInRoadClimbs\": true");

@@ -33,8 +33,6 @@ public record OptimizeRouteRequest(
 
         Boolean returnToStart,
 
-        Boolean factorInRoadClimbs,
-
         Boolean fastest,
 
         Boolean leastFuel,
@@ -72,26 +70,9 @@ public record OptimizeRouteRequest(
         return returnToStart == null || returnToStart;
     }
 
-    /**
-     * Whether the order is to be chosen for distance and climb together. Left out, it is chosen
-     * for distance alone.
-     */
-    public boolean factorInRoadClimbsOrDefault() {
-        return factorInRoadClimbs != null && factorInRoadClimbs;
-    }
-
     /** Whether the order is to be chosen for driving time. Left out, it is chosen for distance. */
     public boolean fastestOrDefault() {
         return fastest != null && fastest;
-    }
-
-    /**
-     * Reported as the field "fastestOrRoadClimbs". Road climbs are counted as road, which the
-     * shortest order is chosen for and the fastest is not.
-     */
-    @AssertTrue(message = "must ask for the fastest order or for road climbs factored in, not both")
-    public boolean isFastestOrRoadClimbs() {
-        return !(fastestOrDefault() && factorInRoadClimbsOrDefault());
     }
 
     /**
@@ -103,12 +84,12 @@ public record OptimizeRouteRequest(
     }
 
     /**
-     * Reported as the field "leastFuelAlone". The fuel counts the climbs itself, so they are not
-     * counted again as road, and the fastest order is chosen for something else altogether.
+     * Reported as the field "leastFuelAlone". An order is chosen for one thing, and the fastest
+     * is chosen for time.
      */
-    @AssertTrue(message = "must ask for the least fuel on its own, not with the fastest order or road climbs factored in")
+    @AssertTrue(message = "must ask for the least fuel or the fastest order, not both")
     public boolean isLeastFuelAlone() {
-        return !(leastFuelOrDefault() && (fastestOrDefault() || factorInRoadClimbsOrDefault()));
+        return !(leastFuelOrDefault() && fastestOrDefault());
     }
 
     /** Reported as the field "leastFuelForAVehicle". The fuel is a vehicle's, so it is needed. */

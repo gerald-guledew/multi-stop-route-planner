@@ -13,8 +13,6 @@ import java.util.OptionalDouble;
  */
 public final class TravelMatrix {
 
-    private static final double METRES_IN_A_KILOMETRE = 1000;
-
     private final double[][] distancesKm;
 
     /** Null when the source of the figures has no notion of how long a drive takes. */
@@ -71,11 +69,6 @@ public final class TravelMatrix {
         return climbs == null ? Optional.empty() : Optional.of(climbs[from][to]);
     }
 
-    /** Whether the heights of the roads are known, and with them how much every drive climbs. */
-    public boolean knowsClimb() {
-        return climbs != null;
-    }
-
     public int size() {
         return distancesKm.length;
     }
@@ -95,27 +88,6 @@ public final class TravelMatrix {
      */
     public Optional<double[][]> asCostMatrixOfDrivingTime() {
         return durationsSeconds == null ? Optional.empty() : Optional.of(copyOf(durationsSeconds));
-    }
-
-    /**
-     * The table for an order chosen for distance and climb together. Each drive costs its
-     * distance, and on top of it {@code roadMetresPerMetreClimbed} metres of road for every
-     * metre it climbs. Coming down counts for nothing.
-     *
-     * <p>Empty when the heights of the roads are not known. There is then no climb to count.
-     */
-    public Optional<double[][]> asCostMatrixCountingClimb(double roadMetresPerMetreClimbed) {
-        if (climbs == null) {
-            return Optional.empty();
-        }
-        double[][] cost = copyOf(distancesKm);
-        for (int from = 0; from < cost.length; from++) {
-            for (int to = 0; to < cost[from].length; to++) {
-                double roadForTheClimb = climbs[from][to].climbMetres() * roadMetresPerMetreClimbed;
-                cost[from][to] += roadForTheClimb / METRES_IN_A_KILOMETRE;
-            }
-        }
-        return Optional.of(cost);
     }
 
     /**

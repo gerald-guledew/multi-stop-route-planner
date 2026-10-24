@@ -54,15 +54,12 @@ public class RouteController {
         return OptimizeRouteResponse.from(plan, fuel);
     }
 
-    /** The least fuel, the fastest order, the order counting road climbs, or else the shortest. */
+    /** The least fuel, the fastest order, or else the shortest. */
     private static ChosenFor chosenFor(OptimizeRouteRequest request) {
         if (request.leastFuelOrDefault()) {
             return ChosenFor.FUEL;
         }
-        if (request.fastestOrDefault()) {
-            return ChosenFor.TIME;
-        }
-        return request.factorInRoadClimbsOrDefault() ? ChosenFor.DISTANCE_AND_CLIMB : ChosenFor.DISTANCE;
+        return request.fastestOrDefault() ? ChosenFor.TIME : ChosenFor.DISTANCE;
     }
 
     /** Where in the list the stops marked to keep their place are, counting from 0. */

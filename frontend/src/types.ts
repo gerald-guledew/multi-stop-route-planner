@@ -172,9 +172,8 @@ export interface RoutePlan {
   fuelCountsHills: boolean | null
   enteredOrderDistanceKm: number
   /**
-   * Set when the order was chosen for distance and climb together, for driving time or for fuel,
-   * so that it can be held against the shortest. Null when it was chosen for distance alone. That
-   * includes a planner asked to factor in road climbs that has no heights to go on, one asked for
+   * Set when the order was chosen for driving time or for fuel, so that it can be held against
+   * the shortest. Null when it was chosen for distance alone. That includes a planner asked for
    * the fastest order that measures straight lines, and one asked for the least fuel that cannot
    * count the hills.
    */

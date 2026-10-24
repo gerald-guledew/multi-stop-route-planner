@@ -35,13 +35,10 @@ public class RoutePlanningService {
 
     private final TravelMatrixProvider travelMatrixProvider;
     private final RouteSolver routeSolver;
-    private final PlanningProperties properties;
 
-    public RoutePlanningService(
-            TravelMatrixProvider travelMatrixProvider, RouteSolver routeSolver, PlanningProperties properties) {
+    public RoutePlanningService(TravelMatrixProvider travelMatrixProvider, RouteSolver routeSolver) {
         this.travelMatrixProvider = travelMatrixProvider;
         this.routeSolver = routeSolver;
-        this.properties = properties;
     }
 
     /** Every stop free to move, and the order chosen for distance. */
@@ -69,10 +66,8 @@ public class RoutePlanningService {
      * @param keptInPlace positions in {@code stops}, counting from 0, of the stops that must be
      *                    visited at the turn they were entered in. The first stop of the day
      *                    that cannot wait, say. The others are arranged around them
-     * @param chosenFor   what the order is chosen for. Climb can be counted only on roads whose
-     *                    heights are known, and is then counted on the roads between the stops
-     *                    as well as in their order. Time only on roads, since a straight line says
-     *                    how far and not how long. Fuel counts the hills only on roads whose
+     * @param chosenFor   what the order is chosen for. Time only on roads, since a straight line
+     *                    says how far and not how long. Fuel counts the hills only on roads whose
      *                    heights are known, for a vehicle whose weight is, and otherwise goes with
      *                    the distance. Without what it needs, the order is chosen for distance,
      *                    whatever was asked, and the plan gives no shortest order to hold it
@@ -105,72 +100,53 @@ public class RoutePlanningService {
         places.add(start);
         places.addAll(stops);
 
-        TravelMatrix usual = travelMatrixProvider.matrixFor(places, Roads.USUAL);
+        TravelMatrix matrix = travelMatrixProvider.matrixFor(places);
         Set<Integer> kept = asMatrixIndices(keptInPlace);
 
         // The solver is handed a table of costs and keeps the total down. Distances give the
         // shortest order.
-        RouteSolver.Solution shortest = routeSolver.solve(usual.asCostMatrix(), returnToStart, kept);
+        RouteSolver.Solution shortest = routeSolver.solve(matrix.asCostMatrix(), returnToStart, kept);
         int[] shortestPath = pathOf(shortest.order(), returnToStart);
 
         // The same search again over another table, when the order is chosen for more than
-        // distance, and over other drives when climb is counted. The shortest order is still
-        // worked out, on the usual roads, because it is what this one is held against.
-        Drives drives = countsClimbOnTheRoads(chosenFor, usual)
-                ? Drives.climbingLessWhereWorthIt(usual, travelMatrixProvider.matrixFor(places, Roads.CLIMBING_LESS),
-                        properties.roadMetresPerMetreClimbed())
-                : Drives.alongTheUsualRoads(usual);
-        Optional<RouteSolver.Solution> chosen = costFor(chosenFor, drives.matrix(), vehicle)
+        // distance. The shortest order is still worked out, because it is what this one is held
+        // against.
+        Optional<RouteSolver.Solution> chosen = costFor(chosenFor, matrix, vehicle)
                 .map(cost -> routeSolver.solve(cost, returnToStart, kept));
 
-        Optional<int[]> chosenPath = chosen
+        int[] bestPath = chosen
                 .map(solution -> pathOf(solution.order(), returnToStart))
-                .filter(path -> savesEnough(chosenFor, path, drives.matrix(), shortestPath, usual, vehicle));
-        int[] bestPath = chosenPath.orElse(shortestPath);
-        // The plan is driven along the drives its order was found over.
-        Drives driven = chosenPath.isPresent() ? drives : Drives.alongTheUsualRoads(usual);
+                .filter(path -> savesEnough(chosenFor, path, shortestPath, matrix, vehicle))
+                .orElse(shortestPath);
         int[] enteredPath = pathOf(stopsInEnteredOrder(stops.size()), returnToStart);
 
         return new RoutePlan(
                 placesAlong(bestPath, places),
-                legsAlong(bestPath, places, driven),
+                legsAlong(bestPath, places, matrix),
                 // Added up along the road, and not the solver's total, which is a cost.
-                distanceAlong(bestPath, driven.matrix()),
-                durationAlong(bestPath, driven.matrix()),
-                climbAlong(bestPath, driven.matrix()),
-                // The stops as entered, along the same drives, so the two orders are compared
-                // on the same roads.
-                distanceAlong(enteredPath, driven.matrix()),
+                distanceAlong(bestPath, matrix),
+                durationAlong(bestPath, matrix),
+                climbAlong(bestPath, matrix),
+                distanceAlong(enteredPath, matrix),
                 shortest.ordersChecked(),
-                chosen.map(solution -> shortestOrderAlong(shortestPath, usual)));
-    }
-
-    /**
-     * Whether the roads between the stops are chosen counting climb, as the order is, so that a
-     * drive can go round a hill. That needs the heights of the roads, and the usual roads show
-     * whether they are known.
-     */
-    private static boolean countsClimbOnTheRoads(ChosenFor chosenFor, TravelMatrix usual) {
-        return chosenFor == ChosenFor.DISTANCE_AND_CLIMB && usual.knowsClimb();
+                chosen.map(solution -> shortestOrderAlong(shortestPath, matrix)));
     }
 
     /**
      * The table an order chosen for more than distance is found with. Empty for distance alone,
      * which the shortest order already answers, and when the matrix lacks what the table needs:
-     * heights for the climb, times for the time, heights and the vehicle's weight for the fuel.
+     * times for the time, heights and the vehicle's weight for the fuel.
      */
-    private Optional<double[][]> costFor(ChosenFor chosenFor, TravelMatrix matrix, Optional<FuelUse> vehicle) {
+    private static Optional<double[][]> costFor(ChosenFor chosenFor, TravelMatrix matrix, Optional<FuelUse> vehicle) {
         return switch (chosenFor) {
             case DISTANCE -> Optional.empty();
-            case DISTANCE_AND_CLIMB -> matrix.asCostMatrixCountingClimb(properties.roadMetresPerMetreClimbed());
             case TIME -> matrix.asCostMatrixOfDrivingTime();
             case FUEL -> matrix.asCostMatrixOfFuel(vehicle.orElseThrow());
         };
     }
 
     /**
-     * Whether an order found for time or fuel saves enough over the shortest to be taken. An
-     * order found for distance and climb together is taken as found.
+     * Whether an order found for time or fuel saves enough over the shortest to be taken.
      *
      * <p>An order found for fuel has to save in the fuel it uses up for good, which it was found
      * for, and in the fuel it takes as driven, which the plan shows. On a one-way trip the two
@@ -179,23 +155,18 @@ public class RoutePlanningService {
      * could save only by ending lower.
      */
     private static boolean savesEnough(
-            ChosenFor chosenFor,
-            int[] path,
-            TravelMatrix matrix,
-            int[] shortestPath,
-            TravelMatrix usual,
-            Optional<FuelUse> vehicle) {
+            ChosenFor chosenFor, int[] path, int[] shortestPath, TravelMatrix matrix, Optional<FuelUse> vehicle) {
         return switch (chosenFor) {
-            case TIME -> durationAlong(shortestPath, usual).orElseThrow() - durationAlong(path, matrix).orElseThrow()
+            case TIME -> durationAlong(shortestPath, matrix).orElseThrow() - durationAlong(path, matrix).orElseThrow()
                     >= LEAST_SECONDS_SAVED;
             case FUEL -> {
                 FuelUse fuel = vehicle.orElseThrow();
-                yield litresUsedUpAlong(shortestPath, usual, fuel) - litresUsedUpAlong(path, matrix, fuel)
+                yield litresUsedUpAlong(shortestPath, matrix, fuel) - litresUsedUpAlong(path, matrix, fuel)
                                 >= LEAST_LITRES_SAVED
-                        && litresAlong(shortestPath, usual, fuel) - litresAlong(path, matrix, fuel)
+                        && litresAlong(shortestPath, matrix, fuel) - litresAlong(path, matrix, fuel)
                                 >= LEAST_LITRES_SAVED;
             }
-            case DISTANCE, DISTANCE_AND_CLIMB -> true;
+            case DISTANCE -> true;
         };
     }
 
@@ -227,15 +198,14 @@ public class RoutePlanningService {
         return Arrays.stream(path).mapToObj(places::get).toList();
     }
 
-    private List<RoutePlan.Leg> legsAlong(int[] path, List<Location> places, Drives drives) {
-        TravelMatrix matrix = drives.matrix();
+    private List<RoutePlan.Leg> legsAlong(int[] path, List<Location> places, TravelMatrix matrix) {
         List<RoutePlan.Leg> legs = new ArrayList<>(path.length - 1);
         for (int step = 0; step < path.length - 1; step++) {
             Location from = places.get(path[step]);
             Location to = places.get(path[step + 1]);
             // Only the legs that made it into the answer are drawn and written out, so this costs
             // one lookup per leg rather than one per pair.
-            Directions directions = travelMatrixProvider.directionsBetween(from, to, drives.roads(path[step], path[step + 1]));
+            Directions directions = travelMatrixProvider.directionsBetween(from, to);
             legs.add(new RoutePlan.Leg(
                     from.name(),
                     to.name(),

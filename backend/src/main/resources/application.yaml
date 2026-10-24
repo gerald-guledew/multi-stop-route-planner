@@ -53,17 +53,9 @@ routeplanner:
       files: data/heights
       # The graph prepared with heights. It cannot be read with heights off, nor the other one
       # with heights on, so each has a folder of its own and neither is lost by changing the
-      # setting. It also holds the roads that climb less, prepared with the figure below. The
-      # graph in data/graph-cache-heights, prepared before there were any, is no longer read.
-      graph-cache: data/graph-cache-heights-2
-  planning:
-    # Read when a plan is asked to factor in road climbs. The order and the roads between the
-    # stops are then chosen for distance and climb together, and this is how many metres of level
-    # road a metre of climb counts as. At 10, an order that is 1 km longer comes out ahead when it
-    # climbs more than 100 m less. Coming down counts for nothing. The roads are prepared with
-    # this figure ahead, so after changing it the graph with heights has to be prepared again:
-    # the application refuses to start until its folder is deleted.
-    road-metres-per-metre-climbed: 10
+      # setting. The graph in data/graph-cache-heights-2, which held roads that climb less as
+      # well, is no longer read.
+      graph-cache: data/graph-cache-heights
   addresses:
     # Set to true once, with the LINZ export in place, to load the address table.
     import-enabled: false
