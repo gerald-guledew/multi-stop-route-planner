@@ -28,10 +28,10 @@ Develop an application that can accept a starting point and a list of places. It
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
 - The turns of each leg written out, along the roads drawn on the map, from setting off to arriving
-- The order that takes the least fuel in your vehicle, picked to begin with. Another order is taken only when it saves a tenth of a litre, so most often it is the shortest order, and the screen says so. With no vehicle saved, it is the shortest order
+- The order that takes the least fuel in your vehicle, picked to begin with. Town roads take more fuel for every kilometre than the open road, so it often keeps to the motorway, a little longer and quicker. With no vehicle saved, it is the shortest order
 - The fastest order when picked instead, with the minutes it saves over the shortest. Another order is taken only when it saves a minute or more
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
-- Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes, with what each climb costs and each descent gives back
+- Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes: more in town than on the open road, with what each climb costs and each descent gives back
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
 - A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
 
@@ -92,7 +92,7 @@ The first start with heights on fetches the height of the ground for New Zealand
 
 A copy whose graph with heights is in `backend/data/graph-cache-heights-2`, from an earlier version, builds it again in `backend/data/graph-cache-heights` on its next start with heights on. That took under a minute where it was measured, and fetches nothing. The old folder can then be deleted.
 
-With a vehicle saved, the order is chosen for the fuel it takes, hills included, unless "Fastest" is picked. That needs heights on and a vehicle whose weight is known. Without them the fuel goes with the distance, the answer is the shortest order, and the screen says why.
+With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest" is picked: more for every kilometre in town than on the open road, and its hills when heights are on and the vehicle's weight is known. On straight lines the fuel goes with the distance, the answer is the shortest order, and the screen says why.
 
 On real roads, picking "Fastest" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so.
 

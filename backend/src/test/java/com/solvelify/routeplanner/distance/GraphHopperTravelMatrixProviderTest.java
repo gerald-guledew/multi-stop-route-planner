@@ -37,6 +37,7 @@ class GraphHopperTravelMatrixProviderTest {
     private static final Location DEVONPORT = new Location("Devonport", -36.8330, 174.7955);
     private static final Location SYLVIA_PARK = new Location("Sylvia Park", -36.9170, 174.8414);
     private static final Location SKY_TOWER = new Location("Sky Tower", -36.8485, 174.7621);
+    private static final Location TAKAPUNA = new Location("Takapuna", -36.7870, 174.7740);
 
     private static GraphHopper graphHopper;
     private static GraphHopperTravelMatrixProvider provider;
@@ -211,5 +212,28 @@ class GraphHopperTravelMatrixProviderTest {
 
         assertThat(matrix.durationSeconds(0, 0)).hasValue(0);
         assertThat(matrix.durationSeconds(1, 1)).hasValue(0);
+    }
+
+    // How much of each drive is in town, for the fuel.
+
+    @Test
+    void putsAStreetAtFiftyInTown() {
+        // Takapuna to Devonport is Lake Road, at 50 km/h, nearly all the way.
+        TravelMatrix matrix = provider.matrixFor(List.of(TAKAPUNA, DEVONPORT));
+
+        assertThat(matrix.kmInTown(0, 1).orElseThrow() / matrix.distanceKm(0, 1)).isGreaterThan(0.95);
+    }
+
+    @Test
+    void putsTheMotorwayOnTheOpenRoad() {
+        // Sylvia Park to Takapuna is 17 km of motorway in 21. Measured with heights: 15% in town.
+        TravelMatrix matrix = provider.matrixFor(List.of(SYLVIA_PARK, TAKAPUNA));
+
+        assertThat(matrix.kmInTown(0, 1).orElseThrow() / matrix.distanceKm(0, 1)).isBetween(0.05, 0.3);
+    }
+
+    @Test
+    void putsNoTownInStayingWhereYouAre() {
+        assertThat(provider.matrixFor(List.of(TAKAPUNA, DEVONPORT)).kmInTown(0, 0)).hasValue(0);
     }
 }

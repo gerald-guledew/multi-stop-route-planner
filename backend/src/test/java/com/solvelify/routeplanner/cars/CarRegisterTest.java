@@ -1,6 +1,7 @@
 package com.solvelify.routeplanner.cars;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
@@ -125,6 +126,47 @@ class CarRegisterTest {
     @Test
     void cannotWeighACarItDoesNotList() {
         assertThat(register.weightOf(new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.3")))).isEmpty();
+    }
+
+    // Town and the open road.
+
+    private static final Car SWIFT_1_2 = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.2"));
+
+    @Test
+    void splitsTownAndTheOpenRoadAsTheRegisterDoes() {
+        split("SUZUKI", "SWIFT", 2018, "1.2", false, 6.0, 4.1);
+
+        assertThat(register.townOverOpenRoadOf(SWIFT_1_2)).hasValueCloseTo(6.0 / 4.1, within(1e-9));
+    }
+
+    @Test
+    void splitsAsTheOriginWithMoreCarsWhenTheRegisterSplitsBoth() {
+        split("SUZUKI", "SWIFT", 2018, "1.2", true, 5.0, 4.0);
+        split("SUZUKI", "SWIFT", 2018, "1.2", false, 6.0, 4.1);
+
+        assertThat(register.townOverOpenRoadOf(SWIFT_1_2)).hasValueCloseTo(6.0 / 4.1, within(1e-9));
+    }
+
+    @Test
+    void splitsAsTheOnlyOriginTheRegisterSplitsHoweverFewItsCars() {
+        split("SUZUKI", "SWIFT", 2018, "1.2", true, 5.0, 4.0);
+
+        assertThat(register.townOverOpenRoadOf(SWIFT_1_2)).hasValueCloseTo(1.25, within(1e-9));
+    }
+
+    @Test
+    void hasNoSplitForACarTheRegisterDoesNotSplit() {
+        assertThat(register.townOverOpenRoadOf(SWIFT_1_2)).isEmpty();
+    }
+
+    private void split(String make, String model, int year, String engineLitres, boolean importedUsed,
+                       double town, double openRoad) {
+        jdbc.sql("""
+                        UPDATE car_variant SET urban_litres_per_100_km = ?, extra_urban_litres_per_100_km = ?
+                        WHERE make = ? AND model = ? AND year = ? AND engine_litres = ? AND imported_used = ?
+                        """)
+                .params(town, openRoad, make, model, year, new BigDecimal(engineLitres), importedUsed)
+                .update();
     }
 
     private void weigh(String make, String model, int year, String engineLitres, boolean importedUsed, int grossKilograms) {

@@ -9,6 +9,7 @@ import com.graphhopper.reader.dem.ElevationProvider;
 import com.solvelify.routeplanner.planning.BruteForceRouteSolver;
 import com.solvelify.routeplanner.planning.ChosenFor;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
+import com.solvelify.routeplanner.planning.FuelEstimate;
 import com.solvelify.routeplanner.planning.FuelUse;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.RoutePlan;
@@ -278,17 +279,21 @@ class RealHeightsTest {
     }
 
     @Test
-    void findsNoOrderForTheFiveStopsThatTakesATenthOfALitreLess() {
-        Optional<FuelUse> aMediumCar = Optional.of(new FuelUse(7.5, OptionalDouble.of(VehicleSize.MEDIUM.kilograms())));
+    void keepsToTheMotorwayForTheLeastFuelAroundTheFiveStops() {
+        FuelUse aMediumCar = new FuelUse(7.5, OptionalDouble.of(VehicleSize.MEDIUM.kilograms()));
 
         RoutePlan plan = planner().plan(
-                THE_ROUND.getFirst(), THE_ROUND.subList(1, THE_ROUND.size()), Set.of(), true, ChosenFor.FUEL, aMediumCar);
+                THE_ROUND.getFirst(), THE_ROUND.subList(1, THE_ROUND.size()), Set.of(), true, ChosenFor.FUEL,
+                Optional.of(aMediumCar));
+        FuelEstimate fuel = FuelEstimate.of(plan, aMediumCar);
 
-        // Measured: the shortest order, 76.91 km, takes 5.77 L either way round. On a round trip
-        // most descents give back what the climbs cost, so the fuel goes with the distance.
-        RoutePlan.ShortestOrder shortest = plan.shortestOrder().orElseThrow();
-        assertThat(plan.totalDistanceKm()).isEqualTo(shortest.distanceKm());
-        assertThat(plan.totalClimbAndDescent()).isEqualTo(shortest.climbAndDescent());
+        // Measured: the fastest order, 77.33 km for 6.11 L, where the shortest is 76.91 km for 6.19.
+        // It keeps to the motorway, where a kilometre takes less than on town roads.
+        double saved = fuel.shortestOrderLitres().orElseThrow() - fuel.totalLitres();
+        assertThat(saved).isBetween(0.03, 0.2);
+        assertThat(fuel.countsSpeed()).isTrue();
+        assertThat(plan.route()).extracting(Location::name)
+                .containsExactly("Sky Tower", "Takapuna", "Devonport", "Sylvia Park", "Airport", "Sky Tower");
     }
 
     private static RoutePlanningService planner() {

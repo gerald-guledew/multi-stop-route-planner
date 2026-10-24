@@ -13,6 +13,7 @@ function aPlan(shortestOrder: ShortestOrder | null, more: Partial<RoutePlan> = {
     totalDescentMetres: 561,
     totalFuelLitres: 4.7,
     fuelCountsHills: true,
+    fuelCountsSpeed: true,
     enteredOrderDistanceKm: 70.1,
     shortestOrder,
     ordersChecked: 24,
@@ -45,15 +46,29 @@ describe('saying what asking for the least fuel came to', () => {
     )
   })
 
-  it('says so when the shortest order takes the least fuel too, or picking it would seem to do nothing', () => {
-    expect(leastFuelSaid(true, true, aPlan(THE_SAME))).toBe(
-      'The shortest order takes the least fuel too, to within a tenth of a litre.',
+  it('says how much quicker the drive is, when it is a minute or more', () => {
+    const shorterSlowerAndThirstier = { ...THE_SAME, distanceKm: 62.46, durationSeconds: 5100, fuelLitres: 4.84 }
+
+    expect(leastFuelSaid(true, true, aPlan(shorterSlowerAndThirstier))).toBe(
+      'This order is 0.42 km longer than the shortest and takes 0.1 L less fuel. It is 2 min quicker.',
     )
   })
 
-  it('says why it is the shortest order when the hills could not be counted', () => {
-    expect(leastFuelSaid(true, true, aPlan(null, { fuelCountsHills: false }))).toBe(
-      'The hills were not counted, so the fuel goes with the distance and the shortest order takes the least.',
+  it('says under a tenth of a litre for a saving that small, and not none', () => {
+    const shorterAndALittleThirstier = { ...THE_SAME, distanceKm: 62.46, fuelLitres: 4.72 }
+
+    expect(leastFuelSaid(true, true, aPlan(shorterAndALittleThirstier))).toBe(
+      'This order is 0.42 km longer than the shortest and takes under 0.1 L less fuel.',
+    )
+  })
+
+  it('says so when the shortest order takes the least fuel too, or picking it would seem to do nothing', () => {
+    expect(leastFuelSaid(true, true, aPlan(THE_SAME))).toBe('The shortest order takes the least fuel too.')
+  })
+
+  it('says why it is the shortest order on straight lines', () => {
+    expect(leastFuelSaid(true, true, aPlan(null, { fuelCountsHills: false, fuelCountsSpeed: false }))).toBe(
+      'On straight lines the fuel goes with the distance, so the shortest order takes the least.',
     )
   })
 

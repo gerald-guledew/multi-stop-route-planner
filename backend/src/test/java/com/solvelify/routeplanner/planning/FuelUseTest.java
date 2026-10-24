@@ -125,4 +125,74 @@ class FuelUseTest {
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
+
+    // Town and the open road.
+
+    @Test
+    void splitsOneFigureBetweenTownAndTheOpenRoadTheUsualWay() {
+        FuelUse oneFigure = new FuelUse(7.5);
+
+        // Town 1.6 times the open road, and the two weighed as the approval test weighs them come to
+        // the one figure: 9.83 in town and 6.14 on the open road.
+        assertThat(oneFigure.townLitresPer100Km() / oneFigure.openRoadLitresPer100Km()).isCloseTo(1.6, within(1e-9));
+        assertThat(FuelUse.TOWN_SHARE_OF_THE_TEST * oneFigure.townLitresPer100Km()
+                + (1 - FuelUse.TOWN_SHARE_OF_THE_TEST) * oneFigure.openRoadLitresPer100Km()).isCloseTo(7.5, within(1e-9));
+        assertThat(oneFigure.townLitresPer100Km()).isCloseTo(9.83, within(0.01));
+        assertThat(oneFigure.openRoadLitresPer100Km()).isCloseTo(6.14, within(0.01));
+    }
+
+    @Test
+    void splitsOneFigureAsTheCarsOwnFiguresAreSplit() {
+        // A 2020 Corolla 2.0 sold new: 7.5 in town, 5.1 on the open road and 6.0 combined.
+        FuelUse corolla = FuelUse.withTownOverOpenRoad(6.0, 7.5 / 5.1, OptionalDouble.empty());
+
+        assertThat(corolla.townLitresPer100Km()).isCloseTo(7.5, within(0.05));
+        assertThat(corolla.openRoadLitresPer100Km()).isCloseTo(5.1, within(0.05));
+    }
+
+    @Test
+    void takesTheTownFigureInTownAndTheOpenRoadsForTheRest() {
+        FuelUse car = new FuelUse(6.0, 7.5, 5.1, OptionalDouble.empty());
+
+        // 4 km in town at 7.5 and 6 km on the open road at 5.1: 0.3 L and 0.306 L.
+        assertThat(car.litresOnTheLevel(10, OptionalDouble.of(4))).isCloseTo(0.606, within(1e-9));
+        assertThat(car.litresFor(10, OptionalDouble.of(4), Optional.empty())).isCloseTo(0.606, within(1e-9));
+        assertThat(car.litresUsedUpFor(10, OptionalDouble.of(4), Optional.empty())).isCloseTo(0.606, within(1e-9));
+    }
+
+    @Test
+    void takesTheOneFigureWhereTheRoadsAreNotKnown() {
+        FuelUse car = new FuelUse(6.0, 7.5, 5.1, OptionalDouble.empty());
+
+        assertThat(car.litresOnTheLevel(10, OptionalDouble.empty())).isCloseTo(0.6, within(1e-9));
+    }
+
+    @Test
+    void countsTheHillsOnTopOfTownAndTheOpenRoad() {
+        FuelUse car = new FuelUse(7.5, 9.0, 6.6, OptionalDouble.of(1225));
+
+        // All 10 km in town, and 100 m up.
+        assertThat(car.litresFor(10, OptionalDouble.of(10), Optional.of(new ClimbAndDescent(100, 0))))
+                .isCloseTo(0.9 + HUNDRED_METRES_UP, within(1e-9));
+    }
+
+    @Test
+    void givesBackOnASteepDescentWhatItsStretchTakesAtTheOneFigure() {
+        // 100 m down in 1 km, in town. At the one figure that kilometre takes 0.075 L.
+        FuelUse car = new FuelUse(7.5, 9.0, 6.6, OptionalDouble.of(1225));
+        ClimbAndDescent steep = new ClimbAndDescent(100, 100, List.of(new Descent(100, 1000)));
+
+        assertThat(car.litresFor(10, OptionalDouble.of(10), Optional.of(steep)))
+                .isCloseTo(0.9 + HUNDRED_METRES_UP - 0.075, within(1e-9));
+    }
+
+    @Test
+    void refusesATownOrOpenRoadFigureThatIsNotAnAmountOfFuel() {
+        for (double notFuel : new double[] {0, -6, Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertThatThrownBy(() -> new FuelUse(7.5, notFuel, 6.0, OptionalDouble.empty()))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> new FuelUse(7.5, 9.0, notFuel, OptionalDouble.empty()))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
 }
