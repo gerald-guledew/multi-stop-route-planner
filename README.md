@@ -1,6 +1,6 @@
 # Multi-Stop Route Planner
 
-Works out the efficient order to drive to several places, then hands the route to Google Maps or Waze.
+Works out the efficient order to drive to several places, then hands the route to Google Maps.
 
 **Status: early development.** The first usable version is being built in the open. Star or watch the repository to hear when it lands.
 
@@ -19,7 +19,7 @@ With five stops there are 120 possible orders. With ten stops there are more tha
 
 ## The plan
 
-Develop an application that can accept a starting point and a list of places. It works out the order that makes the trip efficient, then hands each leg to Google Maps or Waze for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
+Develop an application that can accept a starting point and a list of places. It works out the order that makes the trip efficient, then hands the route to Google Maps for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
 
 - Efficient stop order for a list of addresses
 - A stop that has to keep its turn, such as the one that must come first, stays there while the rest are arranged around it
