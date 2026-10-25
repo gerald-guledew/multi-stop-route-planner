@@ -29,7 +29,7 @@ Develop an application that can accept a starting point and a list of places. It
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
 - The turns of each leg written out, along the roads drawn on the map, from setting off to arriving
 - The order that takes the least fuel in your vehicle, picked to begin with. Town roads take more fuel for every kilometre than the open road, so it often keeps to the motorway, a little longer and quicker. With no vehicle saved, it is the shortest order
-- The fastest order when picked instead, with the minutes it saves over the shortest. Another order is taken only when it saves a minute or more
+- The fastest order when picked instead. Another order is taken only when it saves a minute or more over the shortest
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
 - Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes: more in town than on the open road, with what each climb costs and each descent gives back
 - Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
@@ -95,6 +95,8 @@ A copy whose graph with heights is in `backend/data/graph-cache-heights-2`, from
 With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest" is picked: more for every kilometre in town than on the open road, and its hills when heights are on and the vehicle's weight is known. On straight lines the fuel goes with the distance, the answer is the shortest order, and the screen says why.
 
 On real roads, picking "Fastest" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so.
+
+With a vehicle saved, on real roads, the plan sets the two choices side by side: the distance, driving time and fuel of each, and the difference in minutes and litres, or that they come out the same.
 
 ### Address search
 
@@ -163,7 +165,7 @@ Do not put the app on an address that anyone can open. Do not point a tunnel at 
 - [x] 3. Real driving distances from GraphHopper
 - [x] 4. Map screen, first release
 - [ ] 5. Vehicle information: engine, size and load
-- [ ] 6. Fuel-efficient route option, using that vehicle information
+- [x] 6. Fuel-efficient route option, using that vehicle information
 
 ## Later
 

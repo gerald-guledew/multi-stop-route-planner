@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { leastFuelSaid } from './leastFuel'
-import type { RoutePlan, ShortestOrder } from './types'
+import type { OrderTotals, RoutePlan } from './types'
 
 /** A round trip of 62.88 km that takes 83 minutes, climbs 561 m and takes 4.70 L. */
-function aPlan(shortestOrder: ShortestOrder | null, more: Partial<RoutePlan> = {}): RoutePlan {
+function aPlan(shortestOrder: OrderTotals | null, more: Partial<RoutePlan> = {}): RoutePlan {
   return {
     route: [],
     legs: [],
@@ -16,12 +16,14 @@ function aPlan(shortestOrder: ShortestOrder | null, more: Partial<RoutePlan> = {
     fuelCountsSpeed: true,
     enteredOrderDistanceKm: 70.1,
     shortestOrder,
+    fastestOrder: null,
+    leastFuelOrder: null,
     ordersChecked: 24,
     ...more,
   }
 }
 
-const THE_SAME: ShortestOrder = {
+const THE_SAME: OrderTotals = {
   distanceKm: 62.88,
   durationSeconds: 4980,
   climbMetres: 561,

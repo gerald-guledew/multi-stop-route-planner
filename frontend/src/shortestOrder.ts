@@ -1,7 +1,7 @@
 import type { ChosenFor } from './chosenFor'
 import { howLong } from './duration'
 import { litresSaid } from './fuel'
-import type { RoutePlan, ShortestOrder } from './types'
+import type { OrderTotals, RoutePlan } from './types'
 
 /**
  * Half of the last digit shown. The figures arrive rounded, to a hundredth of a kilometre, to a
@@ -9,9 +9,9 @@ import type { RoutePlan, ShortestOrder } from './types'
  * difference at all.
  */
 export const NO_FURTHER_KM = 0.005
-const NO_QUICKER_SECONDS = 0.5
+export const NO_QUICKER_SECONDS = 0.5
 const NO_LESS_METRES = 0.5
-const NO_LESS_LITRES = 0.005
+export const NO_LESS_LITRES = 0.005
 
 /**
  * How much further the order chosen goes than the shortest, how much quicker it is, how much
@@ -19,7 +19,7 @@ const NO_LESS_LITRES = 0.005
  * not give.
  */
 export function against(
-  shortest: ShortestOrder,
+  shortest: OrderTotals,
   plan: RoutePlan,
 ): { furtherKm: number; quickerSeconds: number; lessMetres: number; lessLitres: number } {
   return {
@@ -61,7 +61,7 @@ export function differsFromTheShortest(plan: RoutePlan): boolean {
  * what the order was chosen for besides. "62.58 km, 1 h 12 min" beside the fastest, and
  * "62.58 km, 4.9 L" beside the least fuel.
  */
-export function shortestSaid(shortest: ShortestOrder, chosenFor: ChosenFor): string {
+export function shortestSaid(shortest: OrderTotals, chosenFor: ChosenFor): string {
   const parts = [`${shortest.distanceKm.toFixed(2)} km`]
   if (chosenFor === 'time' && shortest.durationSeconds !== null) {
     parts.push(howLong(shortest.durationSeconds))

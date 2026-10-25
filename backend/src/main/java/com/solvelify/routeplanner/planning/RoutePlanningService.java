@@ -73,10 +73,11 @@ public class RoutePlanningService {
      *                    the distance. Without what it needs, the order is chosen for distance,
      *                    whatever was asked, and the plan gives no shortest order to hold it
      *                    against. The fastest order is taken when it saves a minute or more, the
-     *                    order for fuel when it saves a tenth of a litre or more, and the shortest
-     *                    otherwise
+     *                    order for fuel when it saves a hundredth of a litre or more, and the
+     *                    shortest otherwise. The plan also gives what the other of the two comes
+     *                    to, by the same rule, when it can be chosen
      * @param vehicle     the vehicle whose fuel an order chosen for fuel keeps down. Needed for
-     *                    that, and not read otherwise
+     *                    that, and for the least fuel beside the fastest. Not read otherwise
      */
     public RoutePlan plan(
             Location start,
@@ -112,14 +113,14 @@ public class RoutePlanningService {
         // The same search again over another table, when the order is chosen for more than
         // distance. The shortest order is still worked out, because it is what this one is held
         // against.
-        Optional<RouteSolver.Solution> chosen = costFor(chosenFor, matrix, vehicle)
-                .map(cost -> routeSolver.solve(cost, returnToStart, kept));
-
-        int[] bestPath = chosen
-                .map(solution -> pathOf(solution.order(), returnToStart))
-                .filter(path -> savesEnough(chosenFor, path, shortestPath, matrix, vehicle))
-                .orElse(shortestPath);
+        Optional<int[]> chosen = pathChosenFor(chosenFor, matrix, vehicle, returnToStart, kept, shortestPath);
+        int[] bestPath = chosen.orElse(shortestPath);
         int[] enteredPath = pathOf(stopsInEnteredOrder(stops.size()), returnToStart);
+
+        // And once more for the other of the two choices, so the two can be set side by side.
+        Optional<RoutePlan.OtherChoice> otherChoice = otherChoiceThan(chosenFor, vehicle)
+                .flatMap(other -> pathChosenFor(other, matrix, vehicle, returnToStart, kept, shortestPath)
+                        .map(path -> otherChoiceAlong(other, path, matrix)));
 
         return new RoutePlan(
                 placesAlong(bestPath, places),
@@ -130,7 +131,38 @@ public class RoutePlanningService {
                 climbAlong(bestPath, matrix),
                 distanceAlong(enteredPath, matrix),
                 shortest.ordersChecked(),
-                chosen.map(solution -> shortestOrderAlong(shortestPath, matrix)));
+                chosen.map(path -> shortestOrderAlong(shortestPath, matrix)),
+                otherChoice);
+    }
+
+    /**
+     * The order a choice for time or fuel comes to: the one found over its table when that saves
+     * enough over the shortest, and the shortest otherwise. Empty when there is no such table: for
+     * distance alone, and when the matrix lacks what the table needs.
+     */
+    private Optional<int[]> pathChosenFor(
+            ChosenFor chosenFor,
+            TravelMatrix matrix,
+            Optional<FuelUse> vehicle,
+            boolean returnToStart,
+            Set<Integer> kept,
+            int[] shortestPath) {
+        return costFor(chosenFor, matrix, vehicle)
+                .map(cost -> pathOf(routeSolver.solve(cost, returnToStart, kept).order(), returnToStart))
+                .map(path -> savesEnough(chosenFor, path, shortestPath, matrix, vehicle) ? path : shortestPath);
+    }
+
+    /**
+     * The other of the two choices the screen offers, the least fuel and the fastest. Beside the
+     * fastest it is the least fuel only when the vehicle came, since the fuel is a vehicle's.
+     * There is none beside the shortest order.
+     */
+    private static Optional<ChosenFor> otherChoiceThan(ChosenFor chosenFor, Optional<FuelUse> vehicle) {
+        return switch (chosenFor) {
+            case FUEL -> Optional.of(ChosenFor.TIME);
+            case TIME -> vehicle.map(fuel -> ChosenFor.FUEL);
+            case DISTANCE -> Optional.empty();
+        };
     }
 
     /**
@@ -282,6 +314,12 @@ public class RoutePlanningService {
     private static RoutePlan.ShortestOrder shortestOrderAlong(int[] path, TravelMatrix matrix) {
         return new RoutePlan.ShortestOrder(
                 distanceAlong(path, matrix), durationAlong(path, matrix), climbAlong(path, matrix),
+                kmInTownAlong(path, matrix));
+    }
+
+    private static RoutePlan.OtherChoice otherChoiceAlong(ChosenFor chosenFor, int[] path, TravelMatrix matrix) {
+        return new RoutePlan.OtherChoice(
+                chosenFor, distanceAlong(path, matrix), durationAlong(path, matrix), climbAlong(path, matrix),
                 kmInTownAlong(path, matrix));
     }
 

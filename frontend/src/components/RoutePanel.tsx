@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
+import { bothChoices, bothSaid, comeOutTheSame, sideBySide } from '../bothChoices'
 import { chosenFor, type Order } from '../chosenFor'
 import { climbSaid } from '../climb'
 import { fastestSaid } from '../fastest'
@@ -165,10 +166,13 @@ export default function RoutePanel(props: Props) {
   // A plan is cleared whenever the vehicle changes, so one shown was made with the vehicle there is.
   const hasVehicle = props.vehicleFigureFrom !== null
   const chosen = chosenFor({ order: props.order, hasVehicle })
-  const quickest = plan ? fastestSaid(chosen === 'time', plan) : null
-  const leastFuel = plan ? leastFuelSaid(props.order === 'leastFuel', hasVehicle, plan) : null
+  // The two choices side by side, when the plan gives the other. That says more than either held
+  // against the shortest order, which is then left out.
+  const both = plan ? bothChoices(plan) : null
+  const quickest = plan && !both ? fastestSaid(chosen === 'time', plan) : null
+  const leastFuel = plan && !both ? leastFuelSaid(props.order === 'leastFuel', hasVehicle, plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
-  const shortest = plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
+  const shortest = !both && plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -476,6 +480,32 @@ export default function RoutePanel(props: Props) {
                 )}
               </dl>
 
+              {both && !comeOutTheSame(both) && (
+                <table className="side-by-side">
+                  <caption>Both choices. The map shows {both.shown === 'leastFuel' ? 'Least fuel' : 'Fastest'}.</caption>
+                  <thead>
+                    <tr>
+                      <td />
+                      <th scope="col" className={both.shown === 'leastFuel' ? 'shown' : ''}>
+                        Least fuel
+                      </th>
+                      <th scope="col" className={both.shown === 'fastest' ? 'shown' : ''}>
+                        Fastest
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sideBySide(both).map((row) => (
+                      <tr key={row.says}>
+                        <th scope="row">{row.says}</th>
+                        <td className={both.shown === 'leastFuel' ? 'shown' : ''}>{row.leastFuel}</td>
+                        <td className={both.shown === 'fastest' ? 'shown' : ''}>{row.fastest}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {both && <p className="note">{bothSaid(both)}</p>}
               {quickest && <p className="note">{quickest}</p>}
               {leastFuel && <p className="note">{leastFuel}</p>}
               {plan.totalDurationSeconds !== null && (
