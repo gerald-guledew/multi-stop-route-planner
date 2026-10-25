@@ -483,6 +483,64 @@ class PostgresPlaceSearchTest {
         assertThat(names(placeSearch.search("māngere", 8))).containsExactly("PAK'nSAVE Mangere", "Z");
     }
 
+    @Test
+    void marksDownABusinessWhoseNameAndSuburbLackAWordTyped() {
+        // "street" is read as St as well, which found the shop on Robert St.
+        insertPoi("cb", "Cuts on Bank", "8 Robert St", "Whangārei", "Whangārei", 0.99, -35.7251, 174.3237);
+
+        assertThat(names(placeSearch.search("bank street whangarei", 8)))
+                .containsExactly("12 Bank Street, Whangārei", "Cuts on Bank");
+    }
+
+    // A word in between.
+
+    @Test
+    void findsANameWithAWordBetweenTheWordsTyped() {
+        // Both at the hospital. Nothing is called Auckland Hospital, so "City" costs nothing,
+        // and more of the hospital's name is what was typed.
+        insertPoi("ah", "Auckland City Hospital", "2 Park Rd", "Grafton", "Auckland", 0.99, -36.8605, 174.7695);
+        insertPoi("af", "Auckland Hospital Foundation", "2 Park Rd", "Grafton", "Auckland", 0.99, -36.8605, 174.7695);
+
+        assertThat(names(placeSearch.search("auckland hospital", 8)))
+                .containsExactly("Auckland City Hospital", "Auckland Hospital Foundation");
+        assertThat(names(placeSearch.search("auckland hosp", 8)).getFirst()).isEqualTo("Auckland City Hospital");
+    }
+
+    @Test
+    void keepsTheWordsTogetherWhenSomethingIsCalledJustThat() {
+        // Two kilometres from The Warehouse, at another shop that holds both words.
+        ReferencePoint atTheRugShop = new ReferencePoint(-36.8540, 174.7770);
+        insertPoi("rw", "The Rug Warehouse", "1 Nowhere Lane", "Grafton", "Auckland", 0.99, -36.8540, 174.7770);
+
+        assertThat(names(placeSearch.search("the warehouse", atTheRugShop, 8)).getFirst()).isEqualTo("The Warehouse");
+        assertThat(names(placeSearch.search("the wareh", atTheRugShop, 8)).getFirst()).isEqualTo("The Warehouse");
+    }
+
+    @Test
+    void looksForTheWordsApartInTheNameAndNotInTheSuburb() {
+        // The bar is in Parnell and has "The" in its name. That is not what "the parnell" means.
+        ReferencePoint atTheBar = new ReferencePoint(-36.8560, 174.7800);
+        insertPoi("tb", "The Ivy Room", "1 Nowhere Lane", "Parnell", "Auckland", 0.99, -36.8560, 174.7800);
+        insertPoi("pb", "The Parnell Barber", "2 Nowhere Lane", "Parnell", "Auckland", 0.99, -36.8600, 174.7800);
+
+        assertThat(names(placeSearch.search("the parnell", atTheBar, 8)).getFirst()).isEqualTo("The Parnell Barber");
+    }
+
+    @Test
+    void looksForTheWordsApartOnlyInTheOrderTyped() {
+        // The kitchen's name holds both words the other way round, and its address holds
+        // "commercial" after the "Auckland" of its name, which is how it was found. The search
+        // looks from the kitchen, and the cleaners are about 70 km away.
+        ReferencePoint atTheKitchen = new ReferencePoint(-37.7870, 175.2790);
+        insertPoi("ck", "Commercial Kitchens Auckland", "5 Commercial Lane", "Frankton", "Hamilton",
+                0.99, -37.7870, 175.2790);
+        insertPoi("ac", "Auckland Commercial Cleaners", "3 Nowhere Lane", null, "Pukekohe",
+                0.99, -37.2000, 174.9000);
+
+        assertThat(names(placeSearch.search("auckland commercial", atTheKitchen, 8)).getFirst())
+                .isEqualTo("Auckland Commercial Cleaners");
+    }
+
     // Limits.
 
     @Test

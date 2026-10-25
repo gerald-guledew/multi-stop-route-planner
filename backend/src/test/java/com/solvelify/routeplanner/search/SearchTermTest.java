@@ -1,6 +1,7 @@
 package com.solvelify.routeplanner.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -14,8 +15,8 @@ class SearchTermTest {
         SearchTerm term = SearchTerm.from("bassett way remuera").orElseThrow();
 
         assertThat(term.anySpelling()).isEqualTo("bassett.*way.*remuera");
-        assertThat(term.spellings())
-                .containsExactly(new SearchTerm.Spelling("bassett way remuera", "bassett.*way.*remuera"));
+        assertThat(term.spellings()).extracting(SearchTerm.Spelling::words, SearchTerm.Spelling::pattern)
+                .containsExactly(tuple("bassett way remuera", "bassett.*way.*remuera"));
     }
 
     @Test
@@ -87,9 +88,9 @@ class SearchTermTest {
     void readsAnAbbreviationAsTheWordItStandsFor() {
         SearchTerm term = SearchTerm.from("12 bassett rd").orElseThrow();
 
-        assertThat(term.spellings()).containsExactly(
-                new SearchTerm.Spelling("12 bassett rd", "12.*bassett.*rd"),
-                new SearchTerm.Spelling("12 bassett road", "12.*bassett.*road"));
+        assertThat(term.spellings()).extracting(SearchTerm.Spelling::words, SearchTerm.Spelling::pattern).containsExactly(
+                tuple("12 bassett rd", "12.*bassett.*rd"),
+                tuple("12 bassett road", "12.*bassett.*road"));
         assertThat(term.anySpelling()).isEqualTo("12.*bassett.*(rd|road)");
     }
 
@@ -97,9 +98,9 @@ class SearchTermTest {
     void readsAWordInFullAsItsAbbreviationStandingAsAWordOfItsOwn() {
         SearchTerm term = SearchTerm.from("saint lukes").orElseThrow();
 
-        assertThat(term.spellings()).containsExactly(
-                new SearchTerm.Spelling("saint lukes", "saint.*lukes"),
-                new SearchTerm.Spelling("st lukes", "(^| )st\\M.*lukes"));
+        assertThat(term.spellings()).extracting(SearchTerm.Spelling::words, SearchTerm.Spelling::pattern).containsExactly(
+                tuple("saint lukes", "saint.*lukes"),
+                tuple("st lukes", "(^| )st\\M.*lukes"));
         assertThat(term.anySpelling()).isEqualTo("(saint|(^| )st\\M).*lukes");
     }
 
@@ -170,6 +171,42 @@ class SearchTermTest {
         assertThat(term.spellings()).hasSize(SearchTerm.MOST_SPELLINGS);
         assertThat(term.anySpelling()).isEqualTo("(mt|mount).*(st|saint).*(pt|point).*rd.*lukes");
         assertThat(words(term)).allMatch(spelling -> spelling.endsWith(" rd lukes"));
+    }
+
+    // A name that is just the words typed.
+
+    @Test
+    void matchesANameOfTheWordsTypedAndNothingElseTheLastPerhapsUnfinished() {
+        assertThat(SearchTerm.from("the wareh").orElseThrow().spellings().getFirst().name())
+                .isEqualTo("^the[^[:alnum:]]*wareh[[:alnum:]]*[^[:alnum:]]*$");
+    }
+
+    @Test
+    void matchesANameWrittenWithoutTheSpacesOrWithPunctuationBetween() {
+        // So "pak n save" is all of PAK'nSAVE, and "h&m" all of H&M.
+        assertThat(SearchTerm.from("pak n save").orElseThrow().spellings().getFirst().name())
+                .isEqualTo("^pak[^[:alnum:]]*n[^[:alnum:]]*save[[:alnum:]]*[^[:alnum:]]*$");
+        assertThat(SearchTerm.from("h&m").orElseThrow().spellings().getFirst().name())
+                .isEqualTo("^h[^[:alnum:]]*m[[:alnum:]]*[^[:alnum:]]*$");
+    }
+
+    @Test
+    void matchesANameEveryWayItsWordsAreSpelt() {
+        assertThat(SearchTerm.from("mt eden").orElseThrow().spellings()).extracting(SearchTerm.Spelling::name)
+                .containsExactly(
+                        "^mt[^[:alnum:]]*eden[[:alnum:]]*[^[:alnum:]]*$",
+                        "^mount[^[:alnum:]]*eden[[:alnum:]]*[^[:alnum:]]*$");
+    }
+
+    @Test
+    void leavesNothingInTheNamePatternThatAPatternWouldRead() {
+        assertThat(SearchTerm.from("st. lukes (rd)").orElseThrow().spellings().getFirst().name())
+                .isEqualTo("^st[^[:alnum:]]*lukes[^[:alnum:]]*rd[[:alnum:]]*[^[:alnum:]]*$");
+    }
+
+    @Test
+    void matchesNoNameWhenNothingTypedIsALetterOrADigit() {
+        assertThat(SearchTerm.from("***").orElseThrow().spellings().getFirst().name()).isEqualTo("^$");
     }
 
     // The first word, as a name would hold it.

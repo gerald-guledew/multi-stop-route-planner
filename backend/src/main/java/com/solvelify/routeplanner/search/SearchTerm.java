@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,8 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
     private static final int CURLED_APOSTROPHE = '\u2019';
     private static final Pattern MEANS_SOMETHING_IN_A_PATTERN = Pattern.compile("[\\\\^$.|?*+()\\[\\]{}]");
     private static final Pattern THREE_LETTERS_OR_DIGITS = Pattern.compile("[\\p{L}\\p{Nd}]{3}");
+    private static final Pattern LETTERS_OR_DIGITS = Pattern.compile("[\\p{L}\\p{Nd}]+");
+    private static final String ANYTHING_BUT_LETTERS_OR_DIGITS = "[^[:alnum:]]*";
 
     /**
      * One way of writing what was typed.
@@ -44,8 +47,12 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
      *                address reads "20A Bassett Road, Remuera" and the comma alone is enough
      *                to stop "bassett road remuera" matching. The trade-off is that words must
      *                be typed in the order they appear, which is how people type addresses
+     * @param name    a regular expression that matches a name made of these words and nothing
+     *                else, with or without spaces or punctuation between them, and the last one
+     *                perhaps unfinished. So "pak n save" is the whole of "PAK'nSAVE", and "the
+     *                wareh" the whole of "The Warehouse" though not of "The Rug Warehouse"
      */
-    record Spelling(String words, String pattern) {
+    record Spelling(String words, String pattern, String name) {
     }
 
     /**
@@ -212,8 +219,24 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
         return combinations.stream()
                 .map(combination -> new Spelling(
                         combination.stream().map(Way::word).collect(Collectors.joining(" ")),
-                        combination.stream().map(Way::pattern).collect(Collectors.joining(".*"))))
+                        combination.stream().map(Way::pattern).collect(Collectors.joining(".*")),
+                        asAWholeName(combination)))
                 .toList();
+    }
+
+    /**
+     * Only the letters and digits are kept, so nothing in the pattern needs escaping. A
+     * spelling with none at all is the whole of no name.
+     */
+    private static String asAWholeName(List<Way> combination) {
+        List<String> runs = combination.stream()
+                .flatMap(way -> LETTERS_OR_DIGITS.matcher(way.word()).results().map(MatchResult::group))
+                .toList();
+        if (runs.isEmpty()) {
+            return "^$";
+        }
+        return "^" + String.join(ANYTHING_BUT_LETTERS_OR_DIGITS, runs)
+                + "[[:alnum:]]*" + ANYTHING_BUT_LETTERS_OR_DIGITS + "$";
     }
 
     private static String anyOf(List<Way> ways) {
