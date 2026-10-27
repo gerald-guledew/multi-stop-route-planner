@@ -28,7 +28,7 @@ Develop an application that can accept a starting point and a list of places. It
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
 - The turns of each leg written out, along the roads drawn on the map, from setting off to arriving
-- The order that takes the least fuel in your vehicle, picked to begin with. Town roads take more fuel for every kilometre than the open road, so it often keeps to the motorway, a little longer and quicker. With no vehicle saved, it is the shortest order
+- The order that takes the least fuel in your vehicle, picked to begin with. Town roads take more fuel for every kilometre than the open road, so it often keeps to the motorway, a little longer and quicker. It needs your vehicle, and until one is saved the fastest order is planned instead
 - The fastest order when picked instead. Another order is taken only when it saves a minute or more over the shortest
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
 - Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes: more in town than on the open road, with what each climb costs and each descent gives back

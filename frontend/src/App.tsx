@@ -30,9 +30,10 @@ import VehicleSection from './components/VehicleSection'
 import type { Place, RoutePlan, SavedPlace, Vehicle } from './types'
 
 export default function App() {
-  // The trip, and the trip as it was before each change, so that a change can be undone. The
-  // least fuel is picked unless the fastest is. With no vehicle saved, that is the shortest order.
-  const [history, setHistory] = useState(() => startingWith({ places: [], returnToStart: true, order: 'leastFuel' }))
+  // The trip, and the trip as it was before each change, so that a change can be undone. A trip
+  // is one way unless the return is ticked. The least fuel is picked unless the fastest is, and
+  // until a vehicle is saved the fastest stands in for it.
+  const [history, setHistory] = useState(() => startingWith({ places: [], returnToStart: false, order: 'leastFuel' }))
   const { places, returnToStart, order } = history.present
   const [plan, setPlan] = useState<RoutePlan | null>(null)
   const [error, setError] = useState<string | null>(null)

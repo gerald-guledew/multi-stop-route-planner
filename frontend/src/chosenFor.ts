@@ -5,16 +5,22 @@ export type ChosenFor = 'distance' | 'time' | 'fuel'
 export type Order = 'leastFuel' | 'fastest'
 
 /**
- * What the order picked asks the order to be chosen for.
- *
- * The least fuel is a vehicle's. Without one there is no fuel to go by, and the order is the
- * shortest.
+ * Whether an order cannot be picked yet. The least fuel is a vehicle's, and without one there is
+ * no fuel to go by.
  */
+export function needsAVehicle(order: Order, hasVehicle: boolean): boolean {
+  return order === 'leastFuel' && !hasVehicle
+}
+
+/**
+ * The order the screen goes by. While the least fuel cannot be picked, the fastest stands in. The
+ * pick itself is kept, so the least fuel comes back once a vehicle is saved.
+ */
+export function orderGoneBy(choices: { order: Order; hasVehicle: boolean }): Order {
+  return needsAVehicle(choices.order, choices.hasVehicle) ? 'fastest' : choices.order
+}
+
+/** What the order the screen goes by asks the order to be chosen for. */
 export function chosenFor(choices: { order: Order; hasVehicle: boolean }): ChosenFor {
-  switch (choices.order) {
-    case 'fastest':
-      return 'time'
-    case 'leastFuel':
-      return choices.hasVehicle ? 'fuel' : 'distance'
-  }
+  return orderGoneBy(choices) === 'leastFuel' ? 'fuel' : 'time'
 }

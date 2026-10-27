@@ -1,13 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { chosenFor } from './chosenFor'
+import { chosenFor, needsAVehicle, orderGoneBy } from './chosenFor'
+
+describe('an order that needs a vehicle', () => {
+  it('is the least fuel while there is no vehicle', () => {
+    expect(needsAVehicle('leastFuel', false)).toBe(true)
+  })
+
+  it('is neither once a vehicle is saved, and never the fastest', () => {
+    expect(needsAVehicle('leastFuel', true)).toBe(false)
+    expect(needsAVehicle('fastest', false)).toBe(false)
+    expect(needsAVehicle('fastest', true)).toBe(false)
+  })
+})
+
+describe('the order the screen goes by', () => {
+  it('is the one picked when there is a vehicle', () => {
+    expect(orderGoneBy({ order: 'leastFuel', hasVehicle: true })).toBe('leastFuel')
+    expect(orderGoneBy({ order: 'fastest', hasVehicle: true })).toBe('fastest')
+  })
+
+  it('is the fastest when the least fuel is picked and there is no vehicle', () => {
+    expect(orderGoneBy({ order: 'leastFuel', hasVehicle: false })).toBe('fastest')
+  })
+})
 
 describe('what the order is chosen for', () => {
   it('is fuel when the least fuel is picked for a vehicle', () => {
     expect(chosenFor({ order: 'leastFuel', hasVehicle: true })).toBe('fuel')
   })
 
-  it('is distance when the least fuel is picked and there is no vehicle', () => {
-    expect(chosenFor({ order: 'leastFuel', hasVehicle: false })).toBe('distance')
+  it('is time when the least fuel is picked and there is no vehicle', () => {
+    expect(chosenFor({ order: 'leastFuel', hasVehicle: false })).toBe('time')
   })
 
   it('is time when the fastest order is picked, with a vehicle or without', () => {

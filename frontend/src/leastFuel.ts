@@ -15,16 +15,13 @@ const A_MINUTE = 60
  * order takes the least, that is said as well, or picking the least fuel would look as if it had
  * done nothing.
  *
- * Without a vehicle the planner is asked for the shortest order. On straight lines it knows
- * neither how fast the roads are nor how high, and answers with the shortest order, giving nothing
- * to hold it against, which is how this knows.
+ * The least fuel is asked for only with a vehicle. On straight lines the planner knows neither how
+ * fast the roads are nor how high, and answers with the shortest order, giving nothing to hold it
+ * against, which is how this knows.
  */
-export function leastFuelSaid(askedFor: boolean, hasVehicle: boolean, plan: RoutePlan): string | null {
+export function leastFuelSaid(askedFor: boolean, plan: RoutePlan): string | null {
   if (!askedFor) {
     return null
-  }
-  if (!hasVehicle) {
-    return 'With no vehicle saved, this is the shortest order.'
   }
   if (plan.shortestOrder === null) {
     return 'On straight lines the fuel goes with the distance, so the shortest order takes the least.'

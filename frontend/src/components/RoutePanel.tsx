@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 're
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
 import { bothChoices, otherChoiceSaid } from '../bothChoices'
-import { chosenFor, type Order } from '../chosenFor'
+import { chosenFor, needsAVehicle, orderGoneBy, type Order } from '../chosenFor'
 import { climbSaid } from '../climb'
 import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
@@ -165,12 +165,13 @@ export default function RoutePanel(props: Props) {
   const fuel = plan && plan.totalFuelLitres !== null ? litresSaid(plan.totalFuelLitres) : null
   // A plan is cleared whenever the vehicle changes, so one shown was made with the vehicle there is.
   const hasVehicle = props.vehicleFigureFrom !== null
+  const goneBy = orderGoneBy({ order: props.order, hasVehicle })
   const chosen = chosenFor({ order: props.order, hasVehicle })
   // The other choice in one line, when the plan gives it. That says more than either held against
   // the shortest order, which is then left out.
   const both = plan ? bothChoices(plan) : null
   const quickest = plan && !both ? fastestSaid(chosen === 'time', plan) : null
-  const leastFuel = plan && !both ? leastFuelSaid(props.order === 'leastFuel', hasVehicle, plan) : null
+  const leastFuel = plan && !both ? leastFuelSaid(goneBy === 'leastFuel', plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
   const shortest = !both && plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
 
@@ -392,27 +393,25 @@ export default function RoutePanel(props: Props) {
               </label>
               {/* A plan on its way was asked for with these as they stood. */}
               <div className="chosen-for" role="radiogroup" aria-label="What the order is chosen for">
-                {ORDERS.map(({ order, says }) => (
-                  <label key={order}>
-                    <input
-                      type="radio"
-                      name="chosen-for"
-                      checked={props.order === order}
-                      disabled={planning}
-                      onChange={() => props.onOrderChange(order)}
-                    />
-                    {says}
-                  </label>
-                ))}
+                {ORDERS.map(({ order, says }) => {
+                  const waiting = needsAVehicle(order, hasVehicle)
+                  return (
+                    <label key={order} className={waiting ? 'needs-vehicle' : undefined}>
+                      <input
+                        type="radio"
+                        name="chosen-for"
+                        checked={goneBy === order}
+                        disabled={planning || waiting}
+                        onChange={() => props.onOrderChange(order)}
+                      />
+                      <span>
+                        {says}
+                        {waiting && <small>Needs your vehicle details to enable</small>}
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
-              {props.order === 'fastest' && <p className="note">The order may come out longer, to take less time.</p>}
-              {props.order === 'leastFuel' && (
-                <p className="note">
-                  {hasVehicle
-                    ? 'The order may come out longer, to take less fuel.'
-                    : 'Add your vehicle above to plan for the least fuel.'}
-                </p>
-              )}
 
               <div className="buttons">
                 <button

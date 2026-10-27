@@ -304,6 +304,16 @@ body {
   flex-wrap: wrap;
 }
 
+/* An order that cannot be picked yet, greyed, with what it needs under its name. */
+.chosen-for .needs-vehicle {
+  color: var(--muted);
+}
+
+.chosen-for small {
+  display: block;
+  font-size: 12px;
+}
+
 .buttons {
   display: flex;
   gap: 8px;
