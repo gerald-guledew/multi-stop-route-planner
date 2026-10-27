@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
 import { bothChoices, otherChoiceSaid } from '../bothChoices'
@@ -8,7 +8,7 @@ import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
-import { googleMapsLink, leavesOutTheDriveBack } from '../googleMaps'
+import { beforeGoogleMaps, googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
@@ -178,6 +178,18 @@ export default function RoutePanel(props: Props) {
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
 
+  // A trip that does not all fit in the Google Maps link is said so when either button is pressed,
+  // before Google Maps opens. On a phone the button in the bar is the one pressed, far from any note.
+  const beforeOpening = plan ? beforeGoogleMaps(plan.route) : null
+  const toGoogleMaps = useRef<HTMLDialogElement>(null)
+
+  function openGoogleMaps(event: MouseEvent) {
+    if (beforeOpening) {
+      event.preventDefault()
+      toGoogleMaps.current?.showModal()
+    }
+  }
+
   // On a narrow screen the map has the screen and everything below the search box is a panel
   // that comes up from the bottom. Down, it shows one bar: where things stand and what to press
   // next. On a wide screen there is no such panel and none of this is seen.
@@ -266,7 +278,13 @@ export default function RoutePanel(props: Props) {
               </button>
             )}
             {next.step === 'open' && plan && (
-              <a className="primary button" href={googleMapsLink(plan.route)} target="_blank" rel="noreferrer">
+              <a
+                className="primary button"
+                href={googleMapsLink(plan.route)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={openGoogleMaps}
+              >
                 Open in Google Maps
               </a>
             )}
@@ -557,14 +575,13 @@ export default function RoutePanel(props: Props) {
 
               <p className="checked">{plan.ordersChecked.toLocaleString()} possible orders compared</p>
 
-              {leavesOutTheDriveBack(plan.route) && (
-                <p className="note">
-                  Google Maps takes nine stops between the start and the end, so the link ends at
-                  your last stop. Head back to the start from there.
-                </p>
-              )}
-
-              <a className="primary button" href={googleMapsLink(plan.route)} target="_blank" rel="noreferrer">
+              <a
+                className="primary button"
+                href={googleMapsLink(plan.route)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={openGoogleMaps}
+              >
                 Open in Google Maps
               </a>
             </section>
@@ -576,6 +593,25 @@ export default function RoutePanel(props: Props) {
           </details>
         </div>
       </div>
+
+      {/* Outside the panel, which is out of reach while it is down on a phone. */}
+      {plan && beforeOpening && (
+        <dialog ref={toGoogleMaps} className="before-google-maps">
+          <p>{beforeOpening}</p>
+          <div className="buttons">
+            <a
+              className="primary button"
+              href={googleMapsLink(plan.route)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => toGoogleMaps.current?.close()}
+            >
+              Open in Google Maps
+            </a>
+            <button onClick={() => toGoogleMaps.current?.close()}>Cancel</button>
+          </div>
+        </dialog>
+      )}
     </aside>
   )
 }

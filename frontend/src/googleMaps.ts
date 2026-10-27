@@ -16,6 +16,20 @@ export function leavesOutTheDriveBack(route: Place[]): boolean {
 }
 
 /**
+ * What to tell before a trip that does not all fit in the link goes to Google Maps: how many stops
+ * it takes, and where the link ends instead. Null when the whole trip fits, as it nearly always does.
+ */
+export function beforeGoogleMaps(route: Place[]): string | null {
+  if (!leavesOutTheDriveBack(route)) {
+    return null
+  }
+  return (
+    `Google Maps takes ${MOST_STOPS_BETWEEN} stops at most between the start and the end. ` +
+    `Your round trip has ${route.length - 2}, so the link ends at your last stop. Head back to the start from there.`
+  )
+}
+
+/**
  * Hands the finished order to Google Maps, which does the actual navigating. When the stops do
  * not all fit, the link ends at the last stop instead of back at the start.
  */

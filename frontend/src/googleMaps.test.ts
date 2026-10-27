@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { googleMapsLink, leavesOutTheDriveBack } from './googleMaps'
+import { beforeGoogleMaps, googleMapsLink, leavesOutTheDriveBack } from './googleMaps'
 import type { Place } from './types'
 
 const start: Place = { name: 'Sky Tower', latitude: -36.8485, longitude: 174.7621 }
@@ -69,5 +69,18 @@ describe('leaving out the drive back', () => {
     expect(leavesOutTheDriveBack([start, ...stops(10), start])).toBe(true)
     expect(leavesOutTheDriveBack([start, ...stops(9), start])).toBe(false)
     expect(leavesOutTheDriveBack([start, ...stops(10)])).toBe(false)
+  })
+})
+
+describe('what is said before Google Maps opens', () => {
+  it('says how many stops Google Maps takes, and where the link ends instead', () => {
+    expect(beforeGoogleMaps([start, ...stops(10), start])).toBe(
+      'Google Maps takes 9 stops at most between the start and the end. Your round trip has 10, so the link ends at your last stop. Head back to the start from there.',
+    )
+  })
+
+  it('says nothing when the whole trip fits', () => {
+    expect(beforeGoogleMaps([start, ...stops(9), start])).toBeNull()
+    expect(beforeGoogleMaps([start, ...stops(10)])).toBeNull()
   })
 })
