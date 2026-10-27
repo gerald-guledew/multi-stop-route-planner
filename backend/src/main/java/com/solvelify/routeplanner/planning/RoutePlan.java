@@ -21,6 +21,11 @@ import java.util.OptionalDouble;
  * driving time or for fuel. It is what the shortest order would have come to, so that what was
  * given up for what can be seen. Empty when the order was chosen for distance alone: the plan is
  * then the shortest order.
+ *
+ * <p>{@code otherChoice} is the other of the two choices the screen offers: the fastest order
+ * beside the least fuel, and the least fuel beside the fastest, so that the two can be set side by
+ * side. Empty when the order was chosen for distance alone, when the fastest was asked for without
+ * a vehicle, and when the roads do not say what the other is chosen by.
  */
 public record RoutePlan(
         List<Location> route,
@@ -30,7 +35,22 @@ public record RoutePlan(
         Optional<ClimbAndDescent> totalClimbAndDescent,
         double enteredOrderDistanceKm,
         long ordersChecked,
-        Optional<ShortestOrder> shortestOrder) {
+        Optional<ShortestOrder> shortestOrder,
+        Optional<OtherChoice> otherChoice) {
+
+    /** A plan held against no other choice. */
+    public RoutePlan(
+            List<Location> route,
+            List<Leg> legs,
+            double totalDistanceKm,
+            OptionalDouble totalDurationSeconds,
+            Optional<ClimbAndDescent> totalClimbAndDescent,
+            double enteredOrderDistanceKm,
+            long ordersChecked,
+            Optional<ShortestOrder> shortestOrder) {
+        this(route, legs, totalDistanceKm, totalDurationSeconds, totalClimbAndDescent,
+                enteredOrderDistanceKm, ordersChecked, shortestOrder, Optional.empty());
+    }
 
     /** A plan from a source that knows distances and not times. */
     public RoutePlan(
@@ -83,6 +103,21 @@ public record RoutePlan(
                 double distanceKm, OptionalDouble durationSeconds, Optional<ClimbAndDescent> climbAndDescent) {
             this(distanceKm, durationSeconds, climbAndDescent, OptionalDouble.empty());
         }
+    }
+
+    /**
+     * What the other choice comes to: the order it would have given, by its own rule, held
+     * against the same shortest order. That can be the shortest order itself, and it can be the
+     * plan's own order, when both choices come to the same.
+     *
+     * @param chosenFor what the other choice is chosen for: time beside fuel, fuel beside time
+     */
+    public record OtherChoice(
+            ChosenFor chosenFor,
+            double distanceKm,
+            OptionalDouble durationSeconds,
+            Optional<ClimbAndDescent> climbAndDescent,
+            OptionalDouble kmInTown) {
     }
 
     /**

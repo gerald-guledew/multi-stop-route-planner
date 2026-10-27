@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { fastestSaid } from './fastest'
-import type { RoutePlan, ShortestOrder } from './types'
+import type { OrderTotals, RoutePlan } from './types'
 
 /** A round trip of 62.88 km that takes 4,980 seconds, on roads read without their heights. */
-function aPlan(shortestOrder: ShortestOrder | null): RoutePlan {
+function aPlan(shortestOrder: OrderTotals | null): RoutePlan {
   return {
     route: [],
     legs: [],
@@ -16,12 +16,14 @@ function aPlan(shortestOrder: ShortestOrder | null): RoutePlan {
     fuelCountsSpeed: null,
     enteredOrderDistanceKm: 70.1,
     shortestOrder,
+    fastestOrder: null,
+    leastFuelOrder: null,
     ordersChecked: 24,
   }
 }
 
 /** The shortest order, with as many seconds on top of the plan's as given. */
-function shortest(distanceKm: number, slowerBySeconds: number): ShortestOrder {
+function shortest(distanceKm: number, slowerBySeconds: number): OrderTotals {
   return { distanceKm, durationSeconds: 4980 + slowerBySeconds, climbMetres: null, descentMetres: null, fuelLitres: null }
 }
 

@@ -18,13 +18,16 @@ import java.util.OptionalDouble;
  *                            on straight lines
  * @param shortestOrderLitres the fuel the shortest order takes, counted the same way. Empty when
  *                            the plan gives no shortest order to hold it against
+ * @param otherChoiceLitres   the fuel the other choice takes, counted the same way. Empty when the
+ *                            plan gives no other choice
  */
 public record FuelEstimate(
         List<Double> legLitres,
         double totalLitres,
         boolean countsHills,
         boolean countsSpeed,
-        OptionalDouble shortestOrderLitres) {
+        OptionalDouble shortestOrderLitres,
+        OptionalDouble otherChoiceLitres) {
 
     public FuelEstimate {
         legLitres = List.copyOf(legLitres);
@@ -38,12 +41,17 @@ public record FuelEstimate(
                 && plan.legs().stream().allMatch(leg -> leg.climbAndDescent().isPresent());
         boolean countsSpeed = plan.legs().stream().allMatch(leg -> leg.kmInTown().isPresent());
         // From the shortest order's totals. Its descents come one by one, as its legs' do, and the
-        // level fuel adds up kilometre by kilometre, so this is what its legs would add up to.
+        // level fuel adds up kilometre by kilometre, so this is what its legs would add up to. The
+        // same goes for the other choice.
         OptionalDouble shortest = plan.shortestOrder()
                 .map(order -> OptionalDouble.of(
                         fuelUse.litresFor(order.distanceKm(), order.kmInTown(), order.climbAndDescent())))
                 .orElse(OptionalDouble.empty());
+        OptionalDouble other = plan.otherChoice()
+                .map(order -> OptionalDouble.of(
+                        fuelUse.litresFor(order.distanceKm(), order.kmInTown(), order.climbAndDescent())))
+                .orElse(OptionalDouble.empty());
         return new FuelEstimate(
-                legs, legs.stream().mapToDouble(Double::doubleValue).sum(), countsHills, countsSpeed, shortest);
+                legs, legs.stream().mapToDouble(Double::doubleValue).sum(), countsHills, countsSpeed, shortest, other);
     }
 }

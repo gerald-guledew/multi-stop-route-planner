@@ -296,6 +296,24 @@ class RealHeightsTest {
                 .containsExactly("Sky Tower", "Takapuna", "Devonport", "Sylvia Park", "Airport", "Sky Tower");
     }
 
+    @Test
+    void setsEachChoiceBesideTheOtherAsPlanningForItGives() {
+        Optional<FuelUse> aMediumCar = Optional.of(new FuelUse(7.5, OptionalDouble.of(VehicleSize.MEDIUM.kilograms())));
+        List<Location> stops = THE_ROUND.subList(1, THE_ROUND.size());
+
+        RoutePlan forFuel = planner().plan(THE_ROUND.getFirst(), stops, Set.of(), true, ChosenFor.FUEL, aMediumCar);
+        RoutePlan forTime = planner().plan(THE_ROUND.getFirst(), stops, Set.of(), true, ChosenFor.TIME, aMediumCar);
+
+        RoutePlan.OtherChoice fastest = forFuel.otherChoice().orElseThrow();
+        assertThat(fastest.chosenFor()).isEqualTo(ChosenFor.TIME);
+        assertThat(fastest.distanceKm()).isEqualTo(forTime.totalDistanceKm());
+        assertThat(fastest.durationSeconds()).isEqualTo(forTime.totalDurationSeconds());
+        RoutePlan.OtherChoice leastFuel = forTime.otherChoice().orElseThrow();
+        assertThat(leastFuel.chosenFor()).isEqualTo(ChosenFor.FUEL);
+        assertThat(leastFuel.distanceKm()).isEqualTo(forFuel.totalDistanceKm());
+        assertThat(leastFuel.durationSeconds()).isEqualTo(forFuel.totalDurationSeconds());
+    }
+
     private static RoutePlanningService planner() {
         return new RoutePlanningService(provider, new BruteForceRouteSolver());
     }

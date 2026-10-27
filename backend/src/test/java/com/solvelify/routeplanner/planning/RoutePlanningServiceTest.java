@@ -697,4 +697,85 @@ class RoutePlanningServiceTest {
                 .containsExactly(OptionalDouble.of(0), OptionalDouble.of(0), OptionalDouble.of(0));
         assertThat(plan.shortestOrder().orElseThrow().kmInTown()).hasValue(35);
     }
+
+    // The other of the two choices, beside the one asked for.
+
+    /**
+     * The motorway to the Shop further up, all of it open road like the rest. Going there first is
+     * 27 km in 1500 seconds, and the shortest order 26 km in 1800. The kilometre more takes more
+     * fuel, so the fastest order is not the one taking the least.
+     */
+    private static TravelMatrixProvider openRoadToTheShopTaking(double seconds) {
+        return places -> aMotorwayToTheShopTaking(seconds).matrixFor(places).withKmInTown(new double[3][3]);
+    }
+
+    private static RoutePlan onTheOpenRoad(ChosenFor chosenFor, Optional<FuelUse> vehicle) {
+        return new RoutePlanningService(openRoadToTheShopTaking(600), new BruteForceRouteSolver())
+                .plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, chosenFor, vehicle);
+    }
+
+    @Test
+    void givesTheFastestOrderBesideTheLeastFuel() {
+        RoutePlan plan = onTheOpenRoad(ChosenFor.FUEL, TOWN_AND_OPEN_ROAD);
+
+        assertThat(names(plan)).containsExactly("Home", "Office", "Shop", "Home");
+        assertThat(plan.otherChoice()).contains(new RoutePlan.OtherChoice(
+                ChosenFor.TIME, 27, OptionalDouble.of(1500), Optional.empty(), OptionalDouble.of(0)));
+    }
+
+    @Test
+    void givesTheLeastFuelBesideTheFastest() {
+        RoutePlan plan = onTheOpenRoad(ChosenFor.TIME, TOWN_AND_OPEN_ROAD);
+
+        assertThat(names(plan)).containsExactly("Home", "Shop", "Office", "Home");
+        assertThat(plan.otherChoice()).contains(new RoutePlan.OtherChoice(
+                ChosenFor.FUEL, 26, OptionalDouble.of(1800), Optional.empty(), OptionalDouble.of(0)));
+    }
+
+    @Test
+    void holdsTheFastestBesideTheLeastFuelToItsMinute() {
+        // With 870 seconds to the Shop the motorway saves half a minute, so the fastest is the
+        // shortest order, as it would be if asked for.
+        RoutePlan plan = new RoutePlanningService(openRoadToTheShopTaking(870), new BruteForceRouteSolver())
+                .plan(HOME, OFFICE_AND_SHOP, NONE_KEPT, THERE_AND_BACK, ChosenFor.FUEL, TOWN_AND_OPEN_ROAD);
+
+        assertThat(plan.otherChoice()).contains(new RoutePlan.OtherChoice(
+                ChosenFor.TIME, 26, OptionalDouble.of(1800), Optional.empty(), OptionalDouble.of(0)));
+    }
+
+    @Test
+    void givesThePlansOwnOrderAsTheOtherChoiceWhenBothComeToIt() {
+        // Keeping to the open road is the least fuel and the quickest: 36 km in 300 seconds.
+        RoutePlan plan = forFuel(TOWN_ONE_WAY_ROUND, THERE_AND_BACK, TOWN_AND_OPEN_ROAD);
+
+        assertThat(plan.otherChoice()).contains(new RoutePlan.OtherChoice(
+                ChosenFor.TIME, 36, OptionalDouble.of(300), Optional.empty(), OptionalDouble.of(0)));
+    }
+
+    @Test
+    void leavesAKeptStopAtItsTurnForTheOtherChoiceToo() {
+        // With the Office kept first there is one order, so the fastest is the same 26 km.
+        RoutePlan plan = new RoutePlanningService(openRoadToTheShopTaking(600), new BruteForceRouteSolver())
+                .plan(HOME, OFFICE_AND_SHOP, Set.of(0), THERE_AND_BACK, ChosenFor.FUEL, TOWN_AND_OPEN_ROAD);
+
+        assertThat(plan.otherChoice().orElseThrow().distanceKm()).isEqualTo(26);
+    }
+
+    @Test
+    void givesNoLeastFuelBesideTheFastestWithoutAVehicle() {
+        assertThat(onTheOpenRoad(ChosenFor.TIME, Optional.empty()).otherChoice()).isEmpty();
+    }
+
+    @Test
+    void givesNoOtherChoiceBesideTheShortestOrder() {
+        assertThat(onTheOpenRoad(ChosenFor.DISTANCE, TOWN_AND_OPEN_ROAD).otherChoice()).isEmpty();
+    }
+
+    @Test
+    void givesNoOtherChoiceOnStraightLines() {
+        // A straight line says neither how long nor how fast, so neither choice can be made.
+        RoutePlan plan = service.plan(SKY_TOWER, STOPS, NONE_KEPT, THERE_AND_BACK, ChosenFor.FUEL, A_MEDIUM_CAR);
+
+        assertThat(plan.otherChoice()).isEmpty();
+    }
 }
