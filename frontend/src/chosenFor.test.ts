@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { chosenFor, orderGoneBy } from './chosenFor'
+import { chosenFor, needsAVehicle, orderGoneBy } from './chosenFor'
+
+describe('an order that needs a vehicle', () => {
+  it('is the least fuel while there is no vehicle', () => {
+    expect(needsAVehicle('leastFuel', false)).toBe(true)
+  })
+
+  it('is neither once a vehicle is saved, and never the fastest', () => {
+    expect(needsAVehicle('leastFuel', true)).toBe(false)
+    expect(needsAVehicle('fastest', false)).toBe(false)
+    expect(needsAVehicle('fastest', true)).toBe(false)
+  })
+})
 
 describe('the order the screen goes by', () => {
   it('is the one picked when there is a vehicle', () => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
-import { chosenFor, orderGoneBy, type Order } from '../chosenFor'
+import { chosenFor, needsAVehicle, orderGoneBy, type Order } from '../chosenFor'
 import { climbSaid } from '../climb'
 import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
@@ -389,20 +389,25 @@ export default function RoutePanel(props: Props) {
               </label>
               {/* A plan on its way was asked for with these as they stood. */}
               <div className="chosen-for" role="radiogroup" aria-label="What the order is chosen for">
-                {ORDERS.map(({ order, says }) => (
-                  <label key={order}>
-                    <input
-                      type="radio"
-                      name="chosen-for"
-                      checked={goneBy === order}
-                      disabled={planning || (order === 'leastFuel' && !hasVehicle)}
-                      onChange={() => props.onOrderChange(order)}
-                    />
-                    {says}
-                  </label>
-                ))}
+                {ORDERS.map(({ order, says }) => {
+                  const waiting = needsAVehicle(order, hasVehicle)
+                  return (
+                    <label key={order} className={waiting ? 'needs-vehicle' : undefined}>
+                      <input
+                        type="radio"
+                        name="chosen-for"
+                        checked={goneBy === order}
+                        disabled={planning || waiting}
+                        onChange={() => props.onOrderChange(order)}
+                      />
+                      <span>
+                        {says}
+                        {waiting && <small>Needs your vehicle details to enable</small>}
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
-              {!hasVehicle && <p className="note">Add your vehicle above to plan for the least fuel.</p>}
 
               <div className="buttons">
                 <button
