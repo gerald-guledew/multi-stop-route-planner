@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
-import { chosenFor, type Order } from '../chosenFor'
+import { chosenFor, orderGoneBy, type Order } from '../chosenFor'
 import { climbSaid } from '../climb'
 import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
@@ -164,9 +164,10 @@ export default function RoutePanel(props: Props) {
   const fuel = plan && plan.totalFuelLitres !== null ? litresSaid(plan.totalFuelLitres) : null
   // A plan is cleared whenever the vehicle changes, so one shown was made with the vehicle there is.
   const hasVehicle = props.vehicleFigureFrom !== null
+  const goneBy = orderGoneBy({ order: props.order, hasVehicle })
   const chosen = chosenFor({ order: props.order, hasVehicle })
   const quickest = plan ? fastestSaid(chosen === 'time', plan) : null
-  const leastFuel = plan ? leastFuelSaid(props.order === 'leastFuel', hasVehicle, plan) : null
+  const leastFuel = plan ? leastFuelSaid(goneBy === 'leastFuel', plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
   const shortest = plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
 
@@ -393,22 +394,15 @@ export default function RoutePanel(props: Props) {
                     <input
                       type="radio"
                       name="chosen-for"
-                      checked={props.order === order}
-                      disabled={planning}
+                      checked={goneBy === order}
+                      disabled={planning || (order === 'leastFuel' && !hasVehicle)}
                       onChange={() => props.onOrderChange(order)}
                     />
                     {says}
                   </label>
                 ))}
               </div>
-              {props.order === 'fastest' && <p className="note">The order may come out longer, to take less time.</p>}
-              {props.order === 'leastFuel' && (
-                <p className="note">
-                  {hasVehicle
-                    ? 'The order may come out longer, to take less fuel.'
-                    : 'Add your vehicle above to plan for the least fuel.'}
-                </p>
-              )}
+              {!hasVehicle && <p className="note">Add your vehicle above to plan for the least fuel.</p>}
 
               <div className="buttons">
                 <button
