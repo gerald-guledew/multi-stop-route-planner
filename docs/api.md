@@ -463,7 +463,7 @@ Things to know.
 
 ### Both choices side by side
 
-Asked for one of the two, the answer also says what the other comes to: `fastestOrder` beside the least fuel, and `leastFuelOrder` beside the fastest. Each is the order that choice gives when asked for, by its own rule, so the two can be set side by side with the difference in minutes and litres. The five stops further up come out the same either way, Takapuna first:
+Asked for one of the two, the answer also says what the other comes to: `fastestOrder` beside the least fuel, and `leastFuelOrder` beside the fastest. Each is the order that choice gives when asked for, by its own rule, so the screen can say beside one what the other comes to, in minutes and litres. The five stops further up come out the same either way, Takapuna first:
 
 ```json
 {

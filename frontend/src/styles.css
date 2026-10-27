@@ -417,48 +417,11 @@ button:disabled {
   font-weight: 600;
 }
 
-/* The two choices side by side, the one on the map in bold. */
-.side-by-side {
-  border-collapse: collapse;
+/* What the other choice comes to, under the plan's figures. Read before the notes, so not grey. */
+.other-choice {
   font-size: 14px;
-  font-variant-numeric: tabular-nums;
-  margin: 0 0 8px;
-  width: 100%;
-}
-
-.side-by-side caption {
-  color: var(--muted);
-  font-size: 13px;
-  padding-bottom: 4px;
-  text-align: left;
-}
-
-.side-by-side th,
-.side-by-side td {
-  border-top: 1px solid var(--line);
-  padding: 4px 0 4px 12px;
-  text-align: right;
-}
-
-.side-by-side thead th,
-.side-by-side thead td {
-  border-top: none;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.side-by-side tbody th {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 400;
-  padding-left: 0;
-  text-align: left;
-}
-
-.side-by-side .shown {
-  color: var(--ink);
-  font-weight: 700;
+  line-height: 1.45;
+  margin: 0 0 14px;
 }
 
 .legs {

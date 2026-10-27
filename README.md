@@ -96,7 +96,7 @@ With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest
 
 On real roads, picking "Fastest" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so.
 
-With a vehicle saved, on real roads, the plan sets the two choices side by side: the distance, driving time and fuel of each, and the difference in minutes and litres, or that they come out the same.
+With a vehicle saved, on real roads, the plan says in one line what the other choice comes to: "Fastest: 4 min quicker, 0.3 L more" beside the least fuel, or "Same as Fastest" when the two come out the same. Under a minute apart is about the same time.
 
 ### Address search
 

@@ -3,8 +3,11 @@ import { litresSaid } from './fuel'
 import { NO_FURTHER_KM, NO_LESS_LITRES, NO_QUICKER_SECONDS } from './shortestOrder'
 import type { OrderTotals, RoutePlan } from './types'
 
-/** Below half a minute, "1 min quicker" would claim twice the time saved, or more. */
-const UNDER_HALF_A_MINUTE = 30
+/**
+ * Under a minute apart, the two take about the same time. The screen gives times to the minute,
+ * and the fastest takes another order than the shortest only for a minute or more.
+ */
+const A_MINUTE = 60
 
 /** The least fuel and the fastest, each as what it comes to, and which of the two the map shows. */
 export interface BothChoices {
@@ -14,7 +17,7 @@ export interface BothChoices {
 }
 
 /**
- * The two choices side by side: what the plan came to, and what the other choice would have.
+ * The two choices together: what the plan came to, and what the other choice would have.
  * Null when the plan gives no other choice, which is so without a vehicle and on straight lines,
  * since there is then no fuel or no time to hold the two against each other by.
  */
@@ -52,56 +55,50 @@ export function comeOutTheSame(both: BothChoices): boolean {
   )
 }
 
-/** The rows of the side by side: each figure as the rest of the screen says it, for each choice. */
-export function sideBySide(both: BothChoices): { says: string; leastFuel: string; fastest: string }[] {
-  return [
-    { says: 'Distance', leastFuel: kmSaid(both.leastFuel), fastest: kmSaid(both.fastest) },
-    { says: 'Driving time', leastFuel: howLong(seconds(both.leastFuel)), fastest: howLong(seconds(both.fastest)) },
-    { says: 'Fuel', leastFuel: litresSaid(litres(both.leastFuel)), fastest: litresSaid(litres(both.fastest)) },
-  ]
-}
-
 /**
- * The difference between the two, in a sentence: the fuel the least fuel saves, and the time the
- * fastest does. Said even when it is small, since that is worth knowing too. Each usually saves
- * what it is chosen for. The fastest can take a little less fuel as driven, by ending lower on a
- * one-way trip, or by less than the hundredth of a litre the least fuel changes the order for.
- * The least fuel can be quicker, by less than the minute the fastest goes further for. Either is
- * said as it is.
+ * The other choice in one line, against the one on the map, led by what it is chosen for:
+ * "Fastest: 4 min quicker, 0.3 L more" beside the least fuel, and "Least fuel: 0.3 L less, 4 min
+ * slower" beside the fastest. "Same as Fastest" when the two come out the same.
+ *
+ * Each usually wins on what it is chosen for, and either way it is said as it is. The fastest can
+ * take a little less fuel as driven, by ending lower on a one-way trip. The least fuel can be
+ * quicker by less than the minute the fastest goes further for, which is about the same time.
  */
-export function bothSaid(both: BothChoices): string {
+export function otherChoiceSaid(both: BothChoices): string {
+  const fastestShown = both.shown === 'fastest'
+  const other = fastestShown ? 'Least fuel' : 'Fastest'
   if (comeOutTheSame(both)) {
-    return 'Least fuel and Fastest come out the same for this trip.'
+    return `Same as ${other}.`
   }
-  // How much less fuel the least fuel takes, and how much quicker the fastest is.
-  const lessLitres = litres(both.fastest) - litres(both.leastFuel)
-  const quickerSeconds = seconds(both.leastFuel) - seconds(both.fastest)
-  const savesFuel = Math.abs(lessLitres) < NO_LESS_LITRES ? null : lessLitres > 0 ? 'Least fuel' : 'Fastest'
-  const savesTime =
-    Math.abs(quickerSeconds) < UNDER_HALF_A_MINUTE ? null : quickerSeconds > 0 ? 'Fastest' : 'Least fuel'
-  const fuel = litresSaid(Math.abs(lessLitres))
-  const time = howLong(Math.abs(quickerSeconds))
+  const [onTheMap, theOther] = fastestShown ? [both.fastest, both.leastFuel] : [both.leastFuel, both.fastest]
+  const time = longerSaid(seconds(theOther) - seconds(onTheMap))
+  const fuel = moreSaid(litres(theOther) - litres(onTheMap))
 
-  if (savesFuel === null && savesTime === null) {
-    return 'They take the same fuel and about the same time.'
+  if (time === null && fuel === null) {
+    return `${other}: about the same time and fuel.`
   }
-  if (savesFuel === null) {
-    return `They take the same fuel, and ${savesTime} is ${time} quicker.`
-  }
-  if (savesTime === null) {
-    return `${savesFuel} saves ${fuel}, and they take about the same time.`
-  }
-  if (savesFuel === savesTime) {
-    return `${savesFuel} saves ${fuel} and is ${time} quicker.`
-  }
-  return `${savesFuel} saves ${fuel}, and ${savesTime} is ${time} quicker.`
+  const timeSaid = time ?? 'about the same time'
+  const fuelSaid = fuel ?? 'the same fuel'
+  return fastestShown ? `${other}: ${fuelSaid}, ${timeSaid}.` : `${other}: ${timeSaid}, ${fuelSaid}.`
 }
 
-function kmSaid(order: OrderTotals): string {
-  return `${order.distanceKm.toFixed(2)} km`
+/** "4 min slower" or "4 min quicker". Null under a minute either way. */
+function longerSaid(longerSeconds: number): string | null {
+  if (Math.abs(longerSeconds) < A_MINUTE) {
+    return null
+  }
+  return `${howLong(Math.abs(longerSeconds))} ${longerSeconds > 0 ? 'slower' : 'quicker'}`
 }
 
-/** Known for both, by the time they are set side by side. */
+/** "0.3 L more" or "under 0.1 L less". Null when the two take the same, to the last digit given. */
+function moreSaid(moreLitres: number): string | null {
+  if (Math.abs(moreLitres) < NO_LESS_LITRES) {
+    return null
+  }
+  return `${litresSaid(Math.abs(moreLitres))} ${moreLitres > 0 ? 'more' : 'less'}`
+}
+
+/** Known for both, by the time they are held against each other. */
 function seconds(order: OrderTotals): number {
   return order.durationSeconds ?? 0
 }
