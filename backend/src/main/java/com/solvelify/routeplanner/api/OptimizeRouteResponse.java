@@ -1,5 +1,6 @@
 package com.solvelify.routeplanner.api;
 
+import com.solvelify.routeplanner.planning.ChosenFor;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.FuelEstimate;
 import com.solvelify.routeplanner.planning.GeoPoint;
@@ -37,6 +38,12 @@ import java.util.stream.IntStream;
  *                             other. Null when the order was chosen for distance alone, and when
  *                             what it was to be chosen for is not known: times for the time, and
  *                             for the fuel the roads' speeds or their hills
+ * @param fastestOrder         what the fastest order comes to, given beside the least fuel so the
+ *                             two choices can be set side by side. Null unless the order was chosen
+ *                             for the least fuel on roads whose times are known
+ * @param leastFuelOrder       what the order taking the least fuel comes to, given beside the
+ *                             fastest for the vehicle sent. Null unless the order was chosen for
+ *                             driving time, with a vehicle, on roads whose speeds are known
  */
 public record OptimizeRouteResponse(
         List<Place> route,
@@ -49,22 +56,24 @@ public record OptimizeRouteResponse(
         Boolean fuelCountsHills,
         Boolean fuelCountsSpeed,
         double enteredOrderDistanceKm,
-        ShortestOrder shortestOrder,
+        OrderTotals shortestOrder,
+        OrderTotals fastestOrder,
+        OrderTotals leastFuelOrder,
         long ordersChecked) {
 
     public record Place(String name, double latitude, double longitude) {
     }
 
     /**
-     * The shortest order: how far it is, how long it takes, how much it climbs and comes down, and
-     * the fuel it takes.
+     * What an order other than the plan's comes to: how far it is, how long it takes, how much it
+     * climbs and comes down, and the fuel it takes.
      *
      * @param durationSeconds null on straight lines, as for a plan
      * @param climbMetres     null unless the roads were read with their heights
      * @param descentMetres   null whenever the climb is
      * @param fuelLitres      null when no vehicle was sent
      */
-    public record ShortestOrder(
+    public record OrderTotals(
             double distanceKm, Long durationSeconds, Long climbMetres, Long descentMetres, Double fuelLitres) {
     }
 
@@ -166,17 +175,36 @@ public record OptimizeRouteResponse(
                 fuel.map(FuelEstimate::countsSpeed).orElse(null),
                 roundToTwoDecimals(plan.enteredOrderDistanceKm()),
                 plan.shortestOrder()
-                        .map(shortest -> new ShortestOrder(
+                        .map(shortest -> new OrderTotals(
                                 roundToTwoDecimals(shortest.distanceKm()),
                                 wholeSeconds(shortest.durationSeconds()),
                                 wholeMetresUp(shortest.climbAndDescent()),
                                 wholeMetresDown(shortest.climbAndDescent()),
-                                fuel.map(FuelEstimate::shortestOrderLitres)
-                                        .filter(OptionalDouble::isPresent)
-                                        .map(litres -> roundToTwoDecimals(litres.getAsDouble()))
-                                        .orElse(null)))
+                                hundredthsOf(fuel.map(FuelEstimate::shortestOrderLitres))))
                         .orElse(null),
+                otherChoice(ChosenFor.TIME, plan, fuel),
+                otherChoice(ChosenFor.FUEL, plan, fuel),
                 plan.ordersChecked());
+    }
+
+    /** The other choice, in the field of what it was chosen for. Null in the other field. */
+    private static OrderTotals otherChoice(ChosenFor chosenFor, RoutePlan plan, Optional<FuelEstimate> fuel) {
+        return plan.otherChoice()
+                .filter(other -> other.chosenFor() == chosenFor)
+                .map(other -> new OrderTotals(
+                        roundToTwoDecimals(other.distanceKm()),
+                        wholeSeconds(other.durationSeconds()),
+                        wholeMetresUp(other.climbAndDescent()),
+                        wholeMetresDown(other.climbAndDescent()),
+                        hundredthsOf(fuel.map(FuelEstimate::otherChoiceLitres))))
+                .orElse(null);
+    }
+
+    /** Null when there is no vehicle, or no such order, to give the fuel of. */
+    private static Double hundredthsOf(Optional<OptionalDouble> litres) {
+        return litres.filter(OptionalDouble::isPresent)
+                .map(known -> roundToTwoDecimals(known.getAsDouble()))
+                .orElse(null);
     }
 
     private static double roundToTwoDecimals(double value) {

@@ -121,6 +121,25 @@ class FuelEstimateTest {
         assertThat(estimate.shortestOrderLitres()).hasValueCloseTo(0.54 + 1.8, within(1e-9));
     }
 
+    @Test
+    void givesWhatTheOtherChoiceTakes() {
+        RoutePlan besideTheFastest = new RoutePlan(
+                ROUND_TRIP.route(), ROUND_TRIP.legs(), 40, OptionalDouble.empty(), Optional.empty(), 40, 2,
+                Optional.empty(),
+                Optional.of(new RoutePlan.OtherChoice(
+                        ChosenFor.TIME, 42, OptionalDouble.of(2400), Optional.empty(), OptionalDouble.of(2))));
+
+        FuelEstimate estimate = FuelEstimate.of(besideTheFastest, new FuelUse(7.5, 9.0, 6.0, OptionalDouble.empty()));
+
+        // 2 km in town at 9 and 40 km on the open road at 6.
+        assertThat(estimate.otherChoiceLitres()).hasValueCloseTo(0.18 + 2.4, within(1e-9));
+    }
+
+    @Test
+    void givesNothingForTheOtherChoiceWhenThePlanGivesNone() {
+        assertThat(FuelEstimate.of(ROUND_TRIP, new FuelUse(7.5)).otherChoiceLitres()).isEmpty();
+    }
+
     private static RoutePlan.Leg inTown(String from, String to, double distanceKm, double kmInTown) {
         return new RoutePlan.Leg(from, to, distanceKm, OptionalDouble.empty(), Optional.empty(),
                 OptionalDouble.of(kmInTown), List.of(), List.of());

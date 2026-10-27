@@ -211,6 +211,8 @@ A field the request does not know is ignored. So is `factorInRoadClimbs`, which 
 | `fuelCountsSpeed` | boolean | Whether the fuel takes the town figure on town roads and the open road's elsewhere. `false` on straight lines. `null` when no `vehicle` was sent |
 | `enteredOrderDistanceKm` | number | Distance if the stops were driven in the order they were sent, so the saving is visible |
 | `shortestOrder` | object | Only when the fastest order or the least fuel was asked for: the `distanceKm`, `durationSeconds`, `climbMetres`, `descentMetres` and `fuelLitres` of the shortest order, to hold this one against. Its time is `null` on straight lines, its climb and descent without heights, and its fuel without a `vehicle`, as for the plan. `null` otherwise |
+| `fastestOrder` | object | Only when the least fuel was asked for, on real roads: what the fastest order comes to, in the same fields as `shortestOrder`. See "Both choices side by side" below. `null` otherwise |
+| `leastFuelOrder` | object | Only when the fastest order was asked for with a `vehicle`, on real roads: what the order taking the least fuel comes to, in the same fields. `null` otherwise |
 | `ordersChecked` | integer | How many orders were compared |
 
 ```json
@@ -236,8 +238,11 @@ A field the request does not know is ignored. So is `factorInRoadClimbs`, which 
   "totalDescentMetres": null,
   "totalFuelLitres": null,
   "fuelCountsHills": null,
+  "fuelCountsSpeed": null,
   "enteredOrderDistanceKm": 71.35,
   "shortestOrder": null,
+  "fastestOrder": null,
+  "leastFuelOrder": null,
   "ordersChecked": 24
 }
 ```
@@ -447,7 +452,7 @@ The answer says what the shortest order comes to, in `shortestOrder`, with its `
 Things to know.
 
 - **The open road often takes less fuel than a shorter way through town.** On the 400 round trips around Auckland measured for the fastest order, 85 km at the middle, in a medium car, 1,270 kg at 7.5 L/100 km, another order than the shortest took less fuel in 265. It saved 0.09 L at the middle, 1.4%, and 0.58 L at most, 8.3%, for 0.95 km more at the middle and 7.03 km at most. It was 111 s quicker at the middle, and none was a minute or more slower. Over the 400 it took 1.2% less fuel than the shortest orders. On 400 round trips between businesses in Wellington, 23 km at the middle, 135 changed, saving 0.04 L at the middle and 0.40 L at most, and 1.0% over the 400.
-- **It is often the fastest order as well.** The two gave the same order on 261 of the Auckland round trips and 301 of Wellington's.
+- **It is often the fastest order as well.** The two gave the same order on 261 of the Auckland round trips and 301 of Wellington's. The answer says what the fastest comes to, see below.
 - **Another order has to save a hundredth of a litre to be taken**, the least the answer gives. At a tenth, as it was before town and the open road were told apart, the fastest order took less fuel than the least fuel on 70 of the Auckland round trips, by saving a few hundredths that the least fuel left out. On a round trip it now never does.
 - **A one-way trip is not sent to its lowest stop.** A trip that ends lower takes less fuel, but only because the car is left lower, and the next drive up takes that fuel back. So the order is chosen for the fuel a trip uses up for good: what its roads take on the level, and what its steep descents brake away. Over a round trip that is the fuel it takes. Another order is taken only when it saves a hundredth of a litre both that way and as driven. So on 5 of 400 one-way trips around Auckland, the fastest order took 0.01 to 0.03 L less as driven, by ending lower.
 - **Without what it needs, the shortest order.** On straight lines the planner knows neither how fast the roads are nor how high, so the fuel goes with the distance and the shortest order takes the least. `shortestOrder` is then `null`. It is not an error. On roads read without heights, and for a vehicle sent without `kilograms`, town and the open road still count.
@@ -455,6 +460,28 @@ Things to know.
 - **Not together with the fastest order.** A request with both is refused with a 400.
 - **It changes the order of the stops and nothing else.** The road between two stops is the one the routing engine picks either way. Roads chosen to climb less were tried, together with the order: on the 400 round trips around Auckland, in the medium car, they cut the climb by 3% and the fuel by 0.02%.
 - **A stop kept in its place stays there.**
+
+### Both choices side by side
+
+Asked for one of the two, the answer also says what the other comes to: `fastestOrder` beside the least fuel, and `leastFuelOrder` beside the fastest. Each is the order that choice gives when asked for, by its own rule, so the screen can say beside one what the other comes to, in minutes and litres. The five stops further up come out the same either way, Takapuna first:
+
+```json
+{
+  "totalDistanceKm": 77.33,
+  "totalDurationSeconds": 4952,
+  "totalFuelLitres": 6.11,
+  "fastestOrder": { "distanceKm": 77.33, "durationSeconds": 4952, "climbMetres": 526, "descentMetres": 526, "fuelLitres": 6.11 },
+  "leastFuelOrder": null
+}
+```
+
+Things to know.
+
+- **It is what asking for the other gives.** The 400 round trips around Auckland, planned both ways in the medium car, gave the same figures in all 400.
+- **The two often come to the same.** They did on 262 of those 400. Where they did not, the least fuel took 0.03 L less at the middle, 0.5%, and 0.17 L less at most, 2.3%. The fastest was 5 s quicker at the middle and 2 minutes at most. So in Auckland the least fuel saves its fuel mostly against the shortest order, see above, and little against the fastest.
+- **The least fuel can be the quicker one, by under a minute.** The fastest keeps the shortest order unless another saves a minute, and the least fuel takes another for a hundredth of a litre. On 56 of the 400, the least fuel was quicker as well, on 27 of them by half a minute or more, and by 58 s at most. The screen says so.
+- **Not without what the other needs.** Beside the fastest there is no least fuel without a `vehicle`. On straight lines there is neither time nor speed to choose by, and both fields are `null`.
+- **The screen shows them in a table** under the plan's figures, the one on the map in bold, and says the difference in a sentence, or that they come out the same. That takes the place of holding the plan against the shortest order.
 
 ### Keeping a stop in its place
 

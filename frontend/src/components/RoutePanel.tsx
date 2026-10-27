@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
+import { bothChoices, otherChoiceSaid } from '../bothChoices'
 import { chosenFor, type Order } from '../chosenFor'
 import { climbSaid } from '../climb'
 import { fastestSaid } from '../fastest'
@@ -165,10 +166,13 @@ export default function RoutePanel(props: Props) {
   // A plan is cleared whenever the vehicle changes, so one shown was made with the vehicle there is.
   const hasVehicle = props.vehicleFigureFrom !== null
   const chosen = chosenFor({ order: props.order, hasVehicle })
-  const quickest = plan ? fastestSaid(chosen === 'time', plan) : null
-  const leastFuel = plan ? leastFuelSaid(props.order === 'leastFuel', hasVehicle, plan) : null
+  // The other choice in one line, when the plan gives it. That says more than either held against
+  // the shortest order, which is then left out.
+  const both = plan ? bothChoices(plan) : null
+  const quickest = plan && !both ? fastestSaid(chosen === 'time', plan) : null
+  const leastFuel = plan && !both ? leastFuelSaid(props.order === 'leastFuel', hasVehicle, plan) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
-  const shortest = plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
+  const shortest = !both && plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -476,6 +480,7 @@ export default function RoutePanel(props: Props) {
                 )}
               </dl>
 
+              {both && <p className="other-choice">{otherChoiceSaid(both)}</p>}
               {quickest && <p className="note">{quickest}</p>}
               {leastFuel && <p className="note">{leastFuel}</p>}
               {plan.totalDurationSeconds !== null && (

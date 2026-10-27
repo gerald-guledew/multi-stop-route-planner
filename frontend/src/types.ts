@@ -143,10 +143,10 @@ export interface Turn {
 }
 
 /**
- * What the shortest order comes to: how far it is, how long it takes, how much it climbs, and
- * the fuel it takes.
+ * What an order other than the plan's comes to, the shortest or the other choice: how far it is,
+ * how long it takes, how much it climbs, and the fuel it takes.
  */
-export interface ShortestOrder {
+export interface OrderTotals {
   distanceKm: number
   /** Driving time on clear roads. Null on straight-line distances. */
   durationSeconds: number | null
@@ -183,10 +183,16 @@ export interface RoutePlan {
   /**
    * Set when the order was chosen for driving time or for fuel, so that it can be held against
    * the shortest. Null when it was chosen for distance alone. That includes a planner asked for
-   * the fastest order that measures straight lines, and one asked for the least fuel that cannot
-   * count the hills.
+   * the fastest order or the least fuel that measures straight lines.
    */
-  shortestOrder: ShortestOrder | null
+  shortestOrder: OrderTotals | null
+  /** Beside the least fuel, what the fastest order comes to. Null when the roads have no times. */
+  fastestOrder: OrderTotals | null
+  /**
+   * Beside the fastest, what the order taking the least fuel comes to. Null without a vehicle,
+   * and on straight lines.
+   */
+  leastFuelOrder: OrderTotals | null
   ordersChecked: number
 }
 

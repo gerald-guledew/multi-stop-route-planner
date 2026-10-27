@@ -610,6 +610,79 @@ class RouteControllerTest {
                 .andExpect(jsonPath("$.shortestOrder.fuelLitres").value(nullValue()));
     }
 
+    // The other of the two choices.
+
+    private static final String TOWN_AND_OPEN_ROAD =
+            "\"vehicle\": { \"litresPer100Km\": 7.5, \"townLitresPer100Km\": 9.0, \"openRoadLitresPer100Km\": 6.0 }";
+
+    @Test
+    void givesTheFastestOrderBesideTheLeastFuel() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+                .willReturn(aPlanWithTheOtherChoiceBesideIt(ChosenFor.TIME));
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"leastFuel\": true, " + TOWN_AND_OPEN_ROAD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fastestOrder.distanceKm").value(20.31))
+                .andExpect(jsonPath("$.fastestOrder.durationSeconds").value(1312))
+                .andExpect(jsonPath("$.fastestOrder.climbMetres").value(nullValue()))
+                // 3 km in town at 9 L/100 km and 17.312 km on the open road at 6: 1.309 L.
+                .andExpect(jsonPath("$.fastestOrder.fuelLitres").value(1.31))
+                .andExpect(jsonPath("$", hasKey("leastFuelOrder")))
+                .andExpect(jsonPath("$.leastFuelOrder").value(nullValue()));
+    }
+
+    @Test
+    void givesTheLeastFuelOrderBesideTheFastest() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+                .willReturn(aPlanWithTheOtherChoiceBesideIt(ChosenFor.FUEL));
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"fastest\": true, " + TOWN_AND_OPEN_ROAD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.leastFuelOrder.distanceKm").value(20.31))
+                .andExpect(jsonPath("$.leastFuelOrder.durationSeconds").value(1312))
+                .andExpect(jsonPath("$.leastFuelOrder.fuelLitres").value(1.31))
+                .andExpect(jsonPath("$", hasKey("fastestOrder")))
+                .andExpect(jsonPath("$.fastestOrder").value(nullValue()));
+    }
+
+    @Test
+    void saysNullForBothChoicesWhenThePlanGivesNoOther() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasKey("fastestOrder")))
+                .andExpect(jsonPath("$.fastestOrder").value(nullValue()))
+                .andExpect(jsonPath("$", hasKey("leastFuelOrder")))
+                .andExpect(jsonPath("$.leastFuelOrder").value(nullValue()));
+    }
+
+    /**
+     * The plan on roads whose speeds are known further down, with the other choice beside it:
+     * 20.312 km in 1312.4 seconds, 3 km of it in town.
+     */
+    private static RoutePlan aPlanWithTheOtherChoiceBesideIt(ChosenFor other) {
+        RoutePlan chosen = aPlanWhoseRoadsSpeedsAreKnown();
+
+        return new RoutePlan(
+                chosen.route(),
+                chosen.legs(),
+                chosen.totalDistanceKm(),
+                chosen.totalDurationSeconds(),
+                chosen.totalClimbAndDescent(),
+                chosen.enteredOrderDistanceKm(),
+                chosen.ordersChecked(),
+                Optional.of(new RoutePlan.ShortestOrder(19.285, OptionalDouble.of(1556.0), Optional.empty(), OptionalDouble.of(9))),
+                Optional.of(new RoutePlan.OtherChoice(
+                        other, 20.312, OptionalDouble.of(1312.4), Optional.empty(), OptionalDouble.of(3))));
+    }
+
     // The turns of each leg.
 
     @Test
