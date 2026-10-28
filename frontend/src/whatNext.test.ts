@@ -26,23 +26,23 @@ const plan: RoutePlan = {
 
 describe('what the bar along the bottom of a phone says', () => {
   it('asks for a start, and offers to find you, while the trip is empty', () => {
-    expect(whatNext([], null, 10)).toEqual({ says: 'Set your start', step: 'locate' })
+    expect(whatNext([], null)).toEqual({ says: 'Set your start', step: 'locate' })
   })
 
   it('asks for a stop once there is a start, with nothing to press yet', () => {
-    expect(whatNext([home], null, 10)).toEqual({ says: 'Now add a stop', step: null })
+    expect(whatNext([home], null)).toEqual({ says: 'Now add a stop', step: null })
   })
 
   it('offers to plan as soon as there is one stop', () => {
-    expect(whatNext([home, office], null, 10)).toEqual({ says: '1 stop', step: 'plan' })
+    expect(whatNext([home, office], null)).toEqual({ says: '1 stop', step: 'plan' })
   })
 
   it('counts the stops, leaving out the start', () => {
-    expect(whatNext([home, office, mall], null, 10)).toEqual({ says: '2 stops', step: 'plan' })
+    expect(whatNext([home, office, mall], null)).toEqual({ says: '2 stops', step: 'plan' })
   })
 
   it('gives the distance once planned, and offers to hand the order over', () => {
-    expect(whatNext([home, office, mall], plan, 10)).toEqual({
+    expect(whatNext([home, office, mall], plan)).toEqual({
       says: '19.31 km',
       alsoSays: '2 stops',
       step: 'open',
@@ -52,7 +52,7 @@ describe('what the bar along the bottom of a phone says', () => {
   it('says how long the drive takes as well, when the roads say', () => {
     const byRoad = { ...plan, totalDurationSeconds: 5057 }
 
-    expect(whatNext([home, office, mall], byRoad, 10)).toEqual({
+    expect(whatNext([home, office, mall], byRoad)).toEqual({
       says: '19.31 km',
       alsoSays: '1 h 24 min, 2 stops',
       step: 'open',
@@ -60,18 +60,6 @@ describe('what the bar along the bottom of a phone says', () => {
   })
 
   it('has one line to say until there is a plan', () => {
-    expect(whatNext([home, office], null, 10).alsoSays).toBeUndefined()
-  })
-
-  it('offers nothing while there are more stops than can be planned', () => {
-    const tooMany = [home, ...Array.from({ length: 11 }, () => office)]
-
-    expect(whatNext(tooMany, null, 10)).toEqual({ says: '11 stops, 10 at most', step: null })
-  })
-
-  it('still plans at exactly the most stops allowed', () => {
-    const full = [home, ...Array.from({ length: 10 }, () => office)]
-
-    expect(whatNext(full, null, 10).step).toBe('plan')
+    expect(whatNext([home, office], null).alsoSays).toBeUndefined()
   })
 })

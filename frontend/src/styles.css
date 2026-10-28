@@ -305,11 +305,12 @@ body {
 }
 
 /* An order that cannot be picked yet, greyed, with what it needs under its name. */
-.chosen-for .needs-vehicle {
+/* A choice that waits for something else first, with what it waits for under its name. */
+.controls .waiting {
   color: var(--muted);
 }
 
-.chosen-for small {
+.controls small {
   display: block;
   font-size: 12px;
 }
@@ -597,6 +598,17 @@ button:disabled {
 .search input:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+/* A full trip. The box says so, and the usual faded look would make that too faint to read. */
+.search input:disabled {
+  background: var(--page);
+  opacity: 1;
+}
+
+.search input:disabled::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 .searching {

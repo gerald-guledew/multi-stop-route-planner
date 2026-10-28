@@ -6,6 +6,8 @@ interface Props {
   saved: SavedPlace[]
   /** The trip as it stands, to tell which saved places are already in it. */
   places: Place[]
+  /** Whether the trip has all the stops it takes, so that none can be added. */
+  full: boolean
   /** The place removed last, while it can still be put back. */
   removed: SavedPlace | null
   /** What went wrong the last time the saved places were read or changed, in words. */
@@ -23,7 +25,7 @@ interface Props {
  * there is something to show, so the panel is no longer for somebody who saves nothing.
  */
 export default function SavedPlaceList(props: Props) {
-  const { saved, places, removed, problem, busy } = props
+  const { saved, places, full, removed, problem, busy } = props
 
   if (saved.length === 0 && !removed && !problem) {
     return null
@@ -36,15 +38,14 @@ export default function SavedPlaceList(props: Props) {
       <ul>
         {saved.map((place) => {
           const inTrip = isInTrip(places, place)
+          const why = inTrip ? 'Already in this trip' : full ? 'Max stops reached' : null
           return (
             <li key={place.id}>
               <button
                 className="saved-name"
-                disabled={inTrip}
-                title={inTrip ? 'Already in this trip' : 'Add to the trip'}
-                aria-label={
-                  inTrip ? `${place.name}, already in this trip` : `Add ${place.name} to the trip`
-                }
+                disabled={why !== null}
+                title={why ?? 'Add to the trip'}
+                aria-label={why ? `${place.name}, ${why.toLowerCase()}` : `Add ${place.name} to the trip`}
                 onClick={() => props.onAdd(place)}
               >
                 {place.name}

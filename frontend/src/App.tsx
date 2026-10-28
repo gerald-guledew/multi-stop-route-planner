@@ -15,7 +15,7 @@ import { afterABetterAnswer, afterDragging } from './foundStart'
 import type { Picked } from './framing'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
 import { asPlace, startingFrom } from './savedPlaces'
-import { defaultLabel, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
+import { defaultLabel, isFull, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
   followPosition,
   type DevicePosition,
@@ -35,6 +35,8 @@ export default function App() {
   // until a vehicle is saved the fastest stands in for it.
   const [history, setHistory] = useState(() => startingWith({ places: [], returnToStart: false, order: 'leastFuel' }))
   const { places, returnToStart, order } = history.present
+  // With all the stops it takes, the trip says so and adds no more.
+  const full = isFull(places, returnToStart)
   const [plan, setPlan] = useState<RoutePlan | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [unroutablePlace, setUnroutablePlace] = useState<string | undefined>()
@@ -180,6 +182,9 @@ export default function App() {
   }
 
   function addPlace(latitude: number, longitude: number) {
+    if (full) {
+      return
+    }
     changePlaces((current) => [
       ...current,
       { name: defaultLabel(current.length), latitude, longitude },
@@ -196,6 +201,9 @@ export default function App() {
   }
 
   function addSearchedPlace(place: Place) {
+    if (full) {
+      return
+    }
     changePlaces((current) => [...current, place])
     goTo(place)
     setPlan(null)
@@ -397,6 +405,7 @@ export default function App() {
           <SavedPlaceList
             saved={savedPlaces}
             places={places}
+            full={full}
             removed={removedSavedPlace}
             problem={savedProblem}
             busy={changingSaved}
