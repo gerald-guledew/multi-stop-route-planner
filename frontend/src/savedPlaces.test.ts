@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { asPlace, canBeSaved, isInTrip, isTheStart, savedAt, startingFrom } from './savedPlaces'
-import type { Place, SavedPlace } from './types'
+import type { FoundPlace, Place, SavedPlace } from './types'
 
 const home: SavedPlace = { id: 7, name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 }
 const office: SavedPlace = { id: 9, name: 'The office', latitude: -36.8485, longitude: 174.7621 }
@@ -62,6 +62,13 @@ describe('whether the trip already goes to a saved place', () => {
   it('does not while there is no trip', () => {
     expect(isInTrip([], home)).toBe(false)
     expect(isTheStart([], home)).toBe(false)
+  })
+
+  it('goes by the spot, so a place found by searching counts the same', () => {
+    const found: FoundPlace = { ...mall, kind: 'poi', detail: 'Mount Wellington' }
+
+    expect(isInTrip([guess, mall], found)).toBe(true)
+    expect(isInTrip([guess, shop], found)).toBe(false)
   })
 })
 

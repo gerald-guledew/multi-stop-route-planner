@@ -224,7 +224,7 @@ export default function RoutePanel(props: Props) {
         <PlaceSearchBox
           onPick={props.onPickPlace}
           devicePosition={props.devicePosition}
-          start={places[0]}
+          places={places}
           mapCentre={props.mapCentre}
           full={full}
         />
