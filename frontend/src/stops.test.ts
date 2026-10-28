@@ -3,9 +3,12 @@ import {
   anyKeptInPlace,
   canMove,
   defaultLabel,
+  isFull,
+  mostStops,
   moved,
   ordinal,
   toggleKeptInPlace,
+  tooManyToReturn,
   withLabelsInStep,
   withoutPlace,
 } from './stops'
@@ -266,5 +269,42 @@ describe('a label nobody has changed', () => {
       newcomer,
       { ...second, name: 'Stop 2' },
     ])
+  })
+})
+
+describe('the most stops a trip takes', () => {
+  /** A start and this many stops. */
+  function trip(stops: number): Place[] {
+    return [home, ...Array.from({ length: stops }, () => office)]
+  }
+
+  it('is ten one way and nine on a round trip', () => {
+    expect(mostStops(false)).toBe(10)
+    expect(mostStops(true)).toBe(9)
+  })
+
+  it('fills a one-way trip at ten stops, the start not counted', () => {
+    expect(isFull(trip(9), false)).toBe(false)
+    expect(isFull(trip(10), false)).toBe(true)
+  })
+
+  it('fills a round trip at nine', () => {
+    expect(isFull(trip(8), true)).toBe(false)
+    expect(isFull(trip(9), true)).toBe(true)
+  })
+
+  it('never fills a trip with no stops yet', () => {
+    expect(isFull([], true)).toBe(false)
+    expect(isFull([home], true)).toBe(false)
+  })
+
+  it('holds a one-way trip of ten stops back from returning to its start', () => {
+    expect(tooManyToReturn(trip(10), false)).toBe(true)
+    expect(tooManyToReturn(trip(9), false)).toBe(false)
+  })
+
+  it('never holds a round trip back from going one way again', () => {
+    expect(tooManyToReturn(trip(9), true)).toBe(false)
+    expect(tooManyToReturn(trip(10), true)).toBe(false)
   })
 })

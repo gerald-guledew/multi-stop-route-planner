@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
 import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
 import { bothChoices, otherChoiceSaid } from '../bothChoices'
@@ -8,13 +8,13 @@ import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
 import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
-import { beforeGoogleMaps, googleMapsLink } from '../googleMaps'
+import { googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
 import { differsFromTheShortest, shortestSaid } from '../shortestOrder'
-import { anyKeptInPlace, canMove, ordinal, type Direction } from '../stops'
+import { anyKeptInPlace, canMove, isFull, mostStops, ordinal, tooManyToReturn, type Direction } from '../stops'
 import { turnDistanceSaid, turnSaid, turnsCounted } from '../turns'
 import { whatNext } from '../whatNext'
 import type { DevicePosition, LocationProblem, Position } from '../location'
@@ -66,8 +66,6 @@ const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
     'Your browser is not sharing its location with this page. Allow it beside the address bar, or pick your start on the map.',
   unavailable: 'Could not work out where you are. Pick your start on the map instead.',
 }
-
-const MAX_STOPS = 10
 
 /** A finger that has moved this far up or down the top of the panel meant to swipe it. */
 const SWIPE_PIXELS = 24
@@ -159,7 +157,9 @@ function SaveButton(props: {
 export default function RoutePanel(props: Props) {
   const { places, plan, error, planning, returnToStart } = props
   const stopCount = Math.max(places.length - 1, 0)
-  const tooManyStops = stopCount > MAX_STOPS
+  // No more stops than the Google Maps link carries: ten one way, nine on a round trip.
+  const full = isFull(places, returnToStart)
+  const returnWaits = tooManyToReturn(places, returnToStart)
   const saving = plan ? savingSaid(plan.enteredOrderDistanceKm, plan.totalDistanceKm) : null
   const climb = plan ? climbSaid(plan.totalClimbMetres, plan.totalDescentMetres) : null
   const fuel = plan && plan.totalFuelLitres !== null ? litresSaid(plan.totalFuelLitres) : null
@@ -178,24 +178,12 @@ export default function RoutePanel(props: Props) {
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
 
-  // A trip that does not all fit in the Google Maps link is said so when either button is pressed,
-  // before Google Maps opens. On a phone the button in the bar is the one pressed, far from any note.
-  const beforeOpening = plan ? beforeGoogleMaps(plan.route) : null
-  const toGoogleMaps = useRef<HTMLDialogElement>(null)
-
-  function openGoogleMaps(event: MouseEvent) {
-    if (beforeOpening) {
-      event.preventDefault()
-      toGoogleMaps.current?.showModal()
-    }
-  }
-
   // On a narrow screen the map has the screen and everything below the search box is a panel
   // that comes up from the bottom. Down, it shows one bar: where things stand and what to press
   // next. On a wide screen there is no such panel and none of this is seen.
   const narrow = useNarrowScreen()
   const [panelUp, setPanelUp] = useState(false)
-  const next = whatNext(places, plan, MAX_STOPS)
+  const next = whatNext(places, plan)
   const swipeStartedAt = useRef<number | null>(null)
 
   // The words for what went wrong are inside the panel. If it is down, nobody reads them.
@@ -238,6 +226,7 @@ export default function RoutePanel(props: Props) {
           devicePosition={props.devicePosition}
           start={places[0]}
           mapCentre={props.mapCentre}
+          full={full}
         />
       </div>
 
@@ -278,13 +267,7 @@ export default function RoutePanel(props: Props) {
               </button>
             )}
             {next.step === 'open' && plan && (
-              <a
-                className="primary button"
-                href={googleMapsLink(plan.route)}
-                target="_blank"
-                rel="noreferrer"
-                onClick={openGoogleMaps}
-              >
+              <a className="primary button" href={googleMapsLink(plan.route)} target="_blank" rel="noreferrer">
                 Open in Google Maps
               </a>
             )}
@@ -401,20 +384,24 @@ export default function RoutePanel(props: Props) {
 
           {places.length > 0 && (
             <div className="controls">
-              <label>
+              <label className={returnWaits ? 'waiting' : undefined}>
                 <input
                   type="checkbox"
                   checked={returnToStart}
+                  disabled={returnWaits}
                   onChange={(event) => props.onReturnToStartChange(event.target.checked)}
                 />
-                Return to the start
+                <span>
+                  Return to the start
+                  {returnWaits && <small>Needs {mostStops(true)} stops or fewer to enable</small>}
+                </span>
               </label>
               {/* A plan on its way was asked for with these as they stood. */}
               <div className="chosen-for" role="radiogroup" aria-label="What the order is chosen for">
                 {ORDERS.map(({ order, says }) => {
                   const waiting = needsAVehicle(order, hasVehicle)
                   return (
-                    <label key={order} className={waiting ? 'needs-vehicle' : undefined}>
+                    <label key={order} className={waiting ? 'waiting' : undefined}>
                       <input
                         type="radio"
                         name="chosen-for"
@@ -435,18 +422,12 @@ export default function RoutePanel(props: Props) {
                 <button
                   className="primary"
                   onClick={props.onPlan}
-                  disabled={planning || stopCount < 1 || tooManyStops}
+                  disabled={planning || stopCount < 1}
                 >
                   {planning ? 'Working it out…' : 'Plan the route'}
                 </button>
                 <button onClick={props.onClear}>Clear</button>
               </div>
-
-              {tooManyStops && (
-                <p className="warning">
-                  {stopCount} stops. Every order is checked, so this is capped at {MAX_STOPS}.
-                </p>
-              )}
             </div>
           )}
 
@@ -575,13 +556,7 @@ export default function RoutePanel(props: Props) {
 
               <p className="checked">{plan.ordersChecked.toLocaleString()} possible orders compared</p>
 
-              <a
-                className="primary button"
-                href={googleMapsLink(plan.route)}
-                target="_blank"
-                rel="noreferrer"
-                onClick={openGoogleMaps}
-              >
+              <a className="primary button" href={googleMapsLink(plan.route)} target="_blank" rel="noreferrer">
                 Open in Google Maps
               </a>
             </section>
@@ -593,25 +568,6 @@ export default function RoutePanel(props: Props) {
           </details>
         </div>
       </div>
-
-      {/* Outside the panel, which is out of reach while it is down on a phone. */}
-      {plan && beforeOpening && (
-        <dialog ref={toGoogleMaps} className="before-google-maps">
-          <p>{beforeOpening}</p>
-          <div className="buttons">
-            <a
-              className="primary button"
-              href={googleMapsLink(plan.route)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => toGoogleMaps.current?.close()}
-            >
-              Open in Google Maps
-            </a>
-            <button onClick={() => toGoogleMaps.current?.close()}>Cancel</button>
-          </div>
-        </dialog>
-      )}
     </aside>
   )
 }

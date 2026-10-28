@@ -70,6 +70,8 @@ Open http://localhost:5173. If you let the browser share your location, the trip
 
 On a phone the map fills the screen. The search box floats over the top of it, and the trip is a panel that comes up from the bottom.
 
+A trip takes 10 stops, or 9 when it returns to the start, so that every stop goes into the Google Maps link. With that many, the search box says "Max stops reached".
+
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 
 ```bash

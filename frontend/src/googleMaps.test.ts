@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beforeGoogleMaps, googleMapsLink, leavesOutTheDriveBack } from './googleMaps'
+import { googleMapsLink } from './googleMaps'
 import type { Place } from './types'
 
 const start: Place = { name: 'Sky Tower', latitude: -36.8485, longitude: 174.7621 }
@@ -38,21 +38,14 @@ describe('the Google Maps link', () => {
     expect(link.waypoints).toHaveLength(2)
   })
 
-  it('keeps all ten stops of a round trip by ending at the last of them', () => {
-    const link = linked(googleMapsLink([start, ...stops(10), start]))
-
-    expect(link.destination).toBe('-36.9,174.7')
-    expect(link.waypoints).toHaveLength(9)
-  })
-
-  it('keeps a round trip of nine stops as it is', () => {
+  it('keeps all nine stops of a round trip, the most it takes', () => {
     const link = linked(googleMapsLink([start, ...stops(9), start]))
 
     expect(link.destination).toBe('-36.8485,174.7621')
     expect(link.waypoints).toHaveLength(9)
   })
 
-  it('keeps all ten stops of a one-way trip', () => {
+  it('keeps all ten stops of a one-way trip, the most it takes', () => {
     const link = linked(googleMapsLink([start, ...stops(10)]))
 
     expect(link.destination).toBe('-36.9,174.7')
@@ -61,26 +54,5 @@ describe('the Google Maps link', () => {
 
   it('asks for driving directions', () => {
     expect(new URL(googleMapsLink([start, ...stops(1)])).searchParams.get('travelmode')).toBe('driving')
-  })
-})
-
-describe('leaving out the drive back', () => {
-  it('happens on a round trip of ten stops only', () => {
-    expect(leavesOutTheDriveBack([start, ...stops(10), start])).toBe(true)
-    expect(leavesOutTheDriveBack([start, ...stops(9), start])).toBe(false)
-    expect(leavesOutTheDriveBack([start, ...stops(10)])).toBe(false)
-  })
-})
-
-describe('what is said before Google Maps opens', () => {
-  it('says how many stops Google Maps takes, and where the link ends instead', () => {
-    expect(beforeGoogleMaps([start, ...stops(10), start])).toBe(
-      'Google Maps takes 9 stops at most between the start and the end. Your round trip has 10, so the link ends at your last stop. Head back to the start from there.',
-    )
-  })
-
-  it('says nothing when the whole trip fits', () => {
-    expect(beforeGoogleMaps([start, ...stops(9), start])).toBeNull()
-    expect(beforeGoogleMaps([start, ...stops(10)])).toBeNull()
   })
 })

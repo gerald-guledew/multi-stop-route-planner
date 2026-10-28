@@ -15,6 +15,8 @@ interface Props {
   start: Place | undefined
   /** Where the map is looking. Null until the map has said. */
   mapCentre: Position | null
+  /** Whether the trip has all the stops it takes. The box then says so and finds nothing. */
+  full: boolean
 }
 
 const NEAREST_TO: Record<LookedFrom, string> = {
@@ -29,7 +31,7 @@ const NEAREST_TO: Record<LookedFrom, string> = {
  *
  * Of several matches the nearest comes first, and the list says nearest to what.
  */
-export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentre }: Props) {
+export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentre, full }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<FoundPlace[]>([])
   const [rankedNear, setRankedNear] = useState<LookedFrom | null>(null)
@@ -95,6 +97,21 @@ export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentr
     onPick({ name: found.name, latitude: found.latitude, longitude: found.longitude })
     setQuery('')
     setResults([])
+  }
+
+  // Nothing found could be added. Whatever was being typed comes back once a stop goes.
+  if (full) {
+    return (
+      <div className="search">
+        <input
+          type="search"
+          value=""
+          disabled
+          placeholder="Max stops reached"
+          aria-label="Search for an address or a business"
+        />
+      </div>
+    )
   }
 
   return (

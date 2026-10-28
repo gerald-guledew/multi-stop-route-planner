@@ -305,11 +305,12 @@ body {
 }
 
 /* An order that cannot be picked yet, greyed, with what it needs under its name. */
-.chosen-for .needs-vehicle {
+/* A choice that waits for something else first, with what it waits for under its name. */
+.controls .waiting {
   color: var(--muted);
 }
 
-.chosen-for small {
+.controls small {
   display: block;
   font-size: 12px;
 }
@@ -379,31 +380,6 @@ button:disabled {
 .error {
   background: #fdecea;
   color: var(--bad);
-}
-
-/* Said before a trip that does not all fit goes to Google Maps, over the map and the panel. */
-.before-google-maps {
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  color: var(--ink);
-  max-width: min(360px, calc(100vw - 32px));
-  padding: 20px;
-}
-
-.before-google-maps::backdrop {
-  background: rgba(27, 36, 48, 0.4);
-}
-
-.before-google-maps p {
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0 0 16px;
-}
-
-.before-google-maps .button {
-  flex: 1;
-  width: auto;
 }
 
 /* Result */
@@ -622,6 +598,17 @@ button:disabled {
 .search input:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+/* A full trip. The box says so, and the usual faded look would make that too faint to read. */
+.search input:disabled {
+  background: var(--page);
+  opacity: 1;
+}
+
+.search input:disabled::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 .searching {

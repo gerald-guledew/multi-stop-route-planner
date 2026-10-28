@@ -18,7 +18,7 @@ export interface WhatNext {
   step: NextStep | null
 }
 
-export function whatNext(places: Place[], plan: RoutePlan | null, mostStops: number): WhatNext {
+export function whatNext(places: Place[], plan: RoutePlan | null): WhatNext {
   const stops = Math.max(places.length - 1, 0)
 
   if (places.length === 0) {
@@ -26,9 +26,6 @@ export function whatNext(places: Place[], plan: RoutePlan | null, mostStops: num
   }
   if (stops === 0) {
     return { says: 'Now add a stop', step: null }
-  }
-  if (stops > mostStops) {
-    return { says: `${stops} stops, ${mostStops} at most`, step: null }
   }
   if (plan) {
     // How far on the first line. Under it how long, when the roads say, and how many stops.

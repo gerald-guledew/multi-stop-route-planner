@@ -1,9 +1,32 @@
+import { MOST_STOPS_BETWEEN } from './googleMaps'
 import type { Place } from './types'
 
 /**
  * The rules about the list of stops. Plain functions with no React in them, so each rule can
  * be tested on its own.
  */
+
+/**
+ * The most stops a trip takes, so that every one of them goes into the Google Maps link. A
+ * one-way trip ends at its last stop, so it takes ten, which is also the most the planner checks
+ * every order of. A round trip ends back at the start, so it takes nine.
+ */
+export function mostStops(returnToStart: boolean): number {
+  return returnToStart ? MOST_STOPS_BETWEEN : MOST_STOPS_BETWEEN + 1
+}
+
+/** Whether the trip has all the stops it takes, so that no other can be added. */
+export function isFull(places: Place[], returnToStart: boolean): boolean {
+  return places.length - 1 >= mostStops(returnToStart)
+}
+
+/**
+ * Whether a one-way trip has one stop too many to come back to its start. Going one way again
+ * is never held up.
+ */
+export function tooManyToReturn(places: Place[], returnToStart: boolean): boolean {
+  return !returnToStart && places.length - 1 > mostStops(true)
+}
 
 /** What a place is called until somebody names it: "Start", then "Stop 1", "Stop 2". */
 export function defaultLabel(turn: number): string {
