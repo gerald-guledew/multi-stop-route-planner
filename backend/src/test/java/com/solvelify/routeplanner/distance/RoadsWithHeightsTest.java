@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.within;
 import com.graphhopper.GraphHopper;
 import com.graphhopper.reader.dem.ElevationProvider;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
+import com.solvelify.routeplanner.planning.Drive;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import java.nio.file.Path;
@@ -149,6 +150,17 @@ class RoadsWithHeightsTest {
         assertThat(overTheHill.climbMetres()).isCloseTo(80, within(3.0));
         assertThat(overTheHill.descentMetres()).isCloseTo(50, within(3.0));
         assertThat(overTheHill.climbMetres() - overTheHill.descentMetres()).isCloseTo(30, within(0.01));
+    }
+
+    @Test
+    void drivesOneWayAsTheTableDoesOnRoadsWithHeights() {
+        TravelMatrix matrix = withHeights.matrixFor(List.of(SUMMIT_ROAD_WEST, SUMMIT_ROAD_EAST));
+
+        Drive drive = withHeights.driveBetween(SUMMIT_ROAD_WEST, SUMMIT_ROAD_EAST);
+
+        // Off the map, as the table measures it, and not along the slope.
+        assertThat(drive.distanceKm()).isEqualTo(matrix.distanceKm(0, 1));
+        assertThat(drive.durationSeconds()).isEqualTo(matrix.durationSeconds(0, 1));
     }
 
     @Test

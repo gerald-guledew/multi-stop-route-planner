@@ -741,6 +741,45 @@ class PostgresPlaceSearchTest {
         assertThat(misconfigured.search("newmarket", REMUERA, 8)).hasSize(4);
     }
 
+    // Along a road.
+
+    @Test
+    void putsTheBranchTheRoadPassesFirstThoughItsEndIsNearerTheOther() {
+        // Due east, starting 6 km east of the Henderson branch and passing over the Epsom one 7 km
+        // on. From where the road starts, Henderson is the nearer.
+        List<ReferencePoint> road = List.of(
+                new ReferencePoint(-36.8800, 174.7000), new ReferencePoint(-36.8800, 174.8600));
+
+        assertThat(placeSearch.search("kfc", road.getFirst(), 8)).extracting(FoundPlace::detail)
+                .containsExactly("9 Lincoln Rd, Henderson, Auckland", "1 Great South Rd, Epsom, Auckland");
+        assertThat(placeSearch.searchAlong("kfc", road, 8)).extracting(FoundPlace::detail)
+                .containsExactly("1 Great South Rd, Epsom, Auckland", "9 Lincoln Rd, Henderson, Auckland");
+    }
+
+    @Test
+    void looksAlongEveryStretchOfTheRoad() {
+        // North from Remuera, then west through Henderson.
+        List<ReferencePoint> road = List.of(
+                new ReferencePoint(-36.9000, 174.7900),
+                new ReferencePoint(-36.8700, 174.7900),
+                new ReferencePoint(-36.8700, 174.6000));
+
+        assertThat(placeSearch.searchAlong("kfc", road, 8)).extracting(FoundPlace::detail)
+                .containsExactly("9 Lincoln Rd, Henderson, Auckland", "1 Great South Rd, Epsom, Auckland");
+    }
+
+    @Test
+    void looksFromAOnePointRoadAsFromThatPoint() {
+        assertThat(placeSearch.searchAlong("kfc", List.of(HENDERSON), 8))
+                .isEqualTo(placeSearch.search("kfc", HENDERSON, 8));
+    }
+
+    @Test
+    void looksFromNowhereAlongNoRoad() {
+        assertThat(placeSearch.searchAlong("kfc", List.of(), 8))
+                .isEqualTo(placeSearch.search("kfc", 8));
+    }
+
     private static List<String> names(List<FoundPlace> found) {
         return found.stream().map(FoundPlace::name).toList();
     }
