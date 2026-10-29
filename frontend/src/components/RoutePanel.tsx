@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
+import FindOnTheWay from './FindOnTheWay'
 import PlaceSearchBox from './PlaceSearchBox'
-import { BookmarkIcon, CrossIcon, DownIcon, LockIcon, RedoIcon, UndoIcon, UpIcon } from './icons'
+import {
+  BookmarkIcon,
+  CrossIcon,
+  DownIcon,
+  LockIcon,
+  PlusIcon,
+  RedoIcon,
+  SearchIcon,
+  UndoIcon,
+  UpIcon,
+} from './icons'
 import { bothChoices, otherChoiceSaid } from '../bothChoices'
 import { chosenFor, needsAVehicle, orderGoneBy, type Order } from '../chosenFor'
 import { climbSaid } from '../climb'
@@ -10,6 +21,7 @@ import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
+import { canAddOnTheWay } from '../onTheWay'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
@@ -18,11 +30,16 @@ import { anyKeptInPlace, canMove, isFull, mostStops, ordinal, tooManyToReturn, t
 import { turnDistanceSaid, turnSaid, turnsCounted } from '../turns'
 import { whatNext } from '../whatNext'
 import type { DevicePosition, LocationProblem, Position } from '../location'
-import type { FigureFrom, Place, RoutePlan, SavedPlace } from '../types'
+import type { FigureFrom, Place, PlaceAlong, RoutePlan, SavedPlace } from '../types'
 
 interface Props {
   places: Place[]
   plan: RoutePlan | null
+  /**
+   * Whether the plan kept every stop at the turn it had, as it does once a stop is added on the
+   * way. It then compared no orders, and has nothing to hold its own against.
+   */
+  orderHeld: boolean
   error: string | null
   planning: boolean
   returnToStart: boolean
@@ -37,6 +54,8 @@ interface Props {
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
+  /** A place picked to stop at on the way, between two stops of the plan or anywhere along it. */
+  onAddOnTheWay: (found: PlaceAlong) => void
   devicePosition: DevicePosition | null
   mapCentre: Position | null
   locating: boolean
@@ -106,6 +125,13 @@ function HowItWorks() {
           <span>takes a place out</span>
         </li>
         <li>
+          <PlusIcon />
+          <span>
+            adds a stop on the way, between two stops of the planned route. The other stops keep
+            their order
+          </span>
+        </li>
+        <li>
           <UndoIcon />
           <RedoIcon />
           <span>undo the last change to the trip, or redo it, from the corner of the map</span>
@@ -155,12 +181,14 @@ function SaveButton(props: {
 }
 
 export default function RoutePanel(props: Props) {
-  const { places, plan, error, planning, returnToStart } = props
+  const { places, plan, error, planning, returnToStart, orderHeld } = props
   const stopCount = Math.max(places.length - 1, 0)
   // No more stops than the Google Maps link carries: ten one way, nine on a round trip.
   const full = isFull(places, returnToStart)
   const returnWaits = tooManyToReturn(places, returnToStart)
-  const saving = plan ? savingSaid(plan.enteredOrderDistanceKm, plan.totalDistanceKm) : null
+  // A plan that held the order compared it with no other, so it has no saving or other order to give.
+  const compared = plan && !orderHeld ? plan : null
+  const saving = compared ? savingSaid(compared.enteredOrderDistanceKm, compared.totalDistanceKm) : null
   const climb = plan ? climbSaid(plan.totalClimbMetres, plan.totalDescentMetres) : null
   const fuel = plan && plan.totalFuelLitres !== null ? litresSaid(plan.totalFuelLitres) : null
   // A plan is cleared whenever the vehicle changes, so one shown was made with the vehicle there is.
@@ -169,11 +197,16 @@ export default function RoutePanel(props: Props) {
   const chosen = chosenFor({ order: props.order, hasVehicle })
   // The other choice in one line, when the plan gives it. That says more than either held against
   // the shortest order, which is then left out.
-  const both = plan ? bothChoices(plan) : null
-  const quickest = plan && !both ? fastestSaid(chosen === 'time', plan) : null
-  const leastFuel = plan && !both ? leastFuelSaid(goneBy === 'leastFuel', plan) : null
+  const both = compared ? bothChoices(compared) : null
+  const quickest = compared && !both ? fastestSaid(chosen === 'time', compared) : null
+  const leastFuel = compared && !both ? leastFuelSaid(goneBy === 'leastFuel', compared) : null
   // Shown only when it is another order than this one. The same figures twice say nothing.
-  const shortest = !both && plan?.shortestOrder && differsFromTheShortest(plan) ? plan.shortestOrder : null
+  const shortest =
+    !both && compared?.shortestOrder && differsFromTheShortest(compared) ? compared.shortestOrder : null
+  // A stop on the way is looked for between two stops of the plan, or anywhere along it. Null
+  // while nothing is being looked for.
+  const [lookingOnTheWay, setLookingOnTheWay] = useState<{ leg: number | null } | null>(null)
+  const addsOnTheWay = canAddOnTheWay(places, returnToStart, plan, planning)
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -228,6 +261,12 @@ export default function RoutePanel(props: Props) {
           mapCentre={props.mapCentre}
           full={full}
         />
+        {addsOnTheWay && (
+          <button className="find-on-the-way" onClick={() => setLookingOnTheWay({ leg: null })}>
+            <SearchIcon />
+            <span>Find along the current route</span>
+          </button>
+        )}
       </div>
 
       <div className={`sheet ${panelUp ? 'sheet-up' : ''}`}>
@@ -466,10 +505,12 @@ export default function RoutePanel(props: Props) {
                     <dd>{shortestSaid(shortest, chosen)}</dd>
                   </div>
                 )}
-                <div>
-                  <dt>The order you clicked</dt>
-                  <dd>{plan.enteredOrderDistanceKm.toFixed(2)} km</dd>
-                </div>
+                {compared && (
+                  <div>
+                    <dt>The order you clicked</dt>
+                    <dd>{compared.enteredOrderDistanceKm.toFixed(2)} km</dd>
+                  </div>
+                )}
                 {saving && (
                   <div>
                     <dt>{saving.label}</dt>
@@ -481,6 +522,9 @@ export default function RoutePanel(props: Props) {
               {both && <p className="other-choice">{otherChoiceSaid(both)}</p>}
               {quickest && <p className="note">{quickest}</p>}
               {leastFuel && <p className="note">{leastFuel}</p>}
+              {orderHeld && (
+                <p className="note">A stop on the way leaves the other stops in the order they had.</p>
+              )}
               {plan.totalDurationSeconds !== null && (
                 <p className="note">
                   Driving time is for clear roads. It allows nothing for traffic, or for the
@@ -520,6 +564,17 @@ export default function RoutePanel(props: Props) {
                     places.some((entered, at) => at > 0 && entered.keepInPlace && entered.name === place.name)
                   return (
                     <li key={index}>
+                      {/* The leg that leads here, between the place above and this one. */}
+                      {leg && addsOnTheWay && (
+                        <button
+                          className="add-on-the-way"
+                          aria-label={`Add a stop between ${plan.route[index - 1].name} and ${place.name}`}
+                          onClick={() => setLookingOnTheWay({ leg: index - 1 })}
+                        >
+                          <PlusIcon />
+                          <span>Add a stop</span>
+                        </button>
+                      )}
                       <span
                         className={`pin pin-list ${isStart || isReturnHome ? 'pin-start' : ''} ${keptInPlace ? 'pin-kept' : ''}`}
                       >
@@ -554,7 +609,9 @@ export default function RoutePanel(props: Props) {
                 <p className="note">The turns follow the roads drawn on the map. Google Maps picks its own.</p>
               )}
 
-              <p className="checked">{plan.ordersChecked.toLocaleString()} possible orders compared</p>
+              {compared && (
+                <p className="checked">{compared.ordersChecked.toLocaleString()} possible orders compared</p>
+              )}
 
               <a className="primary button" href={googleMapsLink(plan.route)} target="_blank" rel="noreferrer">
                 Open in Google Maps
@@ -568,6 +625,19 @@ export default function RoutePanel(props: Props) {
           </details>
         </div>
       </div>
+
+      {lookingOnTheWay && plan && (
+        <FindOnTheWay
+          plan={plan}
+          leg={lookingOnTheWay.leg}
+          places={places}
+          onPick={(found) => {
+            setLookingOnTheWay(null)
+            props.onAddOnTheWay(found)
+          }}
+          onClose={() => setLookingOnTheWay(null)}
+        />
+      )}
     </aside>
   )
 }

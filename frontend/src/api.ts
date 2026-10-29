@@ -4,6 +4,7 @@ import type {
   CarVariant,
   FoundPlace,
   Place,
+  PlaceAlong,
   ProblemDetail,
   RoutePlan,
   SavedPlace,
@@ -135,6 +136,38 @@ export async function searchPlaces(
   }
 
   return (await response.json()) as FoundPlace[]
+}
+
+/**
+ * Places to stop at on the way, typed by name, the least out of the way first: along one leg of
+ * a planned trip, or along all of it when `leg` is null. `route` is the trip as its plan drives
+ * it.
+ *
+ * <p>A POST, so the exact spots of the trip travel in the body and not in the URL, which is what
+ * logs keep.
+ */
+export async function findAlong(
+  query: string,
+  route: Place[],
+  leg: number | null,
+  signal: AbortSignal,
+): Promise<PlaceAlong[]> {
+  const response = await ask('/api/v1/places/along', A_QUICK_ANSWER_MS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      q: query,
+      route: route.map(({ name, latitude, longitude }) => ({ name, latitude, longitude })),
+      ...(leg === null ? {} : { leg }),
+    }),
+    signal,
+  })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  return (await response.json()) as PlaceAlong[]
 }
 
 /**

@@ -19,6 +19,16 @@ public interface TravelMatrixProvider {
     TravelMatrix matrixFor(List<Location> places);
 
     /**
+     * One drive, for when a few are wanted rather than every pair: what a stop on the way adds
+     * to a leg, say. Worked out here as a table of the two places, which costs the drive back too.
+     * A provider for which every drive costs something works out the one.
+     */
+    default Drive driveBetween(Location from, Location to) {
+        TravelMatrix matrix = matrixFor(List.of(from, to));
+        return new Drive(matrix.distanceKm(0, 1), matrix.durationSeconds(0, 1));
+    }
+
+    /**
      * How to drive between two places: the shape of the road, for drawing on a map, and its
      * turns, for following it.
      *

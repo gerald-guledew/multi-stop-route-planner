@@ -672,6 +672,121 @@ button:disabled {
   margin-top: 2px;
 }
 
+/* Stops on the way */
+
+/* Under the search box once a route is planned. It looks like a box to type in, as it opens one. */
+.find-on-the-way {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  margin: -8px 0 16px;
+  text-align: left;
+  width: 100%;
+}
+
+/* Between two stops of the plan, at the top of the second, which the leg leads to. */
+.add-on-the-way {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--accent);
+  display: flex;
+  flex-basis: 100%;
+  font-size: 12px;
+  gap: 4px;
+  margin: -2px 0 2px;
+  padding: 4px;
+}
+
+.add-on-the-way .icon {
+  height: 16px;
+  width: 16px;
+}
+
+.add-on-the-way:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* The search for a stop on the way: in the middle of a wide screen, all of a phone's. */
+.on-the-way-search {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgb(0 0 0 / 25%);
+  max-height: 80vh;
+  padding: 16px;
+  width: min(440px, 100% - 32px);
+}
+
+.on-the-way-search::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.on-the-way-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.on-the-way-head h2 {
+  font-size: 15px;
+  line-height: 1.35;
+  margin: 4px 0 0;
+}
+
+.on-the-way-search .search {
+  margin-bottom: 8px;
+}
+
+/* Under the box, on the page, rather than over it as the search box's list is. */
+.on-the-way-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.on-the-way-results button {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  display: block;
+  font-size: 13px;
+  padding: 8px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.on-the-way-results button:hover:not(:disabled) {
+  background: var(--page);
+}
+
+/* A place the trip already goes to. It says so, rather than fading too far to read. */
+.on-the-way-results button:disabled {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* What stopping there adds, under where it is. */
+.result-added {
+  color: var(--accent);
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.on-the-way-results button:disabled .result-added {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.result-between {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 /* Saved places */
 
 .saved {
@@ -1076,5 +1191,51 @@ button:disabled {
   .legs .turns summary {
     font-size: 14px;
     padding: 8px 0;
+  }
+}
+
+/* Stops on the way, on a phone */
+
+@media (max-width: 800px) {
+  /* The bar is as wide as the screen, and with the button under the search box it reaches down
+     beside the zoom buttons and undo. Only what is drawn in it takes a finger, so they still do. */
+  .top-bar {
+    pointer-events: none;
+  }
+
+  .top-bar > * {
+    pointer-events: auto;
+  }
+
+  /* Under the search box, between the zoom buttons and undo, so it covers neither. */
+  .find-on-the-way {
+    background: #fff;
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 22%);
+    margin: 8px auto 0;
+    padding: 8px 14px;
+    width: fit-content;
+  }
+
+  /* A finger needs more to aim at than a line of small words. */
+  .add-on-the-way {
+    font-size: 14px;
+    min-height: 36px;
+  }
+
+  /* All of the screen, with the keyboard over the lower half of it. */
+  .on-the-way-search {
+    border-radius: 0;
+    height: 100%;
+    margin: 0;
+    max-height: none;
+    max-width: none;
+    width: 100%;
+  }
+
+  .on-the-way-results button {
+    font-size: 15px;
+    padding: 10px 12px;
   }
 }

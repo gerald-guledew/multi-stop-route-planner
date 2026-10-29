@@ -40,6 +40,23 @@ export function DownIcon() {
   )
 }
 
+export function PlusIcon() {
+  return (
+    <Icon>
+      <path d="M10 4v12M4 10h12" />
+    </Icon>
+  )
+}
+
+export function SearchIcon() {
+  return (
+    <Icon>
+      <circle cx="8.5" cy="8.5" r="5" />
+      <path d="m12.5 12.5 4 4" />
+    </Icon>
+  )
+}
+
 export function CrossIcon() {
   return (
     <Icon>

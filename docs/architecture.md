@@ -34,6 +34,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | `address` | LINZ addresses: the table and its importer |
 | `poi` | Named places from Overture Maps: the table and its importer |
 | `search` | Finds addresses and named places from what was typed. The `PlaceSearch` interface and its PostgreSQL implementation |
+| `along` | Places to stop at on the way along a planned route, each with what it adds to its leg |
 | `saved` | Places somebody saved under a name: the JPA entity, its repository, and the rules about names |
 | `vehicle` | The vehicle the planner works out fuel for: one row, entered by hand or found in the register |
 | `cars` | Petrol cars from NZTA's Motor Vehicle Register: the table, its importer, and the lists a driver finds a car in |
@@ -45,6 +46,8 @@ Nothing in `planning` knows about HTTP, and nothing in `api` knows how distances
 **Travel figures arrive through an interface.** The service never calls haversine or GraphHopper itself. At step 3 a second implementation replaced straight lines with real driving distances, and the service, the solver and the controller were not touched.
 
 The interface hands back a whole matrix rather than one pair at a time, so an engine that works out many places to many in one pass can fill it that way. The GraphHopper provider fills it one drive at a time, every ordered pair in turn: 110 drives for a start and ten stops.
+
+A few drives can be asked for one at a time, `driveBetween`, when every pair would be waste: what a stop on the way adds to a leg is two drives less one. The GraphHopper provider measures a drive asked for alone as it measures one in the matrix, so the two can be set against each other.
 
 The legs of the answer are asked for again, one by one, for their `Directions`: the road's shape, for the map, and its turns, for following it. GraphHopper works the turns out from OpenStreetMap along with the road. `TurnsFromTheEngine` keeps what the engine knows of each: which way, the road, where the signs point, the motorway exit. For a turn onto a road the map leaves unnamed, an on-ramp most often, it takes the road the stretch after it mostly follows, from the names the engine gives along the drive. The words are left to the screen, `turns.ts`.
 
@@ -97,6 +100,22 @@ Dotted lines happen at import time, not on a search.
 **A flat that is not listed falls back to its building.** LINZ lists the flats of some buildings and not of others, always before a slash. An address typed with a flat that finds nothing is searched again: as LINZ would write it, if the flat was typed in words, and then without the flat. It is another search and not a looser pattern, so a place that holds everything typed is never pushed down by one that holds part of it.
 
 **The work for one search is bounded.** Each table hands over at most 5,000 matches to be ranked. "road" matches 850,000 addresses, and scoring them all took over four seconds. A search specific enough to be useful matches far fewer rows than the cap. When a search says where it is looking from, those 5,000 should be the nearest ones, so up to 20,000 matches are measured for distance first. Measuring is cheap. Scoring is what costs.
+
+## Stops on the way
+
+Once a trip is planned, the map screen finds a place to stop at between two stops, from the "+" between them, or anywhere along the route. A third flow, built on the two above.
+
+```mermaid
+flowchart TD
+    Screen["Map screen: the + between two stops, or Find along the current route"] -->|"POST /api/v1/places/along, with the route as planned"| AlongController[PlacesAlongController]
+    AlongController --> Along[PlacesAlongTheRoute]
+    Along -->|"the road of each leg, then two drives for each place and the leg once"| Provider["TravelMatrixProvider (interface)"]
+    Along -->|"what was typed, nearest the road"| PlaceSearch["PlaceSearch (interface)"]
+```
+
+**Near is found by the search, and what a stop adds by driving.** The search ranks places by how near they are to the road of a leg, the line its points draw, as it ranks them by how near they are to a point. The road is thinned to a point every 100 m first, since the engine gives one at every bend and the search measures each place against every point. Near is not the same as on the way. A shop across a motorway can be a long way round. So the first twelve are each driven to from the start of their leg and on to its end, and given back in the order of the time they add.
+
+**A stop on the way keeps the order the plan had.** The screen puts the place between the two stops it was found between, and plans the trip again in the order of the plan with every stop kept at its turn, which leaves one order to take. Keeping a stop in its place already said all of that, so planning needed nothing new. The answer compared no orders, so the screen leaves out what it holds a plan against: the order you clicked, the saving and the other choice.
 
 ## Saved places
 

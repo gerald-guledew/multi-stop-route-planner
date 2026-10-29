@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.graphhopper.GraphHopper;
 import com.graphhopper.reader.dem.ElevationProvider;
+import com.solvelify.routeplanner.planning.Drive;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
@@ -194,6 +195,17 @@ class GraphHopperTravelMatrixProviderTest {
         // About 12 km, most of it motorway. A quarter of an hour, give or take, with nothing
         // in the way. Anybody who has driven it at five in the afternoon knows a longer figure.
         assertThat(minutes).isBetween(8.0, 25.0);
+    }
+
+    @Test
+    void drivesOneWayAsTheTableDoes() {
+        TravelMatrix matrix = provider.matrixFor(List.of(SKY_TOWER, SYLVIA_PARK));
+
+        Drive drive = provider.driveBetween(SKY_TOWER, SYLVIA_PARK);
+
+        // What a stop on the way adds is one drive taken from two. They have to be measured alike.
+        assertThat(drive.distanceKm()).isEqualTo(matrix.distanceKm(0, 1));
+        assertThat(drive.durationSeconds()).isEqualTo(matrix.durationSeconds(0, 1));
     }
 
     @Test

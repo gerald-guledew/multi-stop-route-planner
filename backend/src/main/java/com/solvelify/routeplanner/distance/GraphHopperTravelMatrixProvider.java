@@ -11,6 +11,7 @@ import com.graphhopper.util.details.PathDetail;
 import com.graphhopper.util.exceptions.PointNotFoundException;
 import com.solvelify.routeplanner.planning.ClimbAndDescent;
 import com.solvelify.routeplanner.planning.Directions;
+import com.solvelify.routeplanner.planning.Drive;
 import com.solvelify.routeplanner.planning.GeoPoint;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
@@ -18,6 +19,7 @@ import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -89,19 +91,12 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
             for (int to = 0; to < size; to++) {
                 if (from == to) {
                     climbs[from][to] = ClimbAndDescent.LEVEL;
-                } else if (roadsHaveHeights) {
-                    // One drive worked out, and every figure read off it.
-                    ResponsePath drive = bestPath(places.get(from), places.get(to), EVERY_POINT);
-                    Road road = Road.along(drive.getPoints());
-                    distances[from][to] = road.metresOnTheMap() / METRES_PER_KM;
-                    durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
-                    climbs[from][to] = HeightProfile.climbAndDescent(road.metresAlong(), road.heights());
-                    kmInTown[from][to] = distances[from][to] * shareInTown(road.metresAlong(), drive);
                 } else {
-                    ResponsePath drive = bestPath(places.get(from), places.get(to), THINNED_FOR_DRAWING);
-                    distances[from][to] = drive.getDistance() / METRES_PER_KM;
-                    durations[from][to] = drive.getTime() / MILLIS_PER_SECOND;
-                    kmInTown[from][to] = distances[from][to] * shareInTown(metresAlong(drive.getPoints()), drive);
+                    Figures drive = figuresFor(places.get(from), places.get(to));
+                    distances[from][to] = drive.distanceKm();
+                    durations[from][to] = drive.durationSeconds();
+                    climbs[from][to] = drive.climb();
+                    kmInTown[from][to] = drive.kmInTown();
                 }
             }
         }
@@ -112,6 +107,37 @@ public class GraphHopperTravelMatrixProvider implements TravelMatrixProvider {
                 ? new TravelMatrix(distances, durations, climbs)
                 : new TravelMatrix(distances, durations))
                 .withKmInTown(kmInTown);
+    }
+
+    @Override
+    public Drive driveBetween(Location from, Location to) {
+        Figures drive = figuresFor(from, to);
+        return new Drive(drive.distanceKm(), OptionalDouble.of(drive.durationSeconds()));
+    }
+
+    /**
+     * One drive worked out, and every figure read off it. Measured the same way for the table and
+     * for a drive asked for on its own, so the two can be set against each other.
+     */
+    private Figures figuresFor(Location from, Location to) {
+        if (roadsHaveHeights) {
+            ResponsePath drive = bestPath(from, to, EVERY_POINT);
+            Road road = Road.along(drive.getPoints());
+            double km = road.metresOnTheMap() / METRES_PER_KM;
+            return new Figures(
+                    km,
+                    drive.getTime() / MILLIS_PER_SECOND,
+                    HeightProfile.climbAndDescent(road.metresAlong(), road.heights()),
+                    km * shareInTown(road.metresAlong(), drive));
+        }
+        ResponsePath drive = bestPath(from, to, THINNED_FOR_DRAWING);
+        double km = drive.getDistance() / METRES_PER_KM;
+        return new Figures(
+                km, drive.getTime() / MILLIS_PER_SECOND, null, km * shareInTown(metresAlong(drive.getPoints()), drive));
+    }
+
+    /** What one drive comes to. The climb is null on roads whose heights are not known. */
+    private record Figures(double distanceKm, double durationSeconds, ClimbAndDescent climb, double kmInTown) {
     }
 
     @Override

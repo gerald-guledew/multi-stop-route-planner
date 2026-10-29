@@ -22,4 +22,12 @@ public interface PlaceSearch {
     default List<FoundPlace> search(String typed, int limit) {
         return search(typed, null, limit);
     }
+
+    /**
+     * Ranks by how near each place is to a road rather than to a point, so that what comes first
+     * lies along the way.
+     *
+     * @param road the points of the road in order, such as the roads of a planned trip
+     */
+    List<FoundPlace> searchAlong(String typed, List<ReferencePoint> road, int limit);
 }

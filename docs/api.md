@@ -148,6 +148,83 @@ Named places come from Overture Maps, which scores each one from 0 to 1 for how 
 
 Results are empty until the data is imported: LINZ addresses for `address`, Overture places for `poi`. See the README.
 
+## POST /api/v1/places/along
+
+Finds a place to stop at on the way, by what you type, along a planned route: the places that add the least time come first, each with what it adds. The map screen asks it from the "+" between two stops, for that leg, and from "Find along the current route", for the whole route.
+
+A POST, so the exact spots of the trip travel in the body rather than in a URL, which is what logs keep.
+
+| Field | Rules |
+| --- | --- |
+| `q` | Required, at most 100 characters. Matched as the search above matches it |
+| `route` | Required, 2 to 12 places, each with `name`, `latitude` and `longitude`. The route as its plan drives it: the start first, and the start again last on a round trip |
+| `leg` | Optional, counting from 0: only the leg from the place at that turn to the next. Left out, the whole route |
+| `limit` | Optional, 1 to 25, default 8 |
+
+```json
+{
+  "q": "new world",
+  "route": [
+    { "name": "Sylvia Park", "latitude": -36.9170, "longitude": 174.8414 },
+    { "name": "Sky Tower", "latitude": -36.8485, "longitude": 174.7621 }
+  ],
+  "leg": 0,
+  "limit": 2
+}
+```
+
+```json
+[
+  {
+    "kind": "poi",
+    "name": "New World Newmarket",
+    "detail": "42 Nuffield St, Newmarket, Auckland",
+    "latitude": -36.87204269,
+    "longitude": 174.7780286,
+    "leg": 0,
+    "kmAdded": 0.89,
+    "secondsAdded": 123
+  },
+  {
+    "kind": "poi",
+    "name": "New World Metro",
+    "detail": "125 Queen St, Auckland Central",
+    "latitude": -36.84645902,
+    "longitude": 174.76589689,
+    "leg": 0,
+    "kmAdded": 0.67,
+    "secondsAdded": 134
+  }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `kind`, `name`, `detail`, `latitude`, `longitude` | As the search above gives them |
+| `leg` | The leg it is a stop on, counting from 0 |
+| `kmAdded` | How much further that leg is with the stop on it |
+| `secondsAdded` | How much longer that leg takes with the stop on it, on clear roads. `null` on straight lines |
+
+### How the places are found and ordered
+
+1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point.
+2. The first 12 it ranks, or as many as `limit` when that is more, are each driven to from the start of their leg and on to its end. What a place adds is those two drives less the leg as planned, never below nought. A place on the road the leg follows anyway adds nothing.
+3. They come back in the order of the time they add, and of the distance they add on straight lines.
+
+Looking along the whole route, each place is a stop on the leg whose road passes nearest to it, in a straight line.
+
+Measured on real roads: between Sylvia Park and the Sky Tower, New World Newmarket adds 123 s and 0.89 km. A plan with every stop kept at its turn, Sylvia Park, New World Newmarket, then the Sky Tower, takes 123 s and 0.89 km more than one straight to the Sky Tower. Places at the Sky Tower itself add 0 s.
+
+### Known gaps
+
+- The time spent at the stop is not counted, only the driving.
+- The places driven to are the nearest in a straight line. A place further off that adds less, across a motorway from one that adds more, is missed when 12 nearer ones match.
+- A place with no road near it is left out. The search knows nothing of roads.
+
+### Errors
+
+400 for a request that breaks the rules above: `legOnTheRoute` when `leg` is not one of the route's legs. 422 when a place of the route has no road near it, as for the optimize endpoint below.
+
 ## POST /api/v1/routes/optimize
 
 Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked for the fastest order, it returns the order with the least driving time. Asked for the least fuel, it returns the order that takes the least fuel in the vehicle sent.

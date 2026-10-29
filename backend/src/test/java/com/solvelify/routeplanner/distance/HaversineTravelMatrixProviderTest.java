@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.distance;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
+import com.solvelify.routeplanner.planning.Drive;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrix;
 import java.util.List;
@@ -20,6 +21,14 @@ class HaversineTravelMatrixProviderTest {
     @Test
     void buildsOneRowAndColumnPerPlace() {
         assertThat(provider.matrixFor(PLACES).size()).isEqualTo(3);
+    }
+
+    @Test
+    void drivesOneWayInAStraightLineWithNoTime() {
+        Drive drive = provider.driveBetween(PLACES.get(0), PLACES.get(1));
+
+        assertThat(drive.distanceKm()).isEqualTo(provider.matrixFor(PLACES).distanceKm(0, 1));
+        assertThat(drive.durationSeconds()).isEmpty();
     }
 
     @Test

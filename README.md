@@ -24,6 +24,7 @@ Develop an application that can accept a starting point and a list of places. It
 - Efficient stop order for a list of addresses
 - A stop that has to keep its turn, such as the one that must come first, stays there while the rest are arranged around it
 - Type an address or a business name and have it found, nearest first, instead of hunting for it on the map
+- A stop on the way, between two stops of the planned route, found by name with the minutes it adds. The other stops keep their order
 - Save the places you go to often, such as home, and pick them again with one press
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
 - How much each leg climbs and descends, worked out from the height of the ground. An estimate, and counted in the fuel
@@ -71,6 +72,8 @@ Open http://localhost:5173. If you let the browser share your location, the trip
 On a phone the map fills the screen. The search box floats over the top of it, and the trip is a panel that comes up from the bottom.
 
 A trip takes 10 stops, or 9 when it returns to the start, so that every stop goes into the Google Maps link. With that many, the search box says "Max stops reached".
+
+Once the route is planned, "+ Add a stop" between two stops finds a place by name and lists first the ones that add the least time to that part of the drive. "Find along the current route", under the search box, does the same for the whole route. The place picked goes between the two stops, and the other stops keep their order.
 
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 

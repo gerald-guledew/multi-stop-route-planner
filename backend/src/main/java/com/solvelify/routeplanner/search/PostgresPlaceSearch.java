@@ -6,6 +6,7 @@ import java.sql.Types;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -82,7 +83,8 @@ public class PostgresPlaceSearch implements PlaceSearch {
      * place that matches less than half as well can never overtake one that matches in full.
      * Distance counts in half kilometres. Places inside the same half kilometre are equally
      * near, which leaves the houses of one street, or the shops of one mall, to be ordered
-     * by the tie-break rather than by which gate is a few metres closer.
+     * by the tie-break rather than by which gate is a few metres closer. Where it is looking
+     * from is a point, or a road, and then near means near any part of it.
      *
      * <p><b>Ties</b> go to the name the words account for most of, which is what plain
      * {@code similarity} measures, and then to the place the source is more sure of. Without
@@ -111,7 +113,7 @@ public class PostgresPlaceSearch implements PlaceSearch {
      */
     private static final String SEARCH = """
             WITH term AS MATERIALIZED (
-                SELECT CAST(ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326) AS geography) AS origin,
+                SELECT CAST(ST_GeomFromText(:origin, 4326) AS geography) AS origin,
                        searchable(:firstWord) AS first_word
             ),
             spelling AS MATERIALIZED (
@@ -226,16 +228,26 @@ public class PostgresPlaceSearch implements PlaceSearch {
      */
     @Override
     public List<FoundPlace> search(String typed, ReferencePoint near, int limit) {
-        List<FoundPlace> found = find(typed, near, limit);
+        return searchFrom(typed, near == null ? null : pointAt(near), limit);
+    }
+
+    @Override
+    public List<FoundPlace> searchAlong(String typed, List<ReferencePoint> road, int limit) {
+        return searchFrom(typed, lineThrough(road), limit);
+    }
+
+    /** @param origin where the search is looking from, as text PostGIS reads. Null for nowhere */
+    private List<FoundPlace> searchFrom(String typed, String origin, int limit) {
+        List<FoundPlace> found = find(typed, origin, limit);
 
         Iterator<String> otherWays = Unit.otherWaysToFind(typed).iterator();
         while (found.isEmpty() && otherWays.hasNext()) {
-            found = find(otherWays.next(), near, limit);
+            found = find(otherWays.next(), origin, limit);
         }
         return found;
     }
 
-    private List<FoundPlace> find(String typed, ReferencePoint near, int limit) {
+    private List<FoundPlace> find(String typed, String origin, int limit) {
         Optional<SearchTerm> term = SearchTerm.from(typed);
         if (term.isEmpty()) {
             return List.of();
@@ -244,7 +256,7 @@ public class PostgresPlaceSearch implements PlaceSearch {
         // The nearest candidates can only be picked from matches that were looked at. With no
         // reference point nothing is nearest, so looking at more than will be ranked is wasted.
         int candidates = properties.candidateLimit();
-        int scan = near == null ? candidates : Math.max(properties.scanLimit(), candidates);
+        int scan = origin == null ? candidates : Math.max(properties.scanLimit(), candidates);
 
         List<SearchTerm.Spelling> spellings = term.get().spellings();
 
@@ -256,14 +268,31 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 .param("firstWord", term.get().firstWord())
                 .param("oneSpelling", spellings.size() == 1)
                 // Typed, because a bare null gives PostgreSQL nothing to tell its type from.
-                .param("latitude", near == null ? null : near.latitude(), Types.DOUBLE)
-                .param("longitude", near == null ? null : near.longitude(), Types.DOUBLE)
+                .param("origin", origin, Types.VARCHAR)
                 .param("minConfidence", properties.minConfidence())
                 .param("scan", scan)
                 .param("candidates", candidates)
                 .param("limit", limit)
                 .query(PostgresPlaceSearch::toFoundPlace)
                 .list();
+    }
+
+    /** A point as PostGIS reads it from text: longitude first. */
+    private static String pointAt(ReferencePoint point) {
+        return "POINT(" + point.longitude() + " " + point.latitude() + ")";
+    }
+
+    /** A road as a line through its points. Null for no points, and a point for one. */
+    private static String lineThrough(List<ReferencePoint> road) {
+        if (road.isEmpty()) {
+            return null;
+        }
+        if (road.size() == 1) {
+            return pointAt(road.getFirst());
+        }
+        return road.stream()
+                .map(point -> point.longitude() + " " + point.latitude())
+                .collect(Collectors.joining(", ", "LINESTRING(", ")"));
     }
 
     private static FoundPlace toFoundPlace(ResultSet row, int rowNumber) throws SQLException {

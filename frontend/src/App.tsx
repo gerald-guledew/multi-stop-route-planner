@@ -14,6 +14,7 @@ import { chosenFor, type Order } from './chosenFor'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import type { Picked } from './framing'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
+import { heldInPlannedOrder, withStopOn } from './onTheWay'
 import { asPlace, isInTrip, startingFrom } from './savedPlaces'
 import { defaultLabel, isFull, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
@@ -27,7 +28,7 @@ import RoutePanel from './components/RoutePanel'
 import SavedPlaceList from './components/SavedPlaceList'
 import UndoRedo from './components/UndoRedo'
 import VehicleSection from './components/VehicleSection'
-import type { Place, RoutePlan, SavedPlace, Vehicle } from './types'
+import type { Place, PlaceAlong, RoutePlan, SavedPlace, Vehicle } from './types'
 
 export default function App() {
   // The trip, and the trip as it was before each change, so that a change can be undone. A trip
@@ -38,6 +39,8 @@ export default function App() {
   // With all the stops it takes, the trip says so and adds no more.
   const full = isFull(places, returnToStart)
   const [plan, setPlan] = useState<RoutePlan | null>(null)
+  // Whether the plan kept every stop at its turn, as it does once a stop is added on the way.
+  const [orderHeld, setOrderHeld] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [unroutablePlace, setUnroutablePlace] = useState<string | undefined>()
   const [planning, setPlanning] = useState(false)
@@ -343,8 +346,31 @@ export default function App() {
     setLocationProblem(null)
   }
 
-  async function planRoute() {
-    const [start, ...stops] = places
+  /**
+   * A place to stop at on the way. It goes between the two stops it was found between, and the
+   * trip is planned again with every stop kept at the turn the plan gave it, so nothing else
+   * moves.
+   */
+  function addOnTheWay(found: PlaceAlong) {
+    if (!plan || full || isInTrip(places, found)) {
+      return
+    }
+    const stop: Place = { name: found.name, latitude: found.latitude, longitude: found.longitude }
+    const withTheStop = withStopOn(places, plan, found.leg, stop)
+    const held = heldInPlannedOrder(withTheStop, plan, returnToStart, found.leg, stop)
+    changePlaces(() => withTheStop)
+    setPlan(null)
+    if (held) {
+      void planRoute(held, true)
+    }
+  }
+
+  /**
+   * @param inOrder the places to plan, the start first. The trip as it stands unless said
+   * @param held    whether every stop in them is kept at its turn, which leaves one order
+   */
+  async function planRoute(inOrder: Place[] = places, held = false) {
+    const [start, ...stops] = inOrder
     setPlanning(true)
     setError(null)
     setUnroutablePlace(undefined)
@@ -359,6 +385,7 @@ export default function App() {
           vehicle,
         ),
       )
+      setOrderHeld(held)
     } catch (caught) {
       setPlan(null)
       if (caught instanceof ApiError) {
@@ -380,6 +407,7 @@ export default function App() {
       <RoutePanel
         places={places}
         plan={plan}
+        orderHeld={orderHeld}
         error={error}
         planning={planning}
         returnToStart={returnToStart}
@@ -390,9 +418,10 @@ export default function App() {
         onReturnToStartChange={changeReturnToStart}
         order={order}
         onOrderChange={changeOrder}
-        onPlan={planRoute}
+        onPlan={() => planRoute()}
         onClear={clearAll}
         onPickPlace={addSearchedPlace}
+        onAddOnTheWay={addOnTheWay}
         devicePosition={devicePosition}
         mapCentre={mapCentre}
         locating={locating}
