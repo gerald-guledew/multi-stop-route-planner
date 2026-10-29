@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addedSaid, alreadyInTrip, betweenSaid, canAddOnTheWay, heldInPlannedOrder, withStopOn } from './onTheWay'
+import { addedSaid, betweenSaid, canAddOnTheWay, heldInPlannedOrder, withStopOn } from './onTheWay'
 import type { Place, PlaceAlong, RoutePlan } from './types'
 
 const start: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
@@ -135,16 +135,6 @@ describe('what a stop on the way adds', () => {
 
   it('says which two places its leg runs between', () => {
     expect(betweenSaid(planOf(start, museum, tower), 1)).toBe('between Museum and Sky Tower')
-  })
-})
-
-describe('a place found along the way', () => {
-  it('is in the trip when the trip goes to that very spot', () => {
-    expect(alreadyInTrip([start, fuel], found())).toBe(true)
-  })
-
-  it('is not when the trip only goes near it', () => {
-    expect(alreadyInTrip([start, { ...fuel, longitude: 174.8131 }], found())).toBe(false)
   })
 })
 

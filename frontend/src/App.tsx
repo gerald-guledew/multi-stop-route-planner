@@ -14,7 +14,7 @@ import { chosenFor, type Order } from './chosenFor'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import type { Picked } from './framing'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
-import { alreadyInTrip, heldInPlannedOrder, withStopOn } from './onTheWay'
+import { heldInPlannedOrder, withStopOn } from './onTheWay'
 import { asPlace, isInTrip, startingFrom } from './savedPlaces'
 import { defaultLabel, isFull, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
@@ -352,7 +352,7 @@ export default function App() {
    * moves.
    */
   function addOnTheWay(found: PlaceAlong) {
-    if (!plan || full || alreadyInTrip(places, found)) {
+    if (!plan || full || isInTrip(places, found)) {
       return
     }
     const stop: Place = { name: found.name, latitude: found.latitude, longitude: found.longitude }

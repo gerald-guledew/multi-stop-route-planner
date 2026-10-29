@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CrossIcon } from './icons'
 import { findAlong, NotAnswering } from '../api'
-import { addedSaid, alreadyInTrip, betweenSaid } from '../onTheWay'
+import { addedSaid, betweenSaid } from '../onTheWay'
+import { isInTrip } from '../savedPlaces'
 import type { Place, PlaceAlong, RoutePlan } from '../types'
 
 const MINIMUM_CHARACTERS = 3
@@ -126,7 +127,7 @@ export default function FindOnTheWay({ plan, leg, places, onPick, onClose }: Pro
         <ul className="on-the-way-results">
           <li className="results-note">Least out of your way first</li>
           {results.map((found) => {
-            const inTrip = alreadyInTrip(places, found)
+            const inTrip = isInTrip(places, found)
             return (
               <li key={`${found.kind}|${found.name}|${found.latitude},${found.longitude}`}>
                 <button disabled={inTrip} onClick={() => onPick(found)}>

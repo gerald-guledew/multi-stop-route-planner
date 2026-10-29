@@ -29,14 +29,6 @@ export function canAddOnTheWay(
 }
 
 /**
- * Whether the trip already goes there. A place found along the way comes from the same tables as
- * one found by searching, so the numbers match to the last digit or it is another spot.
- */
-export function alreadyInTrip(places: Place[], found: PlaceAlong): boolean {
-  return places.some((place) => sitsOn(place, found))
-}
-
-/**
  * The trip with a stop on the way added straight after the place its leg sets off from. That is
  * where it goes in the order the stops were entered, which the plan is held against.
  */
