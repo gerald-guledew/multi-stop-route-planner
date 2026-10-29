@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NotAnswering, searchPlaces } from '../api'
 import type { Position } from '../location'
 import { lookFrom, type LookedFrom } from '../lookFrom'
+import { isInTrip } from '../savedPlaces'
 import type { FoundPlace, Place } from '../types'
 
 const MINIMUM_CHARACTERS = 3
@@ -11,8 +12,8 @@ interface Props {
   onPick: (place: Place) => void
   /** Where the browser says this device is. Null if it was not asked, or said no. */
   devicePosition: Position | null
-  /** The start of the trip, once there is one. */
-  start: Place | undefined
+  /** The trip as it stands: its start to look from, and the places it already goes to. */
+  places: Place[]
   /** Where the map is looking. Null until the map has said. */
   mapCentre: Position | null
   /** Whether the trip has all the stops it takes. The box then says so and finds nothing. */
@@ -31,7 +32,7 @@ const NEAREST_TO: Record<LookedFrom, string> = {
  *
  * Of several matches the nearest comes first, and the list says nearest to what.
  */
-export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentre, full }: Props) {
+export default function PlaceSearchBox({ onPick, devicePosition, places, mapCentre, full }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<FoundPlace[]>([])
   const [rankedNear, setRankedNear] = useState<LookedFrom | null>(null)
@@ -43,9 +44,9 @@ export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentr
 
   // Read by the search when it runs, rather than listed as something the search depends on.
   // Moving the map then does not run the search again and reshuffle a list somebody is reading.
-  const lookingFrom = useRef(lookFrom(devicePosition, start, mapCentre))
+  const lookingFrom = useRef(lookFrom(devicePosition, places[0], mapCentre))
   useEffect(() => {
-    lookingFrom.current = lookFrom(devicePosition, start, mapCentre)
+    lookingFrom.current = lookFrom(devicePosition, places[0], mapCentre)
   })
 
   useEffect(() => {
@@ -135,14 +136,19 @@ export default function PlaceSearchBox({ onPick, devicePosition, start, mapCentr
       {results.length > 0 && (
         <ul className="results">
           {rankedNear && <li className="results-note">{NEAREST_TO[rankedNear]}</li>}
-          {results.map((found) => (
-            <li key={`${found.kind}|${found.name}|${found.latitude},${found.longitude}`}>
-              <button onClick={() => pick(found)}>
-                <span className="result-name">{found.name}</span>
-                {found.detail && <span className="result-detail">{found.detail}</span>}
-              </button>
-            </li>
-          ))}
+          {results.map((found) => {
+            // Once ordered, a place in the trip twice is only driven to twice in a row.
+            const inTrip = isInTrip(places, found)
+            return (
+              <li key={`${found.kind}|${found.name}|${found.latitude},${found.longitude}`}>
+                <button disabled={inTrip} onClick={() => pick(found)}>
+                  <span className="result-name">{found.name}</span>
+                  {found.detail && <span className="result-detail">{found.detail}</span>}
+                  {inTrip && <span className="result-detail">Already in this trip</span>}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>

@@ -108,7 +108,7 @@ A third flow, and the first one that writes. A place is saved under a name, list
 
 **The list is sorted in Java.** By name, with capitals and macrons counting for nothing until two names are otherwise the same. A database orders text by the rules it was created with, and those differ from one machine to the next.
 
-**A saved place and a pin are the same spot when their positions match.** One is always copied from the other, so the numbers agree to the last digit. That is how the map screen shows "saved" beside a place, and knows a saved place is already in the trip. Planning is untouched: it still takes positions, and never a saved place's id.
+**A saved place and a pin are the same spot when their positions match.** One is always copied from the other, so the numbers agree to the last digit. That is how the map screen shows "saved" beside a place, and knows a saved place, or a place found by searching, is already in the trip. Planning is untouched: it still takes positions, and never a saved place's id.
 
 **The list is private.** It is likely to hold a home address, and the app has no login. Its answer is marked not to be stored, and what keeps strangers away from it is the next section.
 
