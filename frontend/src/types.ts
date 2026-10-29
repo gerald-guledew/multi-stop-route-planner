@@ -19,6 +19,16 @@ export interface FoundPlace extends Place {
   detail: string | null
 }
 
+/** A place to stop at on the way, and what stopping there adds to the leg it is a stop on. */
+export interface PlaceAlong extends FoundPlace {
+  /** The leg, counting from 0: from the place the plan drives to at that turn to the next. */
+  leg: number
+  /** How much further that leg is with the stop on it. */
+  kmAdded: number
+  /** How much longer it takes, on clear roads and with no time spent there. Null on straight lines. */
+  secondsAdded: number | null
+}
+
 /** A place somebody named and saved, so it can be picked again without typing. */
 export interface SavedPlace {
   /** What it is removed by. The API hands it out when the place is saved. */

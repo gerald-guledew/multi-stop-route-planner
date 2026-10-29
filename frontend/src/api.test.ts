@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
+  findAlong,
   getVehicle,
   heightAt,
   listMakes,
@@ -114,6 +115,66 @@ describe('searching for a place', () => {
     await expect(searchPlaces('new world', null, notCancelled)).rejects.toThrow(
       "Failed to convert 'near' with value: 'here'",
     )
+  })
+})
+
+describe('finding a stop on the way', () => {
+  const notCancelled = new AbortController().signal
+  const route = [
+    { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414, keepInPlace: true },
+    { name: 'Sky Tower', latitude: -36.8485, longitude: 174.7621 },
+  ]
+
+  it('sends what was typed and the route in the body, where logs do not keep it', async () => {
+    const fetched = apiThatAnswers(200, [])
+
+    await findAlong('fuel', route, null, notCancelled)
+
+    const [url, init] = fetched.mock.calls[0]
+    expect(url).toBe('/api/v1/places/along')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual({
+      q: 'fuel',
+      route: [
+        { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 },
+        { name: 'Sky Tower', latitude: -36.8485, longitude: 174.7621 },
+      ],
+    })
+  })
+
+  it('says which leg to look along when there is one', async () => {
+    const fetched = apiThatAnswers(200, [])
+
+    await findAlong('fuel', route, 0, notCancelled)
+
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body)).leg).toBe(0)
+  })
+
+  it('can be cancelled, so a slow answer cannot overwrite a newer one', async () => {
+    const fetched = apiThatNeverAnswers()
+    const controller = new AbortController()
+
+    const search = findAlong('fuel', route, null, controller.signal)
+    search.catch(() => undefined)
+    controller.abort()
+
+    expect(fetched.mock.calls[0][1]?.signal?.aborted).toBe(true)
+    await expect(search).rejects.toBeDefined()
+  })
+
+  it('hands back what the API found', async () => {
+    const found = [
+      { kind: 'poi', name: 'Z Ellerslie', detail: 'Ellerslie', latitude: -36.899, longitude: 174.813, leg: 0, kmAdded: 1.2, secondsAdded: 240 },
+    ]
+    apiThatAnswers(200, found)
+
+    await expect(findAlong('fuel', route, null, notCancelled)).resolves.toEqual(found)
+  })
+
+  it('fails with what the API said was wrong', async () => {
+    apiThatAnswers(400, { title: 'Bad Request', detail: 'Validation failed' })
+
+    await expect(findAlong('fuel', route, 3, notCancelled)).rejects.toThrow('Validation failed')
   })
 })
 
