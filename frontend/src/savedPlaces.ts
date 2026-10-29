@@ -1,4 +1,5 @@
 import { sitsOn } from './foundStart'
+import type { Position } from './location'
 import { withLabelsInStep } from './stops'
 import type { Place, SavedPlace } from './types'
 
@@ -20,9 +21,12 @@ export function canBeSaved(place: Place): boolean {
   return place.name.trim() !== ''
 }
 
-/** Whether the trip already goes there, as its start or as a stop. */
-export function isInTrip(places: Place[], saved: SavedPlace): boolean {
-  return places.some((place) => sitsOn(place, saved))
+/**
+ * Whether the trip already goes there, as its start or as a stop. Asked of a saved place, and of a
+ * place found by searching, which is copied from the same tables to the last digit.
+ */
+export function isInTrip(places: Place[], spot: Position): boolean {
+  return places.some((place) => sitsOn(place, spot))
 }
 
 /** Whether the trip already starts there. */

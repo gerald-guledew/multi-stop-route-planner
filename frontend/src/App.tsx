@@ -15,7 +15,7 @@ import { afterABetterAnswer, afterDragging } from './foundStart'
 import type { Picked } from './framing'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
 import { alreadyInTrip, heldInPlannedOrder, withStopOn } from './onTheWay'
-import { asPlace, startingFrom } from './savedPlaces'
+import { asPlace, isInTrip, startingFrom } from './savedPlaces'
 import { defaultLabel, isFull, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
   followPosition,
@@ -204,7 +204,7 @@ export default function App() {
   }
 
   function addSearchedPlace(place: Place) {
-    if (full) {
+    if (full || isInTrip(places, place)) {
       return
     }
     changePlaces((current) => [...current, place])

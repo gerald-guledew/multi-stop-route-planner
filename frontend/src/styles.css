@@ -643,8 +643,14 @@ button:disabled {
   width: 100%;
 }
 
-.results button:hover {
+.results button:hover:not(:disabled) {
   background: var(--page);
+}
+
+/* Already in the trip. Muted rather than faded, so it can still be read. */
+.results button:disabled {
+  color: var(--muted);
+  opacity: 1;
 }
 
 /* What the list is ordered by. A caption, not something to pick. */
