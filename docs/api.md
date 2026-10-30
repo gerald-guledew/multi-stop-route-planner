@@ -241,6 +241,7 @@ Distances are straight lines unless real roads are switched on, as under "Straig
 | `start.longitude` | number | Required, between -180 and 180 |
 | `stops` | array | Required, 1 to 10 items, each shaped like `start` |
 | `stops[].keepInPlace` | boolean | Optional, defaults to `false`. See "Keeping a stop in its place" below |
+| `stops[].stopOver` | boolean | Optional, defaults to `false`. See "Keeping a stop-over on its leg" below |
 | `returnToStart` | boolean | Optional, defaults to `true` |
 | `fastest` | boolean | Optional, defaults to `false`. See "The fastest order" below |
 | `leastFuel` | boolean | Optional, defaults to `false`. Needs `vehicle`. Not together with `fastest`. See "The least fuel" below |
@@ -575,6 +576,24 @@ The route becomes Sky Tower, Sylvia Park, **Airport**, Devonport, Takapuna and b
 - Keeping a stop can only cost distance or leave it the same. It never saves any.
 - With every stop kept there is one order, the one sent, and the answer is that trip.
 - On `start` the mark is ignored. The start is first anyway.
+
+### Keeping a stop-over on its leg
+
+A stop-over is a stop added between two others because it is on the way from one to the other. Mark it with `stopOver` and it stays between the place before it and the place after it in the list. The three are driven one after the other and move as one, and the other stops are arranged around them.
+
+From Sylvia Park on real roads with `fastest`, send New World Newmarket, the Museum, the Sky Tower and Grafton, with the Museum marked:
+
+```json
+{ "name": "Museum", "latitude": -36.8604, "longitude": 174.7778, "stopOver": true }
+```
+
+The route becomes Sylvia Park, Grafton, **New World Newmarket, Museum, Sky Tower**, 17.59 km and 21 min. With every stop free it is 14.85 km and 19 min, and Grafton takes the Museum's place before the Sky Tower. `ordersChecked` falls from 24 to 2: the block, and the one stop left. When the three are already side by side in the best order, the plan is the same with the mark as without it.
+
+- The place before the first stop is `start`. The place after the last stop is `start` again on a round trip. A one-way trip has none, so its last stop stays after the stop before it.
+- Several in a row stay together between the same two places.
+- The order sent always holds every mark, so a plan is never refused for one, and they go with `keepInPlace`.
+- A block is driven in the order it was sent. It does not turn round.
+- On `start` the mark is ignored.
 
 ### Errors
 

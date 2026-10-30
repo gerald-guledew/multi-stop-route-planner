@@ -117,7 +117,9 @@ flowchart TD
 
 **The list takes the order of the plan.** When a plan comes back, the list of stops changes to the order it drives, as one change that undo takes back. Two stops side by side are then a leg of the plan, which is what the "+" between them needs. A label nobody changed moves with its turn, so the plan is renamed to match: a pin finds its turn in the plan by name. A plan is held against the order the list had when it was asked for, and after the first plan that is the order of the one before.
 
-**A stop on the way keeps the order the plan had.** The screen puts the place between the two stops it was found between, and plans the trip again in the order of the plan with every stop kept at its turn, which leaves one order to take. Keeping a stop in its place already said all of that, so planning needed nothing new. The answer compared no orders, so the screen leaves out what it holds a plan against: the order you clicked, the saving and the other choice.
+**A stop on the way keeps the order the plan had.** The screen puts the place between the two stops it was found between, and plans the trip again in the order of the plan with every stop kept at its turn, which leaves one order to take. Keeping a stop in its place already said all of that. The answer compared no orders, so the screen leaves out what it holds a plan against: the order you clicked, the saving and the other choice.
+
+**A stop-over keeps its leg.** The place picked is marked `stopOver`, and every later plan sends the mark: the stop stays between the places either side of it in the list, and the three move as one. In the solver's search, entering the first settles the next two, and neither can be entered any other way, so there are fewer orders to build. The leg is read from the list and not named, so the order sent always holds and no plan is refused for it. Keeping the three in their places would not do: a turn is fixed, and a stop could never go in front of them. If one of its two stops goes, the leg has gone, and the screen lets the stop-over go.
 
 ## Saved places
 
