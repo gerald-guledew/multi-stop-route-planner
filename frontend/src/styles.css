@@ -95,6 +95,7 @@ body {
   display: flex;
   gap: 8px;
   padding: 5px 0;
+  position: relative;
 }
 
 /* The label, with what can be done to the place on a line of its own beneath it. One line
@@ -586,7 +587,7 @@ button:disabled {
   position: relative;
 }
 
-.search input {
+.search input[type='search'] {
   border: 1px solid var(--line);
   border-radius: 8px;
   font: inherit;
@@ -595,18 +596,18 @@ button:disabled {
   width: 100%;
 }
 
-.search input:focus {
+.search input[type='search']:focus {
   border-color: var(--accent);
   outline: none;
 }
 
 /* A full trip. The box says so, and the usual faded look would make that too faint to read. */
-.search input:disabled {
+.search input[type='search']:disabled {
   background: var(--page);
   opacity: 1;
 }
 
-.search input:disabled::placeholder {
+.search input[type='search']:disabled::placeholder {
   color: var(--muted);
   opacity: 1;
 }
@@ -674,98 +675,38 @@ button:disabled {
 
 /* Stops on the way */
 
-/* Under the search box once a route is planned. It looks like a box to type in, as it opens one. */
-.find-on-the-way {
-  align-items: center;
+/* Under the search box once a route is planned. */
+.look-along {
+  align-items: flex-start;
   color: var(--muted);
+  cursor: pointer;
   display: flex;
-  gap: 8px;
-  margin: -8px 0 16px;
-  text-align: left;
-  width: 100%;
+  font-size: 13px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
-/* Between two stops of the plan, at the top of the second, which the leg leads to. */
+.look-along input {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+}
+
+/* Between two stops of the plan, in line with their pins, where the drive between them would be
+   drawn. It sits under the pin of the first, on the line of what can be done to that place. */
 .add-on-the-way {
-  align-items: center;
-  background: none;
-  border: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  bottom: 3px;
   color: var(--accent);
-  display: flex;
-  flex-basis: 100%;
-  font-size: 12px;
-  gap: 4px;
-  margin: -2px 0 2px;
-  padding: 4px;
+  height: 26px;
+  left: 1px;
+  position: absolute;
+  width: 26px;
 }
 
 .add-on-the-way .icon {
   height: 16px;
   width: 16px;
-}
-
-.add-on-the-way:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-/* The search for a stop on the way: in the middle of a wide screen, all of a phone's. */
-.on-the-way-search {
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgb(0 0 0 / 25%);
-  max-height: 80vh;
-  padding: 16px;
-  width: min(440px, 100% - 32px);
-}
-
-.on-the-way-search::backdrop {
-  background: rgb(0 0 0 / 35%);
-}
-
-.on-the-way-head {
-  align-items: flex-start;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.on-the-way-head h2 {
-  font-size: 15px;
-  line-height: 1.35;
-  margin: 4px 0 0;
-}
-
-.on-the-way-search .search {
-  margin-bottom: 8px;
-}
-
-/* Under the box, on the page, rather than over it as the search box's list is. */
-.on-the-way-results {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.on-the-way-results button {
-  background: none;
-  border: none;
-  border-radius: 6px;
-  display: block;
-  font-size: 13px;
-  padding: 8px 10px;
-  text-align: left;
-  width: 100%;
-}
-
-.on-the-way-results button:hover:not(:disabled) {
-  background: var(--page);
-}
-
-/* A place the trip already goes to. It says so, rather than fading too far to read. */
-.on-the-way-results button:disabled {
-  color: var(--muted);
-  opacity: 1;
 }
 
 /* What stopping there adds, under where it is. */
@@ -775,11 +716,6 @@ button:disabled {
   font-size: 12px;
   font-weight: 600;
   margin-top: 2px;
-}
-
-.on-the-way-results button:disabled .result-added {
-  color: var(--muted);
-  font-weight: 400;
 }
 
 .result-between {
@@ -967,7 +903,7 @@ button:disabled {
 
   /* An iPhone zooms the whole page in when a text box with small text is tapped, and does not
      zoom back out. 16 pixels is the size at which it leaves the page alone. */
-  .search input,
+  .search input[type='search'],
   .places input,
   .vehicle input,
   .vehicle select {
@@ -988,7 +924,7 @@ button:disabled {
     margin: 0;
   }
 
-  .search input {
+  .search input[type='search'] {
     border-color: transparent;
     border-radius: 24px;
     box-shadow: 0 2px 10px rgb(0 0 0 / 22%);
@@ -1197,45 +1133,41 @@ button:disabled {
 /* Stops on the way, on a phone */
 
 @media (max-width: 800px) {
-  /* The bar is as wide as the screen, and with the button under the search box it reaches down
-     beside the zoom buttons and undo. Only what is drawn in it takes a finger, so they still do. */
-  .top-bar {
+  /* The search box is as wide as the screen, and with the checkbox under it it reaches down beside
+     the zoom buttons and undo. Only what is drawn in it takes a finger, so they still do. */
+  .top-bar,
+  .top-bar .search {
     pointer-events: none;
   }
 
-  .top-bar > * {
+  .top-bar .search > * {
     pointer-events: auto;
   }
 
-  /* Under the search box, between the zoom buttons and undo, so it covers neither. */
-  .find-on-the-way {
+  /* Under the search box, between the zoom buttons and undo, so it covers neither. Over the map
+     it has no panel behind it, so it brings its own. */
+  .look-along {
     background: #fff;
-    border: none;
     border-radius: 20px;
     box-shadow: 0 2px 10px rgb(0 0 0 / 22%);
+    color: var(--ink);
+    font-size: 15px;
     margin: 8px auto 0;
+    max-width: calc(100% - 112px);
     padding: 8px 14px;
     width: fit-content;
   }
 
-  /* A finger needs more to aim at than a line of small words. */
+  .look-along input {
+    height: 18px;
+    width: 18px;
+  }
+
+  /* A finger needs more to aim at than the mouse does. */
   .add-on-the-way {
-    font-size: 14px;
-    min-height: 36px;
-  }
-
-  /* All of the screen, with the keyboard over the lower half of it. */
-  .on-the-way-search {
-    border-radius: 0;
-    height: 100%;
-    margin: 0;
-    max-height: none;
-    max-width: none;
-    width: 100%;
-  }
-
-  .on-the-way-results button {
-    font-size: 15px;
-    padding: 10px 12px;
+    bottom: 8px;
+    height: 34px;
+    left: -3px;
+    width: 34px;
   }
 }
