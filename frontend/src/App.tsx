@@ -14,7 +14,7 @@ import { chosenFor, type Order } from './chosenFor'
 import { afterABetterAnswer, afterDragging } from './foundStart'
 import type { Picked } from './framing'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
-import { heldInPlannedOrder, withStopOn } from './onTheWay'
+import { heldInPlannedOrder, inPlannedOrder, namedAs, withStopOn } from './onTheWay'
 import { asPlace, isInTrip, startingFrom } from './savedPlaces'
 import { defaultLabel, isFull, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
 import {
@@ -376,15 +376,20 @@ export default function App() {
     setUnroutablePlace(undefined)
 
     try {
-      setPlan(
-        await optimizeRoute(
-          start,
-          stops,
-          returnToStart,
-          chosenFor({ order, hasVehicle: vehicle !== null }),
-          vehicle,
-        ),
+      const planned = await optimizeRoute(
+        start,
+        stops,
+        returnToStart,
+        chosenFor({ order, hasVehicle: vehicle !== null }),
+        vehicle,
       )
+      // The list takes the order to be driven, and undo brings back the one it had. A held plan
+      // keeps the list as it already stands. A trip changed in the meantime is left as it is.
+      const ordered = held ? null : inPlannedOrder(inOrder, planned, returnToStart)
+      if (ordered) {
+        changePlaces((current) => (current === inOrder ? ordered : current))
+      }
+      setPlan(ordered ? namedAs(planned, ordered) : planned)
       setOrderHeld(held)
     } catch (caught) {
       setPlan(null)

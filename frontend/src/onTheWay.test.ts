@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { addedSaid, betweenSaid, canAddOnTheWay, heldInPlannedOrder, withStopOn } from './onTheWay'
-import type { Place, PlaceAlong, RoutePlan } from './types'
+import {
+  addedSaid,
+  alongSaid,
+  betweenSaid,
+  canAddOnTheWay,
+  heldInPlannedOrder,
+  inPlannedOrder,
+  isAlong,
+  legAfter,
+  namedAs,
+  withStopOn,
+} from './onTheWay'
+import type { FoundPlace, Leg, Place, PlaceAlong, RoutePlan } from './types'
 
 const start: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const museum: Place = { name: 'Museum', latitude: -36.8604, longitude: 174.7778 }
@@ -31,6 +42,109 @@ function planOf(...route: Place[]): RoutePlan {
 function found(more: Partial<PlaceAlong> = {}): PlaceAlong {
   return { ...fuel, kind: 'poi', detail: 'Ellerslie', leg: 0, kmAdded: 1.2, secondsAdded: 240, ...more }
 }
+
+describe('the list taking the order of the plan', () => {
+  it('reads as the trip is driven', () => {
+    const planned = planOf(start, museum, tower, airport)
+
+    expect(inPlannedOrder([start, tower, museum, airport], planned, false)).toEqual([
+      start,
+      museum,
+      tower,
+      airport,
+    ])
+  })
+
+  it('leaves a kept stop kept', () => {
+    const kept = { ...airport, keepInPlace: true }
+    const planned = planOf(start, museum, tower, kept)
+
+    expect(inPlannedOrder([start, tower, museum, kept], planned, false)?.[3]).toBe(kept)
+  })
+
+  it('does not count the way back to the start as one more place', () => {
+    const planned = planOf(start, museum, tower, start)
+
+    expect(inPlannedOrder([start, tower, museum], planned, true)).toEqual([start, museum, tower])
+  })
+
+  it('moves a label nobody changed along with its turn', () => {
+    const first = { ...tower, name: 'Stop 1' }
+    const second = { ...museum, name: 'Stop 2' }
+    const planned = planOf(start, second, first)
+
+    expect(inPlannedOrder([start, first, second], planned, false)).toEqual([
+      start,
+      { ...second, name: 'Stop 1' },
+      { ...first, name: 'Stop 2' },
+    ])
+  })
+
+  it('gives back the very same list when the plan drives it as it stands', () => {
+    const trip = [start, museum, tower]
+
+    expect(inPlannedOrder(trip, planOf(start, museum, tower), false)).toBe(trip)
+  })
+
+  it('takes nothing from a plan for other places', () => {
+    expect(inPlannedOrder([start, tower], planOf(start, museum), false)).toBeNull()
+    expect(inPlannedOrder([start, tower, museum], planOf(start, tower), false)).toBeNull()
+  })
+
+  it('takes nothing from a plan that goes to one spot twice', () => {
+    expect(inPlannedOrder([start, tower, museum], planOf(start, tower, tower), false)).toBeNull()
+  })
+})
+
+describe('the plan under the names the trip shows', () => {
+  const legOf = (from: string, to: string) => ({ from, to }) as Leg
+
+  it('renames the places and the legs between them', () => {
+    const planned = {
+      ...planOf(start, { ...museum, name: 'Stop 2' }, { ...tower, name: 'Stop 1' }),
+      legs: [legOf('Sylvia Park', 'Stop 2'), legOf('Stop 2', 'Stop 1')],
+    }
+    const list = [start, { ...museum, name: 'Stop 1' }, { ...tower, name: 'Stop 2' }]
+
+    const named = namedAs(planned, list)
+
+    expect(named.route.map((place) => place.name)).toEqual(['Sylvia Park', 'Stop 1', 'Stop 2'])
+    expect(named.legs.map((leg) => [leg.from, leg.to])).toEqual([
+      ['Sylvia Park', 'Stop 1'],
+      ['Stop 1', 'Stop 2'],
+    ])
+  })
+
+  it('renames the start at both ends of a round trip', () => {
+    const planned = planOf({ ...start, name: 'Start' }, museum, { ...start, name: 'Start' })
+
+    const named = namedAs(planned, [{ ...start, name: 'Home base' }, museum])
+
+    expect(named.route.map((place) => place.name)).toEqual(['Home base', 'Museum', 'Home base'])
+  })
+})
+
+describe('the leg after a place in the list', () => {
+  const trip = [start, museum, tower]
+
+  it('is the leg the plan drives from it to the next place', () => {
+    expect(legAfter(trip, planOf(start, museum, tower), 0, false)).toBe(0)
+    expect(legAfter(trip, planOf(start, museum, tower), 1, false)).toBe(1)
+  })
+
+  it('is none after the last place of a trip that ends there', () => {
+    expect(legAfter(trip, planOf(start, museum, tower), 2, false)).toBeNull()
+  })
+
+  it('is the way back after the last place of a round trip', () => {
+    expect(legAfter(trip, planOf(start, museum, tower, start), 2, true)).toBe(2)
+  })
+
+  it('is none when the plan drives another way, as it does while the list is out of step', () => {
+    expect(legAfter(trip, planOf(start, tower, museum), 0, false)).toBeNull()
+    expect(legAfter(trip, planOf(start, tower, museum), 1, false)).toBeNull()
+  })
+})
 
 describe('adding a stop on the way', () => {
   // Entered as the tower, then the museum, then the airport. The plan drives to the museum first.
@@ -135,6 +249,28 @@ describe('what a stop on the way adds', () => {
 
   it('says which two places its leg runs between', () => {
     expect(betweenSaid(planOf(start, museum, tower), 1)).toBe('between Museum and Sky Tower')
+  })
+})
+
+describe('what the box under the search bar says', () => {
+  it('finds along the whole route', () => {
+    expect(alongSaid(planOf(start, museum, tower), null)).toBe('Find along the current route')
+  })
+
+  it('finds between the two stops of one leg', () => {
+    expect(alongSaid(planOf(start, museum, tower), 1)).toBe('Find between Museum and Sky Tower')
+  })
+})
+
+describe('a place in the results', () => {
+  it('says what it adds when it was found along a route', () => {
+    expect(isAlong(found())).toBe(true)
+  })
+
+  it('says no such thing when it was found by the search box alone', () => {
+    const place: FoundPlace = { ...fuel, kind: 'poi', detail: 'Ellerslie' }
+
+    expect(isAlong(place)).toBe(false)
   })
 })
 

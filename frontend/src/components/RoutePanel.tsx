@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
-import FindOnTheWay from './FindOnTheWay'
 import PlaceSearchBox from './PlaceSearchBox'
 import {
   BookmarkIcon,
@@ -8,7 +7,6 @@ import {
   LockIcon,
   PlusIcon,
   RedoIcon,
-  SearchIcon,
   UndoIcon,
   UpIcon,
 } from './icons'
@@ -21,7 +19,7 @@ import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
-import { canAddOnTheWay } from '../onTheWay'
+import { betweenSaid, canAddOnTheWay, legAfter, type LookingAlong } from '../onTheWay'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
@@ -54,7 +52,7 @@ interface Props {
   onPlan: () => void
   onClear: () => void
   onPickPlace: (place: Place) => void
-  /** A place picked to stop at on the way, between two stops of the plan or anywhere along it. */
+  /** A place picked to stop at on the way, found between two stops or anywhere along the plan. */
   onAddOnTheWay: (found: PlaceAlong) => void
   devicePosition: DevicePosition | null
   mapCentre: Position | null
@@ -203,10 +201,12 @@ export default function RoutePanel(props: Props) {
   // Shown only when it is another order than this one. The same figures twice say nothing.
   const shortest =
     !both && compared?.shortestOrder && differsFromTheShortest(compared) ? compared.shortestOrder : null
-  // A stop on the way is looked for between two stops of the plan, or anywhere along it. Null
-  // while nothing is being looked for.
-  const [lookingOnTheWay, setLookingOnTheWay] = useState<{ leg: number | null } | null>(null)
   const addsOnTheWay = canAddOnTheWay(places, returnToStart, plan, planning)
+  // A stop on the way is looked for between two stops of the plan, or anywhere along it. It holds
+  // for the plan it was asked of and no other, whose legs are not these.
+  const [lookingAlong, setLookingAlong] = useState<LookingAlong | null>(null)
+  const along = addsOnTheWay && lookingAlong?.plan === plan ? lookingAlong : null
+  const searchBox = useRef<HTMLInputElement>(null)
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -225,6 +225,16 @@ export default function RoutePanel(props: Props) {
       setPanelUp(true)
     }
   }, [error, props.locationProblem])
+
+  /**
+   * All within the tap: a phone shows its keyboard only for a box given the cursor by a tap. The
+   * panel goes down so that the results under the search box can be seen.
+   */
+  function lookAlongLeg(from: RoutePlan, leg: number) {
+    setLookingAlong({ plan: from, leg })
+    setPanelUp(false)
+    searchBox.current?.focus()
+  }
 
   function startSwipe(event: TouchEvent) {
     swipeStartedAt.current = event.touches[0].clientY
@@ -256,17 +266,16 @@ export default function RoutePanel(props: Props) {
       <div className="top-bar">
         <PlaceSearchBox
           onPick={props.onPickPlace}
+          onPickAlong={props.onAddOnTheWay}
           devicePosition={props.devicePosition}
           places={places}
           mapCentre={props.mapCentre}
           full={full}
+          plan={addsOnTheWay ? plan : null}
+          along={along}
+          onLookAlong={setLookingAlong}
+          box={searchBox}
         />
-        {addsOnTheWay && (
-          <button className="find-on-the-way" onClick={() => setLookingOnTheWay({ leg: null })}>
-            <SearchIcon />
-            <span>Find along the current route</span>
-          </button>
-        )}
       </div>
 
       <div className={`sheet ${panelUp ? 'sheet-up' : ''}`}>
@@ -331,7 +340,10 @@ export default function RoutePanel(props: Props) {
           )}
 
           <ol className="places">
-            {places.map((place, index) => (
+            {places.map((place, index) => {
+              // The plan's order, so that the "+" under a place is the drive on to the next.
+              const leg = plan && addsOnTheWay ? legAfter(places, plan, index, returnToStart) : null
+              return (
               <li key={index}>
                 <span
                   className={`pin pin-list ${index === 0 ? 'pin-start' : ''} ${place.keepInPlace ? 'pin-kept' : ''}`}
@@ -403,8 +415,19 @@ export default function RoutePanel(props: Props) {
                     </button>
                   </div>
                 </div>
+                {plan && leg !== null && (
+                  <button
+                    className="icon-button add-on-the-way"
+                    title={`Add a stop ${betweenSaid(plan, leg)}`}
+                    aria-label={`Add a stop ${betweenSaid(plan, leg)}`}
+                    onClick={() => lookAlongLeg(plan, leg)}
+                  >
+                    <PlusIcon />
+                  </button>
+                )}
               </li>
-            ))}
+              )
+            })}
           </ol>
 
           {anyKeptInPlace(places) && (
@@ -564,17 +587,6 @@ export default function RoutePanel(props: Props) {
                     places.some((entered, at) => at > 0 && entered.keepInPlace && entered.name === place.name)
                   return (
                     <li key={index}>
-                      {/* The leg that leads here, between the place above and this one. */}
-                      {leg && addsOnTheWay && (
-                        <button
-                          className="add-on-the-way"
-                          aria-label={`Add a stop between ${plan.route[index - 1].name} and ${place.name}`}
-                          onClick={() => setLookingOnTheWay({ leg: index - 1 })}
-                        >
-                          <PlusIcon />
-                          <span>Add a stop</span>
-                        </button>
-                      )}
                       <span
                         className={`pin pin-list ${isStart || isReturnHome ? 'pin-start' : ''} ${keptInPlace ? 'pin-kept' : ''}`}
                       >
@@ -626,18 +638,6 @@ export default function RoutePanel(props: Props) {
         </div>
       </div>
 
-      {lookingOnTheWay && plan && (
-        <FindOnTheWay
-          plan={plan}
-          leg={lookingOnTheWay.leg}
-          places={places}
-          onPick={(found) => {
-            setLookingOnTheWay(null)
-            props.onAddOnTheWay(found)
-          }}
-          onClose={() => setLookingOnTheWay(null)}
-        />
-      )}
     </aside>
   )
 }

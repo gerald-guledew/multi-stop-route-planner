@@ -103,7 +103,7 @@ Dotted lines happen at import time, not on a search.
 
 ## Stops on the way
 
-Once a trip is planned, the map screen finds a place to stop at between two stops, from the "+" between them, or anywhere along the route. A third flow, built on the two above.
+Once a trip is planned, the search box on the map screen finds a place to stop at between two stops, from the "+" between them in the list, or anywhere along the route, from the box under it. A third flow, built on the two above.
 
 ```mermaid
 flowchart TD
@@ -114,6 +114,8 @@ flowchart TD
 ```
 
 **Near is found by the search, and what a stop adds by driving.** The search ranks places by how near they are to the road of a leg, the line its points draw, as it ranks them by how near they are to a point. The road is thinned to a point every 100 m first, since the engine gives one at every bend and the search measures each place against every point. Near is not the same as on the way. A shop across a motorway can be a long way round. So the first twelve are each driven to from the start of their leg and on to its end, and given back in the order of the time they add.
+
+**The list takes the order of the plan.** When a plan comes back, the list of stops changes to the order it drives, as one change that undo takes back. Two stops side by side are then a leg of the plan, which is what the "+" between them needs. A label nobody changed moves with its turn, so the plan is renamed to match: a pin finds its turn in the plan by name. A plan is held against the order the list had when it was asked for, and after the first plan that is the order of the one before.
 
 **A stop on the way keeps the order the plan had.** The screen puts the place between the two stops it was found between, and plans the trip again in the order of the plan with every stop kept at its turn, which leaves one order to take. Keeping a stop in its place already said all of that, so planning needed nothing new. The answer compared no orders, so the screen leaves out what it holds a plan against: the order you clicked, the saving and the other choice.
 
