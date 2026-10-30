@@ -16,7 +16,18 @@ import type { Picked } from './framing'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
 import { heldInPlannedOrder, inPlannedOrder, namedAs, withStopOn } from './onTheWay'
 import { asPlace, isInTrip, startingFrom } from './savedPlaces'
-import { defaultLabel, isFull, moved, toggleKeptInPlace, withoutPlace, type Direction } from './stops'
+import {
+  defaultLabel,
+  isFull,
+  moved,
+  toggleKeptInPlace,
+  turnForANewStop,
+  withoutPlace,
+  withoutTheWayBack,
+  withStopAt,
+  withStopOverLetGo,
+  type Direction,
+} from './stops'
 import {
   followPosition,
   type DevicePosition,
@@ -188,10 +199,10 @@ export default function App() {
     if (full) {
       return
     }
-    changePlaces((current) => [
-      ...current,
-      { name: defaultLabel(current.length), latitude, longitude },
-    ])
+    changePlaces((current) => {
+      const turn = turnForANewStop(current, returnToStart)
+      return withStopAt(current, turn, { name: defaultLabel(turn), latitude, longitude })
+    })
     // Any previous answer describes a different set of places, so it goes.
     setPlan(null)
     setError(null)
@@ -207,7 +218,7 @@ export default function App() {
     if (full || isInTrip(places, place)) {
       return
     }
-    changePlaces((current) => [...current, place])
+    changePlaces((current) => withStopAt(current, turnForANewStop(current, returnToStart), place))
     goTo(place)
     setPlan(null)
     setError(null)
@@ -241,6 +252,12 @@ export default function App() {
   function toggleKeepInPlace(index: number) {
     changePlaces((current) => toggleKeptInPlace(current, index))
     // A plan made while the stop was free, or kept, no longer says what was asked for.
+    setPlan(null)
+  }
+
+  function letGoOfStopOver(index: number) {
+    changePlaces((current) => withStopOverLetGo(current, index))
+    // A plan made with the stop held between two others no longer says what was asked for.
     setPlan(null)
   }
 
@@ -327,7 +344,11 @@ export default function App() {
   }
 
   function changeReturnToStart(returns: boolean) {
-    change((trip) => ({ ...trip, returnToStart: returns }))
+    change((trip) => ({
+      ...trip,
+      returnToStart: returns,
+      places: returns ? trip.places : withoutTheWayBack(trip.places),
+    }))
     // A plan made for a round trip is not the plan for a one-way one, or the other way about.
     setPlan(null)
   }
@@ -355,7 +376,12 @@ export default function App() {
     if (!plan || full || isInTrip(places, found)) {
       return
     }
-    const stop: Place = { name: found.name, latitude: found.latitude, longitude: found.longitude }
+    const stop: Place = {
+      name: found.name,
+      latitude: found.latitude,
+      longitude: found.longitude,
+      stopOver: true,
+    }
     const withTheStop = withStopOn(places, plan, found.leg, stop)
     const held = heldInPlannedOrder(withTheStop, plan, returnToStart, found.leg, stop)
     changePlaces(() => withTheStop)
@@ -419,6 +445,7 @@ export default function App() {
         onRename={renamePlace}
         onRemove={removePlace}
         onToggleKeepInPlace={toggleKeepInPlace}
+        onLetGoOfStopOver={letGoOfStopOver}
         onChangeTurn={changeTurn}
         onReturnToStartChange={changeReturnToStart}
         order={order}

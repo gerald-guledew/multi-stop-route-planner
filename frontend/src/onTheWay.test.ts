@@ -174,6 +174,27 @@ describe('adding a stop on the way', () => {
   })
 })
 
+describe('a stop-over in the planned order', () => {
+  it('stays marked when the list takes the order of the plan', () => {
+    const fuelOnTheWay = { ...fuel, stopOver: true }
+    const planned = planOf(start, airport, museum, fuelOnTheWay, tower)
+
+    const ordered = inPlannedOrder([start, museum, fuelOnTheWay, tower, airport], planned, false)
+
+    expect(ordered?.[3]).toBe(fuelOnTheWay)
+  })
+
+  it('is sent as one, with every stop kept for the plan that adds it', () => {
+    const fuelOnTheWay = { ...fuel, stopOver: true }
+    const planned = planOf(start, museum, tower)
+    const list = withStopOn([start, museum, tower], planned, 0, fuelOnTheWay)
+
+    const held = heldInPlannedOrder(list, planned, false, 0, fuelOnTheWay)
+
+    expect(held?.[1]).toEqual({ ...fuelOnTheWay, keepInPlace: true })
+  })
+})
+
 describe('planning with a stop on the way', () => {
   const planned = planOf(start, museum, tower, airport)
 

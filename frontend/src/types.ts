@@ -10,6 +10,11 @@ export interface Place {
    * start, which is first anyway.
    */
   keepInPlace?: boolean
+  /**
+   * Set on a stop added on the way between two others. It stays between the places either side
+   * of it in the list, and the three move as one. Never set on the start.
+   */
+  stopOver?: boolean
 }
 
 /** One search result: a street address, or a named place such as a shop or a school. */

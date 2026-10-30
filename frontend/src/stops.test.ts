@@ -1,16 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import {
   anyKeptInPlace,
+  anyStopOver,
   canMove,
   defaultLabel,
   isFull,
   mostStops,
   moved,
   ordinal,
+  stopOverSaid,
   toggleKeptInPlace,
   tooManyToReturn,
+  turnForANewStop,
   withLabelsInStep,
   withoutPlace,
+  withoutTheWayBack,
+  withStopAt,
+  withStopOverLetGo,
 } from './stops'
 import type { Place } from './types'
 
@@ -306,5 +312,119 @@ describe('the most stops a trip takes', () => {
   it('never holds a round trip back from going one way again', () => {
     expect(tooManyToReturn(trip(9), true)).toBe(false)
     expect(tooManyToReturn(trip(10), true)).toBe(false)
+  })
+})
+
+const shop: Place = { name: 'Shop', latitude: -36.9, longitude: 174.8 }
+const work: Place = { name: 'Office', latitude: -36.85, longitude: 174.76 }
+const onTheWay: Place = { name: 'Fuel', latitude: -36.88, longitude: 174.78, stopOver: true }
+const alsoOnTheWay: Place = { name: 'Bakery', latitude: -36.87, longitude: 174.77, stopOver: true }
+const free = ({ stopOver: _, ...place }: Place): Place => place
+
+describe('a new stop', () => {
+  it('goes at the end of the list', () => {
+    expect(turnForANewStop([mall, shop, onTheWay, work], false)).toBe(4)
+    expect(turnForANewStop([mall, shop, onTheWay, work], true)).toBe(4)
+  })
+
+  it('is the start when there is nothing else', () => {
+    expect(turnForANewStop([], false)).toBe(0)
+    expect(turnForANewStop([], true)).toBe(0)
+  })
+
+  it('goes before a stop-over on the way back to the start and the stop it comes after', () => {
+    expect(turnForANewStop([mall, shop, work, onTheWay], true)).toBe(2)
+    expect(turnForANewStop([mall, shop, work, onTheWay, alsoOnTheWay], true)).toBe(2)
+  })
+
+  it('goes after a stop-over that ends a one-way trip, which is on no way back', () => {
+    expect(turnForANewStop([mall, shop, onTheWay], false)).toBe(3)
+  })
+
+  it('moves a label nobody changed along with the turn it takes', () => {
+    const stopOne = { ...shop, name: 'Stop 1' }
+
+    expect(withStopAt([mall, stopOne], 1, work).map((place) => place.name)).toEqual([
+      'Sylvia Park',
+      'Office',
+      'Stop 2',
+    ])
+  })
+})
+
+describe('letting go of a stop-over', () => {
+  const trip = [mall, shop, onTheWay, work]
+
+  it('makes it a stop like any other', () => {
+    expect(withStopOverLetGo(trip, 2)).toEqual([mall, shop, free(onTheWay), work])
+  })
+
+  it('happens to one that ends a trip that no longer drives back', () => {
+    expect(withoutTheWayBack([mall, shop, work, onTheWay])).toEqual([mall, shop, work, free(onTheWay)])
+  })
+
+  it('leaves the others when the trip no longer drives back', () => {
+    expect(withoutTheWayBack(trip)).toEqual(trip)
+  })
+})
+
+describe('a place leaving the list', () => {
+  const trip = [mall, shop, onTheWay, work]
+
+  it('takes the leg of the stop-over after it', () => {
+    expect(withoutPlace(trip, 1)).toEqual([mall, free(onTheWay), work])
+  })
+
+  it('takes the leg of the stop-over before it', () => {
+    expect(withoutPlace(trip, 3)).toEqual([mall, shop, free(onTheWay)])
+  })
+
+  it('takes the leg of every stop-over on that leg', () => {
+    expect(withoutPlace([mall, shop, onTheWay, alsoOnTheWay, work], 1)).toEqual([
+      mall,
+      free(onTheWay),
+      free(alsoOnTheWay),
+      work,
+    ])
+  })
+
+  it('leaves the leg of a stop-over on another leg', () => {
+    const another = [mall, shop, work, onTheWay, { ...shop, name: 'Last' }]
+
+    expect(withoutPlace(another, 1)[2]).toEqual(onTheWay)
+  })
+
+  it('leaves the other stop-over on the leg when it is a stop-over itself', () => {
+    expect(withoutPlace([mall, shop, onTheWay, alsoOnTheWay, work], 2)).toEqual([
+      mall,
+      shop,
+      alsoOnTheWay,
+      work,
+    ])
+  })
+
+  it('takes the legs at both ends of a round trip when it is the start', () => {
+    const left = withoutPlace([mall, onTheWay, shop, work, alsoOnTheWay], 0)
+
+    expect(left).toEqual([free(onTheWay), shop, work, free(alsoOnTheWay)])
+  })
+})
+
+describe('what a stop-over says', () => {
+  it('says the two places either side of it', () => {
+    expect(stopOverSaid([mall, shop, onTheWay, work], 2, false)).toBe('between Shop and Office')
+  })
+
+  it('counts the start as the place after it on the way back', () => {
+    expect(stopOverSaid([mall, shop, onTheWay], 2, true)).toBe('between Shop and Sylvia Park')
+  })
+
+  it('says only the place before it when nothing follows', () => {
+    expect(stopOverSaid([mall, shop, onTheWay], 2, false)).toBe('after Shop')
+  })
+
+  it('is one of them or there are none', () => {
+    expect(anyStopOver([mall, shop])).toBe(false)
+    expect(anyStopOver([mall, onTheWay])).toBe(true)
   })
 })

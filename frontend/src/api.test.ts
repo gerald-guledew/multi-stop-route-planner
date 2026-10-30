@@ -379,6 +379,17 @@ describe('planning a route', () => {
     expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, kilograms: 1270 })
   })
 
+  it('says which stops are stop-overs', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+    const fuel = { name: 'Fuel', latitude: -36.88, longitude: 174.78, stopOver: true }
+
+    await optimizeRoute(start, [stops[0], fuel], false, 'distance', null)
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent.stops[1].stopOver).toBe(true)
+    expect(sent.stops[0]).toEqual(stops[0])
+  })
+
   it('says which stops have to keep their place', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
     const office = { name: 'Office', latitude: -36.8485, longitude: 174.7621, keepInPlace: true }

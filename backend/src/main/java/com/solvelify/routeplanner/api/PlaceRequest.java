@@ -27,7 +27,9 @@ public record PlaceRequest(
         @DecimalMax(value = "180.0", message = "must be between -180 and 180")
         Double longitude,
 
-        Boolean keepInPlace) {
+        Boolean keepInPlace,
+
+        Boolean stopOver) {
 
     /**
      * Whether this stop has to be visited at the turn it was sent in, with the others arranged
@@ -36,5 +38,14 @@ public record PlaceRequest(
      */
     public boolean keepInPlaceOrDefault() {
         return keepInPlace != null && keepInPlace;
+    }
+
+    /**
+     * Whether this stop stays between the place before it and the place after it in the list, so
+     * that the three are driven one after the other. Left out, it is free to move. It only means
+     * something on a stop, so on the start it is ignored.
+     */
+    public boolean stopOverOrDefault() {
+        return stopOver != null && stopOver;
     }
 }

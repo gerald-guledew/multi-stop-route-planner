@@ -66,6 +66,17 @@ export function LockIcon({ shut }: { shut: boolean }) {
   )
 }
 
+/** Two links of a chain: a stop-over held to the two stops either side of it. */
+export function LinkIcon() {
+  return (
+    <Icon>
+      <path d="m8.5 11.5 3-3" />
+      <path d="M9.5 6.5 11 5a3.2 3.2 0 0 1 4.5 4.5L14 11" />
+      <path d="M10.5 13.5 9 15a3.2 3.2 0 0 1-4.5-4.5L6 9" />
+    </Icon>
+  )
+}
+
 /** A bookmark, filled in once the place is saved. */
 export function BookmarkIcon({ filled }: { filled: boolean }) {
   return (
