@@ -49,6 +49,29 @@ export function withLabelsInStep(before: Place[], after: Place[]): Place[] {
   })
 }
 
+/**
+ * The list with a stop at a turn, and a label nobody changed moved along with the turn it now has.
+ */
+export function withStopAt(places: Place[], turn: number, stop: Place): Place[] {
+  return withLabelsInStep(places, [...places.slice(0, turn), stop, ...places.slice(turn)])
+}
+
+/**
+ * Where a new stop goes: at the end of the list. On a round trip a stop-over at the end is on the
+ * way back to the start, which it has to stay on. So the new stop goes in front of that stop-over
+ * and the stop it comes after.
+ */
+export function turnForANewStop(places: Place[], returnToStart: boolean): number {
+  if (!returnToStart) {
+    return places.length
+  }
+  let turn = places.length
+  while (turn > 1 && places[turn - 1].stopOver) {
+    turn--
+  }
+  return turn === places.length ? turn : Math.max(turn - 1, 1)
+}
+
 /** "1st", "2nd", "3rd", "11th": a stop's turn, or a roundabout's exit, the way it is said. */
 export function ordinal(turn: number): string {
   const lastTwo = turn % 100
@@ -80,14 +103,69 @@ export function toggleKeptInPlace(places: Place[], index: number): Place[] {
   )
 }
 
+/** A stop-over that goes back to being a stop like any other, free to move. */
+function letGo({ stopOver: _, ...stop }: Place): Place {
+  return stop
+}
+
+/** The list with one stop-over let go, by the person who added it. */
+export function withStopOverLetGo(places: Place[], index: number): Place[] {
+  return places.map((place, at) => (at === index ? letGo(place) : place))
+}
+
+/**
+ * The list with the stop-overs at the very end let go, once the trip no longer drives back to the
+ * start: the way back was the leg they were on.
+ */
+export function withoutTheWayBack(places: Place[]): Place[] {
+  let firstAtTheEnd = places.length
+  while (firstAtTheEnd > 1 && places[firstAtTheEnd - 1].stopOver) {
+    firstAtTheEnd--
+  }
+  return places.map((place, at) => (at >= firstAtTheEnd ? letGo(place) : place))
+}
+
+/**
+ * The list with the stop-overs let go that were on a leg to or from the place at a turn, for when
+ * that place is going. A stop-over itself takes no leg with it: the two stops are still there,
+ * and so is any other stop-over between them. The start is at both ends of a round trip.
+ */
+export function withItsLegsLetGo(places: Place[], turn: number): Place[] {
+  if (places[turn]?.stopOver) {
+    return places
+  }
+  const legGone = new Set<number>()
+  for (let at = turn + 1; places[at]?.stopOver; at++) {
+    legGone.add(at)
+  }
+  for (let at = turn - 1; places[at]?.stopOver; at--) {
+    legGone.add(at)
+  }
+  const letGoEnd = turn === 0 ? withoutTheWayBack(places) : places
+  return letGoEnd.map((place, at) => (legGone.has(at) ? letGo(place) : place))
+}
+
+/** Whether any stop is a stop-over. */
+export function anyStopOver(places: Place[]): boolean {
+  return places.some((place) => place.stopOver === true)
+}
+
+/** Which two places a stop-over stays between: "between A and B", or "after A" if nothing follows. */
+export function stopOverSaid(places: Place[], index: number, returnToStart: boolean): string {
+  const next = places[index + 1] ?? (returnToStart ? places[0] : undefined)
+  const before = places[index - 1].name
+  return next ? `between ${before} and ${next.name}` : `after ${before}`
+}
+
 /**
  * Takes a place out of the list. If the start goes, the first stop becomes the start, and a
- * start has no place to keep.
+ * start has no place to keep. A stop-over on a leg of the place that goes is let go.
  */
 export function withoutPlace(places: Place[], index: number): Place[] {
+  const legsGone = withItsLegsLetGo(places, index)
   const left = withLabelsInStep(
-    places,
-    places.filter((_, at) => at !== index),
+    legsGone,
+    legsGone.filter((_, at) => at !== index),
   )
   if (left.length === 0 || !left[0].keepInPlace) {
     return left

@@ -4,6 +4,7 @@ import {
   BookmarkIcon,
   CrossIcon,
   DownIcon,
+  LinkIcon,
   LockIcon,
   PlusIcon,
   RedoIcon,
@@ -24,7 +25,17 @@ import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
 import { differsFromTheShortest, shortestSaid } from '../shortestOrder'
-import { anyKeptInPlace, canMove, isFull, mostStops, ordinal, tooManyToReturn, type Direction } from '../stops'
+import {
+  anyKeptInPlace,
+  anyStopOver,
+  canMove,
+  isFull,
+  mostStops,
+  ordinal,
+  stopOverSaid,
+  tooManyToReturn,
+  type Direction,
+} from '../stops'
 import { turnDistanceSaid, turnSaid, turnsCounted } from '../turns'
 import { whatNext } from '../whatNext'
 import type { DevicePosition, LocationProblem, Position } from '../location'
@@ -44,6 +55,8 @@ interface Props {
   onRename: (index: number, name: string) => void
   onRemove: (index: number) => void
   onToggleKeepInPlace: (index: number) => void
+  /** A stop-over let go by the person who added it. It is then a stop like any other. */
+  onLetGoOfStopOver: (index: number) => void
   onChangeTurn: (index: number, direction: Direction) => void
   onReturnToStartChange: (returnToStart: boolean) => void
   /** Whether the order is to take the least fuel or be the fastest. */
@@ -110,6 +123,13 @@ function HowItWorks() {
           <span>keeps a stop at its turn. The planner arranges the others around it</span>
         </li>
         <li>
+          <LinkIcon />
+          <span>
+            keeps a stop-over between the two stops either side of it. Press it and the planner
+            can move the stop
+          </span>
+        </li>
+        <li>
           <BookmarkIcon filled={false} />
           <span>saves a place for next time, under its label</span>
         </li>
@@ -125,8 +145,8 @@ function HowItWorks() {
         <li>
           <PlusIcon />
           <span>
-            adds a stop on the way, between two stops of the planned route. The other stops keep
-            their order
+            adds a stop-over between two stops of the planned route. The other stops keep their
+            order
           </span>
         </li>
         <li>
@@ -383,7 +403,18 @@ export default function RoutePanel(props: Props) {
                         </button>
                       </>
                     )}
-                    {index > 0 && (
+                    {index > 0 && place.stopOver && (
+                      <button
+                        className="icon-button on"
+                        aria-pressed
+                        title={`Stays ${stopOverSaid(places, index, returnToStart)}. Press to let the planner move it.`}
+                        aria-label={`Let stop ${index} move`}
+                        onClick={() => props.onLetGoOfStopOver(index)}
+                      >
+                        <LinkIcon />
+                      </button>
+                    )}
+                    {index > 0 && !place.stopOver && (
                       <button
                         className={`icon-button ${place.keepInPlace ? 'on' : ''}`}
                         aria-pressed={place.keepInPlace === true}
@@ -433,6 +464,13 @@ export default function RoutePanel(props: Props) {
           {anyKeptInPlace(places) && (
             <p className="note">
               A kept stop stays at its turn. The planner arranges the others around it.
+            </p>
+          )}
+
+          {anyStopOver(places) && (
+            <p className="note">
+              A stop-over stays between the two stops either side of it. The planner arranges the
+              others around them.
             </p>
           )}
 
@@ -546,7 +584,7 @@ export default function RoutePanel(props: Props) {
               {quickest && <p className="note">{quickest}</p>}
               {leastFuel && <p className="note">{leastFuel}</p>}
               {orderHeld && (
-                <p className="note">A stop on the way leaves the other stops in the order they had.</p>
+                <p className="note">A stop-over leaves the other stops in the order they had.</p>
               )}
               {plan.totalDurationSeconds !== null && (
                 <p className="note">

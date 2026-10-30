@@ -1,6 +1,6 @@
 import { sitsOn } from './foundStart'
 import type { Position } from './location'
-import { withLabelsInStep } from './stops'
+import { withItsLegsLetGo, withLabelsInStep } from './stops'
 import type { Place, SavedPlace } from './types'
 
 /**
@@ -42,9 +42,15 @@ export function asPlace(saved: SavedPlace): Place {
 /**
  * The trip with a saved place as its start. It takes the place of the start there was, which
  * is how a start the browser guessed badly gets put right. If the trip already went there as a
- * stop, that stop goes, because nobody calls at their own start on the way round.
+ * stop, that stop goes, because nobody calls at their own start on the way round. A stop-over on
+ * a leg of either is let go.
  */
 export function startingFrom(places: Place[], saved: SavedPlace): Place[] {
-  const stops = places.slice(1).filter((stop) => !sitsOn(stop, saved))
-  return withLabelsInStep(places, [asPlace(saved), ...stops])
+  const stopThere = places.findIndex((stop, at) => at > 0 && sitsOn(stop, saved))
+  const legsGone = withItsLegsLetGo(
+    stopThere > 0 ? withItsLegsLetGo(places, stopThere) : places,
+    0,
+  )
+  const stops = legsGone.slice(1).filter((stop) => !sitsOn(stop, saved))
+  return withLabelsInStep(legsGone, [asPlace(saved), ...stops])
 }

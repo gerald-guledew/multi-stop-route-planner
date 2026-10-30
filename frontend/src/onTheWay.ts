@@ -1,6 +1,6 @@
 import { howLong } from './duration'
 import { sitsOn } from './foundStart'
-import { isFull, withLabelsInStep } from './stops'
+import { isFull, withLabelsInStep, withStopAt } from './stops'
 import type { FoundPlace, Place, PlaceAlong, RoutePlan } from './types'
 
 /**
@@ -107,8 +107,7 @@ export function legAfter(
  */
 export function withStopOn(places: Place[], plan: RoutePlan, leg: number, stop: Place): Place[] {
   const setsOffFrom = places.findIndex((place) => sitsOn(place, plan.route[leg]))
-  const at = setsOffFrom < 0 ? places.length : setsOffFrom + 1
-  return withLabelsInStep(places, [...places.slice(0, at), stop, ...places.slice(at)])
+  return withStopAt(places, setsOffFrom < 0 ? places.length : setsOffFrom + 1, stop)
 }
 
 /**

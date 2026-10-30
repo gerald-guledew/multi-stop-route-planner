@@ -72,6 +72,26 @@ describe('whether the trip already goes to a saved place', () => {
   })
 })
 
+describe('a stop-over when the start changes', () => {
+  const onTheWay: Place = { ...shop, stopOver: true }
+
+  it('is let go on the leg from the old start', () => {
+    expect(startingFrom([guess, onTheWay, mall], home)[1].stopOver).toBeUndefined()
+  })
+
+  it('is let go on the way back to the old start', () => {
+    expect(startingFrom([guess, mall, onTheWay], home)[2].stopOver).toBeUndefined()
+  })
+
+  it('is let go on a leg of a stop that goes for being the new start', () => {
+    expect(startingFrom([guess, mall, asPlace(home), onTheWay, mall], home)[2].stopOver).toBeUndefined()
+  })
+
+  it('stays on a leg between two stops', () => {
+    expect(startingFrom([guess, mall, onTheWay, mall], home)[2].stopOver).toBe(true)
+  })
+})
+
 describe('a saved place as a place in the trip', () => {
   it('carries its name and its position', () => {
     expect(asPlace(home)).toEqual({ name: 'Home', latitude: -36.9146416667, longitude: 174.8392303333 })
