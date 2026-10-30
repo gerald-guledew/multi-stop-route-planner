@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.function.Predicate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,7 +45,8 @@ public class RouteController {
         RoutePlan plan = routePlanningService.plan(
                 toLocation(request.start()),
                 stops,
-                positionsKeptInPlace(request.stops()),
+                positionsOf(request.stops(), PlaceRequest::keepInPlaceOrDefault),
+                positionsOf(request.stops(), PlaceRequest::stopOverOrDefault),
                 request.returnToStartOrDefault(),
                 chosenFor(request),
                 vehicle);
@@ -62,10 +64,10 @@ public class RouteController {
         return request.fastestOrDefault() ? ChosenFor.TIME : ChosenFor.DISTANCE;
     }
 
-    /** Where in the list the stops marked to keep their place are, counting from 0. */
-    private static Set<Integer> positionsKeptInPlace(List<PlaceRequest> stops) {
+    /** Where in the list the stops with a mark are, counting from 0. */
+    private static Set<Integer> positionsOf(List<PlaceRequest> stops, Predicate<PlaceRequest> marked) {
         return IntStream.range(0, stops.size())
-                .filter(position -> stops.get(position).keepInPlaceOrDefault())
+                .filter(position -> marked.test(stops.get(position)))
                 .boxed()
                 .collect(Collectors.toUnmodifiableSet());
     }

@@ -48,6 +48,37 @@ class RoutePlanningServiceTest {
     }
 
     @Test
+    void keepsAStopOverBetweenTheStopsEitherSideOfIt() {
+        // Free, the trip goes Takapuna, Devonport, Sylvia Park, Airport.
+        RoutePlan plan = service.plan(
+                SKY_TOWER, List.of(DEVONPORT, AIRPORT, SYLVIA_PARK, TAKAPUNA), Set.of(), Set.of(1), false,
+                ChosenFor.DISTANCE, Optional.empty());
+
+        List<String> names = names(plan);
+        assertThat(names.indexOf("Airport")).isEqualTo(names.indexOf("Devonport") + 1);
+        assertThat(names.indexOf("Sylvia Park")).isEqualTo(names.indexOf("Airport") + 1);
+    }
+
+    @Test
+    void comparesAStopOverWithTheOrderEnteredAsAnyOtherPlan() {
+        RoutePlan free = service.plan(SKY_TOWER, STOPS, false);
+        RoutePlan held = service.plan(
+                SKY_TOWER, STOPS, Set.of(), Set.of(1), false, ChosenFor.DISTANCE, Optional.empty());
+
+        assertThat(held.enteredOrderDistanceKm()).isEqualTo(free.enteredOrderDistanceKm());
+        assertThat(held.totalDistanceKm()).isGreaterThanOrEqualTo(free.totalDistanceKm());
+        assertThat(held.ordersChecked()).isLessThan(free.ordersChecked());
+    }
+
+    @Test
+    void refusesAStopOverThatIsNotInTheList() {
+        assertThatThrownBy(() -> service.plan(
+                        SKY_TOWER, STOPS, Set.of(), Set.of(4), false, ChosenFor.DISTANCE, Optional.empty()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("position 4");
+    }
+
+    @Test
     void endsARoundTripWhereItStarted() {
         RoutePlan plan = service.plan(SKY_TOWER, STOPS, true);
 

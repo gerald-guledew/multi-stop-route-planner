@@ -17,9 +17,21 @@ public interface RouteSolver {
      * @param keptInPlace   the stops, by their index in the matrix, that must be visited at the
      *                      turn they were entered in: stop 1 first, stop 3 third. Only the
      *                      other stops are arranged, around these
+     * @param stopOvers     the stops, by their index in the matrix, that stay between the index
+     *                      before them and the index after them, so that the three are visited
+     *                      one after the other and move as one. The one before stop 1 is the
+     *                      start. The one after the last stop is the start again on a round
+     *                      trip, and there is none on a one-way trip. The order the matrix is in
+     *                      holds all of these and all of {@code keptInPlace}, so there is always
+     *                      an answer
      * @return the stop indices in visiting order, excluding the start
      */
-    Solution solve(double[][] cost, boolean returnToStart, Set<Integer> keptInPlace);
+    Solution solve(double[][] cost, boolean returnToStart, Set<Integer> keptInPlace, Set<Integer> stopOvers);
+
+    /** No stop-overs. */
+    default Solution solve(double[][] cost, boolean returnToStart, Set<Integer> keptInPlace) {
+        return solve(cost, returnToStart, keptInPlace, Set.of());
+    }
 
     /** Every stop free to move. */
     default Solution solve(double[][] cost, boolean returnToStart) {

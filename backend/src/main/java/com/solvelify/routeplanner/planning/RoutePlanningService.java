@@ -63,10 +63,24 @@ public class RoutePlanningService {
         return plan(start, stops, keptInPlace, returnToStart, chosenFor, Optional.empty());
     }
 
+    public RoutePlan plan(
+            Location start,
+            List<Location> stops,
+            Set<Integer> keptInPlace,
+            boolean returnToStart,
+            ChosenFor chosenFor,
+            Optional<FuelUse> vehicle) {
+        return plan(start, stops, keptInPlace, Set.of(), returnToStart, chosenFor, vehicle);
+    }
+
     /**
      * @param keptInPlace positions in {@code stops}, counting from 0, of the stops that must be
      *                    visited at the turn they were entered in. The first stop of the day
      *                    that cannot wait, say. The others are arranged around them
+     * @param stopOvers   positions in {@code stops}, counting from 0, of the stops that stay
+     *                    between the place before them and the place after them in the list: the
+     *                    leg they were added on. The three move as one, and the others are
+     *                    arranged around them
      * @param chosenFor   what the order is chosen for. Time only on roads, since a straight line
      *                    says how far and not how long. Fuel counts the hills only on roads whose
      *                    heights are known, for a vehicle whose weight is, and otherwise goes with
@@ -83,6 +97,7 @@ public class RoutePlanningService {
             Location start,
             List<Location> stops,
             Set<Integer> keptInPlace,
+            Set<Integer> stopOvers,
             boolean returnToStart,
             ChosenFor chosenFor,
             Optional<FuelUse> vehicle) {
@@ -97,6 +112,13 @@ public class RoutePlanningService {
                                 + stops.size() + " stops");
             }
         }
+        for (int position : stopOvers) {
+            if (position < 0 || position >= stops.size()) {
+                throw new IllegalArgumentException(
+                        "position " + position + " cannot be a stop-over, there are only "
+                                + stops.size() + " stops");
+            }
+        }
 
         List<Location> places = new ArrayList<>(stops.size() + 1);
         places.add(start);
@@ -104,22 +126,23 @@ public class RoutePlanningService {
 
         TravelMatrix matrix = travelMatrixProvider.matrixFor(places);
         Set<Integer> kept = asMatrixIndices(keptInPlace);
+        Set<Integer> held = asMatrixIndices(stopOvers);
 
         // The solver is handed a table of costs and keeps the total down. Distances give the
         // shortest order.
-        RouteSolver.Solution shortest = routeSolver.solve(matrix.asCostMatrix(), returnToStart, kept);
+        RouteSolver.Solution shortest = routeSolver.solve(matrix.asCostMatrix(), returnToStart, kept, held);
         int[] shortestPath = pathOf(shortest.order(), returnToStart);
 
         // The same search again over another table, when the order is chosen for more than
         // distance. The shortest order is still worked out, because it is what this one is held
         // against.
-        Optional<int[]> chosen = pathChosenFor(chosenFor, matrix, vehicle, returnToStart, kept, shortestPath);
+        Optional<int[]> chosen = pathChosenFor(chosenFor, matrix, vehicle, returnToStart, kept, held, shortestPath);
         int[] bestPath = chosen.orElse(shortestPath);
         int[] enteredPath = pathOf(stopsInEnteredOrder(stops.size()), returnToStart);
 
         // And once more for the other of the two choices, so the two can be set side by side.
         Optional<RoutePlan.OtherChoice> otherChoice = otherChoiceThan(chosenFor, vehicle)
-                .flatMap(other -> pathChosenFor(other, matrix, vehicle, returnToStart, kept, shortestPath)
+                .flatMap(other -> pathChosenFor(other, matrix, vehicle, returnToStart, kept, held, shortestPath)
                         .map(path -> otherChoiceAlong(other, path, matrix)));
 
         return new RoutePlan(
@@ -146,9 +169,10 @@ public class RoutePlanningService {
             Optional<FuelUse> vehicle,
             boolean returnToStart,
             Set<Integer> kept,
+            Set<Integer> held,
             int[] shortestPath) {
         return costFor(chosenFor, matrix, vehicle)
-                .map(cost -> pathOf(routeSolver.solve(cost, returnToStart, kept).order(), returnToStart))
+                .map(cost -> pathOf(routeSolver.solve(cost, returnToStart, kept, held).order(), returnToStart))
                 .map(path -> savesEnough(chosenFor, path, shortestPath, matrix, vehicle) ? path : shortestPath);
     }
 

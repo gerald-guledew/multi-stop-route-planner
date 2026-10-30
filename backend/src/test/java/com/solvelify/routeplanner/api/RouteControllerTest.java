@@ -57,7 +57,7 @@ class RouteControllerTest {
 
     @Test
     void returnsThePlanAsJson() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -73,7 +73,7 @@ class RouteControllerTest {
 
     @Test
     void roundsDistancesToTwoDecimals() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,7 +83,7 @@ class RouteControllerTest {
 
     @Test
     void givesTheFuelEachLegTakesForTheVehicleSent() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -100,7 +100,7 @@ class RouteControllerTest {
 
     @Test
     void passesOnTheTownAndOpenRoadFiguresSent() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -108,7 +108,7 @@ class RouteControllerTest {
                                 + "{ \"litresPer100Km\": 7.5, \"townLitresPer100Km\": 9.0, \"openRoadLitresPer100Km\": 6.0, \"kilograms\": 1225 }")))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE),
+        verify(routePlanningService).plan(any(), any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE),
                 eq(Optional.of(new FuelUse(7.5, 9.0, 6.0, OptionalDouble.of(1225)))));
     }
 
@@ -126,7 +126,7 @@ class RouteControllerTest {
 
     @Test
     void takesTheTownFigureForTheKilometresInTown() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .willReturn(aPlanWhoseRoadsSpeedsAreKnown());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -144,7 +144,7 @@ class RouteControllerTest {
 
     @Test
     void saysTheFuelDoesNotCountTheSpeedOnStraightLines() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -156,7 +156,7 @@ class RouteControllerTest {
 
     @Test
     void saysNothingAboutFuelWithoutAVehicle() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -171,7 +171,7 @@ class RouteControllerTest {
 
     @Test
     void countsTheHillsInTheFuelWhenTheWeightIsSent() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -189,7 +189,7 @@ class RouteControllerTest {
 
     @Test
     void doesNotCountTheHillsWithoutTheWeight() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -202,7 +202,7 @@ class RouteControllerTest {
 
     @Test
     void doesNotCountTheHillsOfRoadsReadWithoutHeights() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -294,7 +294,7 @@ class RouteControllerTest {
 
     @Test
     void reportsAPlaceWithNoRoadNearItAsUnprocessable() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .willThrow(new UnroutablePlaceException("Takapuna", "No road was found near those coordinates."));
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -312,7 +312,7 @@ class RouteControllerTest {
 
     @Test
     void passesOnWhichStopsHaveToKeepTheirPlace() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
         String officeFirst = """
                 {
                   "start": { "name": "Home", "latitude": -36.9146, "longitude": 174.8392 },
@@ -331,24 +331,46 @@ class RouteControllerTest {
                 .andExpect(status().isOk());
 
         // Positions in the list of stops, counting from 0: the first and the fourth.
-        verify(routePlanningService).plan(any(), any(), eq(Set.of(0, 3)), eq(true), any(), any());
+        verify(routePlanningService).plan(any(), any(), eq(Set.of(0, 3)), any(), eq(true), any(), any());
+    }
+
+    @Test
+    void passesOnWhichStopsAreStopOvers() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        String stopOverSecond = """
+                {
+                  "start": { "name": "Home", "latitude": -36.9146, "longitude": 174.8392 },
+                  "stops": [
+                    { "name": "Office", "latitude": -36.8485, "longitude": 174.7621 },
+                    { "name": "Supermarket", "latitude": -36.8982, "longitude": 174.8470, "stopOver": true },
+                    { "name": "Airport", "latitude": -37.0070, "longitude": 174.7830, "stopOver": false }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stopOverSecond))
+                .andExpect(status().isOk());
+
+        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(Set.of(1)), eq(true), any(), any());
     }
 
     @Test
     void leavesEveryStopFreeToMoveUnlessToldOtherwise() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_REQUEST))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true), eq(ChosenFor.DISTANCE), any());
+        verify(routePlanningService).plan(any(), any(), eq(Set.of()), any(), eq(true), eq(ChosenFor.DISTANCE), any());
     }
 
     @Test
     void ignoresTheMarkOnTheStartWhichIsAlwaysFirstAnyway() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
         String startMarked = """
                 {
                   "start": { "name": "Home", "latitude": -36.9146, "longitude": 174.8392, "keepInPlace": true },
@@ -363,14 +385,14 @@ class RouteControllerTest {
                         .content(startMarked))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), eq(Set.of()), eq(true), eq(ChosenFor.DISTANCE), any());
+        verify(routePlanningService).plan(any(), any(), eq(Set.of()), any(), eq(true), eq(ChosenFor.DISTANCE), any());
     }
 
     // Driving times.
 
     @Test
     void givesDrivingTimesInWholeSeconds() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithTimes());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithTimes());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -383,7 +405,7 @@ class RouteControllerTest {
 
     @Test
     void saysNullAndNotZeroWhenThereAreNoTimesToGive() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -399,7 +421,7 @@ class RouteControllerTest {
 
     @Test
     void givesClimbAndDescentInWholeMetres() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -417,7 +439,7 @@ class RouteControllerTest {
 
     @Test
     void keepsTheClimbOfTheTripApartFromItsDescent() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aOneWayPlanUphill());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aOneWayPlanUphill());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -429,7 +451,7 @@ class RouteControllerTest {
 
     @Test
     void saysNoughtAndNotNullForALegThatIsLevel() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aLevelPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aLevelPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -443,7 +465,7 @@ class RouteControllerTest {
 
     @Test
     void saysNullAndNotNoughtWhenTheRoadsHaveNoHeights() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithTimes());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithTimes());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -465,31 +487,31 @@ class RouteControllerTest {
 
     @Test
     void asksForTimeWhenToldToFindTheFastestOrder() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"fastest\": true")))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.TIME), any());
+        verify(routePlanningService).plan(any(), any(), any(), any(), eq(true), eq(ChosenFor.TIME), any());
     }
 
     @Test
     void asksForDistanceWhenToldNotToFindTheFastestOrder() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_REQUEST.replace("\"returnToStart\": true", "\"fastest\": false")))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE), any());
+        verify(routePlanningService).plan(any(), any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE), any());
     }
 
     @Test
     void saysHowLongTheShortestOrderTakesWhenTheOrderWasChosenForTime() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanChosenForTime());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanChosenForTime());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -506,7 +528,7 @@ class RouteControllerTest {
 
     @Test
     void saysWhatTheShortestOrderComesTo() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .willReturn(aPlanChosenForFuel());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -522,7 +544,7 @@ class RouteControllerTest {
 
     @Test
     void saysNullForTheShortestOrderWhenThePlanIsTheShortest() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithClimbs());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -540,27 +562,27 @@ class RouteControllerTest {
 
     @Test
     void asksForTheLeastFuelOfTheVehicleSent() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(FOR_THE_LEAST_FUEL))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.FUEL),
+        verify(routePlanningService).plan(any(), any(), any(), any(), eq(true), eq(ChosenFor.FUEL),
                 eq(Optional.of(new FuelUse(7.5, OptionalDouble.of(1225)))));
     }
 
     @Test
     void passesTheVehicleOnWhateverTheOrderIsChosenFor() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(FOR_THE_LEAST_FUEL.replace("\"leastFuel\": true", "\"leastFuel\": false")))
                 .andExpect(status().isOk());
 
-        verify(routePlanningService).plan(any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE),
+        verify(routePlanningService).plan(any(), any(), any(), any(), eq(true), eq(ChosenFor.DISTANCE),
                 eq(Optional.of(new FuelUse(7.5, OptionalDouble.of(1225)))));
     }
 
@@ -586,7 +608,7 @@ class RouteControllerTest {
 
     @Test
     void saysWhatFuelTheShortestOrderTakes() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .willReturn(aPlanChosenForFuel());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -599,7 +621,7 @@ class RouteControllerTest {
 
     @Test
     void saysNullForTheFuelOfTheShortestOrderWithoutAVehicle() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .willReturn(aPlanChosenForFuel());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -617,7 +639,7 @@ class RouteControllerTest {
 
     @Test
     void givesTheFastestOrderBesideTheLeastFuel() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .willReturn(aPlanWithTheOtherChoiceBesideIt(ChosenFor.TIME));
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -635,7 +657,7 @@ class RouteControllerTest {
 
     @Test
     void givesTheLeastFuelOrderBesideTheFastest() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any()))
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .willReturn(aPlanWithTheOtherChoiceBesideIt(ChosenFor.FUEL));
 
         mockMvc.perform(post("/api/v1/routes/optimize")
@@ -651,7 +673,7 @@ class RouteControllerTest {
 
     @Test
     void saysNullForBothChoicesWhenThePlanGivesNoOther() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -687,7 +709,7 @@ class RouteControllerTest {
 
     @Test
     void givesTheTurnsOfEachLeg() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithTurns());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlanWithTurns());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -719,7 +741,7 @@ class RouteControllerTest {
 
     @Test
     void givesNoTurnsOnStraightLines() throws Exception {
-        given(routePlanningService.plan(any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
 
         mockMvc.perform(post("/api/v1/routes/optimize")
                         .contentType(MediaType.APPLICATION_JSON)
