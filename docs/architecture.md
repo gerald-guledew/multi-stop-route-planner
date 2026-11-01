@@ -32,7 +32,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | `planning` | The domain. Cost matrices, solvers, the resulting plan. Plain Java, no Spring annotations |
 | `distance` | Where travel figures come from. The provider interface and its implementations, and the rule that turns the heights along a drive into a climb |
 | `address` | LINZ addresses: the table and its importer |
-| `poi` | Named places from Overture Maps: the table and its importer |
+| `poi` | Named places from Overture Maps and OpenStreetMap, and the kind of place each one is: the table and its importers |
 | `search` | Finds addresses and named places from what was typed. The `PlaceSearch` interface and its PostgreSQL implementation |
 | `along` | Places to stop at on the way along a planned route, each with what it adds to its leg |
 | `saved` | Places somebody saved under a name: the JPA entity, its repository, and the rules about names |
@@ -76,12 +76,15 @@ flowchart TD
     Postgres --> Poi[("poi: 200,000 Overture places")]
     Linz["LINZ export"] -.->|AddressImporter| Address
     Overture["Overture export"] -.->|PoiImporter| Poi
+    Map["OpenStreetMap export"] -.->|PlaceKindImporter| Poi
     Address -.->|"suburb of the nearest address"| Poi
 ```
 
 Dotted lines happen at import time, not on a search.
 
 **Two datasets, each used for what it is the authority on.** LINZ publishes every New Zealand address but no names. Overture Maps publishes named places but is no address register. They meet in two places: one query searches both tables, and each place borrows its suburb from the nearest LINZ address, because Overture usually gives only the city.
+
+**One list of places from two sources.** Overture has the fuller names, and OpenStreetMap says more reliably what a place is: its chains match the store counts they publish, where Overture lists many stores twice and files some under the wrong category. `PlaceKindImporter` gives a place on the map's kind to the Overture place of the likest name beside it, and adds the places only the map has. Where the map lacks a place, Overture's own category gives the kind, for the categories that were read and found right. The names must start with the same word, so BP Remuera stays apart from Z Remuera across the road. A place drawn as an outline reaches a long way over what is named after it, so its match has to read almost the same.
 
 **Found on everything, ranked on what people call it.** A place matches if the typed words appear anywhere in its searchable text. It is then scored on how well the words appear in its address, for an address, or in its name, for a named place. Scoring a business on its street address as well puts "McDonalds Road" ahead of McDonald's.
 

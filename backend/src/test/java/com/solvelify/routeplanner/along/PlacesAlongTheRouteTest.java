@@ -12,6 +12,7 @@ import com.solvelify.routeplanner.planning.TravelMatrix;
 import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import com.solvelify.routeplanner.search.FoundPlace;
+import com.solvelify.routeplanner.search.PlaceKind;
 import com.solvelify.routeplanner.search.PlaceSearch;
 import com.solvelify.routeplanner.search.ReferencePoint;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ class PlacesAlongTheRouteTest {
     private final List<FoundPlace> found = new ArrayList<>();
     private List<ReferencePoint> roadLookedAlong;
     private int placesAskedFor;
+    private PlaceKind kindLookedFor;
 
     private final PlaceSearch search = new PlaceSearch() {
         @Override
@@ -51,6 +53,12 @@ class PlacesAlongTheRouteTest {
             roadLookedAlong = road;
             placesAskedFor = limit;
             return found;
+        }
+
+        @Override
+        public List<FoundPlace> searchKindAlong(PlaceKind kind, List<ReferencePoint> road, int limit) {
+            kindLookedFor = kind;
+            return searchAlong(null, road, limit);
         }
     };
 
@@ -105,6 +113,22 @@ class PlacesAlongTheRouteTest {
         assertThat(along.getFirst().kmAdded()).isCloseTo(0.2, within(1e-9));
         assertThat(along.getLast().secondsAdded()).hasValue(300);
         assertThat(along.getLast().kmAdded()).isEqualTo(5);
+    }
+
+    @Test
+    void looksForAKindOfPlaceTheSameWay() {
+        found.add(place("Far Fuel", -36.95, 174.75));
+        found.add(place("Near Fuel", -36.901, 174.75));
+        drive("Start", "Shops", 10, 600);
+        drive("Start", "Near Fuel", 5, 300);
+        drive("Near Fuel", "Shops", 5.2, 320);
+        drive("Start", "Far Fuel", 7, 400);
+        drive("Far Fuel", "Shops", 8, 500);
+
+        List<PlaceAlong> along = placesAlong.find(PlaceKind.FUEL, List.of(START, SHOPS), OptionalInt.empty(), 8);
+
+        assertThat(kindLookedFor).isEqualTo(PlaceKind.FUEL);
+        assertThat(along).extracting(stop -> stop.place().name()).containsExactly("Near Fuel", "Far Fuel");
     }
 
     @Test

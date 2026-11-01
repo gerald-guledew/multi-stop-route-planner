@@ -6,6 +6,7 @@ import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import com.solvelify.routeplanner.search.FoundPlace;
+import com.solvelify.routeplanner.search.PlaceKind;
 import com.solvelify.routeplanner.search.PlaceSearch;
 import com.solvelify.routeplanner.search.ReferencePoint;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 
@@ -23,8 +25,8 @@ import org.springframework.stereotype.Service;
  * Finds places to stop at on the way: those the roads of a planned trip pass near, each with what
  * stopping there adds to the leg it is a stop on.
  *
- * <p>The search finds places by what was typed and ranks them by how near they are to the roads,
- * in a straight line. Near is not the same as on the way. A shop across a motorway can be a long
+ * <p>The search finds places by what was typed, or by what kind of place they are, and ranks them
+ * by how near they are to the roads, in a straight line. Near is not the same as on the way. A shop across a motorway can be a long
  * way round, and one a little further off can sit on the road itself. So the places the search
  * ranks first are each driven to and on from, and given back in the order of the time they add,
  * or of the distance on straight lines.
@@ -61,6 +63,23 @@ public class PlacesAlongTheRoute {
      * @return the places in the order of what they add, the least first
      */
     public List<PlaceAlong> find(String typed, List<Location> route, OptionalInt leg, int limit) {
+        return along(road -> placeSearch.searchAlong(typed, road, candidates(limit)), route, leg, limit);
+    }
+
+    /** The same, for the places of one kind. */
+    public List<PlaceAlong> find(PlaceKind kind, List<Location> route, OptionalInt leg, int limit) {
+        return along(road -> placeSearch.searchKindAlong(kind, road, candidates(limit)), route, leg, limit);
+    }
+
+    private static int candidates(int limit) {
+        return Math.max(CANDIDATES, limit);
+    }
+
+    private List<PlaceAlong> along(
+            Function<List<ReferencePoint>, List<FoundPlace>> search,
+            List<Location> route,
+            OptionalInt leg,
+            int limit) {
         if (route.size() < 2) {
             throw new IllegalArgumentException("a route has two places at least, was given " + route.size());
         }
@@ -82,7 +101,7 @@ public class PlacesAlongTheRoute {
                 .flatMap(List::stream)
                 .map(point -> new ReferencePoint(point.latitude(), point.longitude()))
                 .toList();
-        List<FoundPlace> found = placeSearch.searchAlong(typed, road, Math.max(CANDIDATES, limit));
+        List<FoundPlace> found = search.apply(road);
 
         // The leg as planned, driven once however many places are stops on it.
         Map<Integer, Drive> legsAsPlanned = new HashMap<>();

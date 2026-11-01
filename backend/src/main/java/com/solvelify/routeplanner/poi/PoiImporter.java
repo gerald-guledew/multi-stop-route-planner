@@ -107,7 +107,7 @@ class PoiImporter implements ApplicationRunner {
                           WHERE ST_DWithin(address.location, poi.location, ?)
                           ORDER BY address.location <-> poi.location
                           LIMIT 1)
-            WHERE source = 'overture' AND suburb IS NULL
+            WHERE suburb IS NULL
             """;
 
     private static final String COUNT_PLACES_WITH_A_SUBURB =
@@ -176,7 +176,7 @@ class PoiImporter implements ApplicationRunner {
         }
     }
 
-    private void fillSuburbs(Connection connection) throws SQLException {
+    static void fillSuburbs(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(FILL_SUBURBS)) {
             statement.setInt(1, SUBURB_SEARCH_METRES);
             statement.executeUpdate();
