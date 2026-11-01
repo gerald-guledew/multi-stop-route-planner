@@ -22,7 +22,7 @@ export interface KindOfPlace {
 }
 
 export const KINDS_OF_PLACE: KindOfPlace[] = [
-  { name: 'fuel', label: 'Gas' },
+  { name: 'fuel', label: 'Petrol' },
   { name: 'food', label: 'Food' },
   { name: 'cafe', label: 'Cafe' },
   { name: 'toilets', label: 'Toilets' },

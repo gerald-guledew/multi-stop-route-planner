@@ -13,6 +13,6 @@ describe('the kinds of place on offer', () => {
   })
 
   it('calls fuel what a driver looking for it calls it', () => {
-    expect(KINDS_OF_PLACE.find((kind) => kind.name === 'fuel')?.label).toBe('Gas')
+    expect(KINDS_OF_PLACE.find((kind) => kind.name === 'fuel')?.label).toBe('Petrol')
   })
 })
