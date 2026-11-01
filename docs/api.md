@@ -146,17 +146,18 @@ Between equal scores, the name the words account for most of comes first, then t
 
 Named places come from Overture Maps, which scores each one from 0 to 1 for how likely it is to exist. Those under `routeplanner.search.min-confidence`, 0.3 by default, are left out.
 
-Results are empty until the data is imported: LINZ addresses for `address`, Overture places for `poi`. See the README.
+Results are empty until the data is imported: LINZ addresses for `address`, Overture places for `poi`, and the OpenStreetMap export for `placeKind`. See the README.
 
 ## POST /api/v1/places/along
 
-Finds a place to stop at on the way, by what you type, along a planned route: the places that add the least time come first, each with what it adds. The map screen asks it from the "+" between two stops, for that leg, and from "Find along the current route", for the whole route.
+Finds a place to stop at on the way, by what you type or by the kind of place, along a planned route: the places that add the least time come first, each with what it adds. The map screen asks it from the "+" between two stops, for that leg, and from "Find along the current route", for the whole route.
 
 A POST, so the exact spots of the trip travel in the body rather than in a URL, which is what logs keep.
 
 | Field | Rules |
 | --- | --- |
-| `q` | Required, at most 100 characters. Matched as the search above matches it |
+| `q` | At most 100 characters. Matched as the search above matches it. One of `q` and `placeKind` is required, and not both |
+| `placeKind` | One of `fuel`, `food`, `cafe`, `toilets`, `dairy`, `groceries`, `beach`, `park`, `lookout`, `tourist`, `zoo`, `mall` |
 | `route` | Required, 2 to 12 places, each with `name`, `latitude` and `longitude`. The route as its plan drives it: the start first, and the start again last on a round trip |
 | `leg` | Optional, counting from 0: only the leg from the place at that turn to the next. Left out, the whole route |
 | `limit` | Optional, 1 to 25, default 8 |
@@ -207,7 +208,7 @@ A POST, so the exact spots of the trip travel in the body rather than in a URL, 
 
 ### How the places are found and ordered
 
-1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point.
+1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point. With `placeKind`, the places of that kind nearest the road are taken instead.
 2. The first 12 it ranks, or as many as `limit` when that is more, are each driven to from the start of their leg and on to its end. What a place adds is those two drives less the leg as planned, never below nought. A place on the road the leg follows anyway adds nothing.
 3. They come back in the order of the time they add, and of the distance they add on straight lines.
 
