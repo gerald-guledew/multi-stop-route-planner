@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
+import StopOverDialog from './StopOverDialog'
 import {
   BookmarkIcon,
   CrossIcon,
@@ -20,7 +21,7 @@ import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly } from '../foundStart'
 import { googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
-import { betweenSaid, canAddOnTheWay, legAfter, type LookingAlong } from '../onTheWay'
+import { betweenSaid, canAddOnTheWay, legAfter } from '../onTheWay'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
@@ -222,11 +223,9 @@ export default function RoutePanel(props: Props) {
   const shortest =
     !both && compared?.shortestOrder && differsFromTheShortest(compared) ? compared.shortestOrder : null
   const addsOnTheWay = canAddOnTheWay(places, returnToStart, plan, planning)
-  // A stop on the way is looked for between two stops of the plan, or anywhere along it. It holds
-  // for the plan it was asked of and no other, whose legs are not these.
-  const [lookingAlong, setLookingAlong] = useState<LookingAlong | null>(null)
-  const along = addsOnTheWay && lookingAlong?.plan === plan ? lookingAlong : null
-  const searchBox = useRef<HTMLInputElement>(null)
+  // The "+" whose dialog is open, by the leg it sits on. It holds for the plan it was pressed on and
+  // no other, whose legs are not these.
+  const [stoppingOn, setStoppingOn] = useState<{ plan: RoutePlan; leg: number } | null>(null)
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -245,16 +244,6 @@ export default function RoutePanel(props: Props) {
       setPanelUp(true)
     }
   }, [error, props.locationProblem])
-
-  /**
-   * All within the tap: a phone shows its keyboard only for a box given the cursor by a tap. The
-   * panel goes down so that the results under the search box can be seen.
-   */
-  function lookAlongLeg(from: RoutePlan, leg: number) {
-    setLookingAlong({ plan: from, leg })
-    setPanelUp(false)
-    searchBox.current?.focus()
-  }
 
   function startSwipe(event: TouchEvent) {
     swipeStartedAt.current = event.touches[0].clientY
@@ -286,15 +275,10 @@ export default function RoutePanel(props: Props) {
       <div className="top-bar">
         <PlaceSearchBox
           onPick={props.onPickPlace}
-          onPickAlong={props.onAddOnTheWay}
           devicePosition={props.devicePosition}
           places={places}
           mapCentre={props.mapCentre}
           full={full}
-          plan={addsOnTheWay ? plan : null}
-          along={along}
-          onLookAlong={setLookingAlong}
-          box={searchBox}
         />
       </div>
 
@@ -449,9 +433,9 @@ export default function RoutePanel(props: Props) {
                 {plan && leg !== null && (
                   <button
                     className="icon-button add-on-the-way"
-                    title={`Add a stop ${betweenSaid(plan, leg)}`}
-                    aria-label={`Add a stop ${betweenSaid(plan, leg)}`}
-                    onClick={() => lookAlongLeg(plan, leg)}
+                    title={`Add a stop-over ${betweenSaid(plan, leg)}`}
+                    aria-label={`Add a stop-over ${betweenSaid(plan, leg)}`}
+                    onClick={() => setStoppingOn({ plan, leg })}
                   >
                     <PlusIcon />
                   </button>
@@ -676,6 +660,19 @@ export default function RoutePanel(props: Props) {
         </div>
       </div>
 
+
+      {stoppingOn && addsOnTheWay && stoppingOn.plan === plan && (
+        <StopOverDialog
+          plan={plan}
+          leg={stoppingOn.leg}
+          places={places}
+          onPick={(found) => {
+            setStoppingOn(null)
+            props.onAddOnTheWay(found)
+          }}
+          onClose={() => setStoppingOn(null)}
+        />
+      )}
     </aside>
   )
 }
