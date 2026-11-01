@@ -129,6 +129,14 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner
 
 Import the addresses first, because each place takes its suburb from the nearest address. Overture publishes every month. Run both commands again to pick up a new release: places are updated, added and removed to match the file.
 
+The same import says what kind of place each one is, so that a stop can be found by what it is, such as fuel or a beach. That comes from OpenStreetMap, from the extract the roads are built from, so nothing is fetched. Export it before the import, and again after a new extract:
+
+```bash
+cd backend && duckdb -f scripts/export-osm-places.sql
+```
+
+The import matches the two lists, so that a place both have shows once, under Overture's name.
+
 ### Finding a car
 
 Finding a car by its make, model, year and engine needs NZTA's Motor Vehicle Register, which is free and needs no account. Export New Zealand's petrol cars, about 9,300 makes, models, years and engines in a 0.5 MB file. It needs curl and jq, and takes a few minutes:
@@ -191,7 +199,7 @@ Copyright 2026 Gerald Guledew. Apache License 2.0, see [LICENSE](LICENSE).
 
 ## Data
 
-- Map and roads: © OpenStreetMap contributors, Open Database License
+- Map, roads and kinds of place: © OpenStreetMap contributors, Open Database License
 - NZ addresses: Toitū Te Whenua Land Information New Zealand, CC BY 4.0
 - Heights of the ground, fetched only when heights are switched on: [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), kept by Mapzen at the Linux Foundation. New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New Zealand and the New Zealand Government (All rights reserved). Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration. Global GMTED2010 and SRTM terrain data courtesy of the U.S. Geological Survey
 - Petrol cars and their fuel figures: NZ Transport Agency Waka Kotahi, Motor Vehicle Register, CC BY 4.0

@@ -14,6 +14,7 @@ import com.solvelify.routeplanner.along.PlaceAlong;
 import com.solvelify.routeplanner.along.PlacesAlongTheRoute;
 import com.solvelify.routeplanner.planning.Location;
 import com.solvelify.routeplanner.search.FoundPlace;
+import com.solvelify.routeplanner.search.PlaceKind;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -113,7 +114,35 @@ class PlacesAlongControllerTest {
         ask("""
                 {"q": " ", "route": [%s, %s]}""".formatted(SYLVIA_PARK, SKY_TOWER))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors[0].field").value("q"));
+                .andExpect(jsonPath("$.errors[0].field").value("oneThingToLookFor"));
+    }
+
+    @Test
+    void looksForAKindOfPlace() throws Exception {
+        given(placesAlongTheRoute.find(eq(PlaceKind.FUEL), any(), any(), anyInt())).willReturn(List.of(new PlaceAlong(
+                FoundPlace.poi("Z Ellerslie", "1 Main Hwy", "Ellerslie", "Auckland", -36.8990, 174.8130),
+                0, 1.2, OptionalDouble.of(180))));
+
+        ask("""
+                {"placeKind": "fuel", "route": [%s, %s]}""".formatted(SYLVIA_PARK, SKY_TOWER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Z Ellerslie"));
+    }
+
+    @Test
+    void refusesAWordThatIsNoKindOfPlace() throws Exception {
+        ask("""
+                {"placeKind": "volcano", "route": [%s, %s]}""".formatted(SYLVIA_PARK, SKY_TOWER))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("kindOfPlace"));
+    }
+
+    @Test
+    void refusesANameAndAKindTogether() throws Exception {
+        ask("""
+                {"q": "z", "placeKind": "fuel", "route": [%s, %s]}""".formatted(SYLVIA_PARK, SKY_TOWER))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("oneThingToLookFor"));
     }
 
     @Test

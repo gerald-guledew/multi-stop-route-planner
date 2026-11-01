@@ -780,6 +780,49 @@ class PostgresPlaceSearchTest {
                 .isEqualTo(placeSearch.search("kfc", 8));
     }
 
+    @Test
+    void findsThePlacesOfAKindNearestTheRoadFirst() {
+        // Due east, passing over the Epsom branch. Henderson is well off the road's far end.
+        List<ReferencePoint> road = List.of(
+                new ReferencePoint(-36.8800, 174.7500), new ReferencePoint(-36.8800, 174.8600));
+        insertPoiOfKind("fuel-near", "Near Fuel", -36.8810, 174.7900, 0.9, "fuel");
+        insertPoiOfKind("fuel-far", "Far Fuel", -36.9500, 174.7900, 0.9, "fuel");
+        insertPoiOfKind("cafe-on-it", "Cafe On The Road", -36.8800, 174.7900, 0.9, "cafe");
+
+        assertThat(placeSearch.searchKindAlong(PlaceKind.FUEL, road, 8)).extracting(FoundPlace::name)
+                .containsExactly("Near Fuel", "Far Fuel");
+    }
+
+    @Test
+    void leavesOutThePlacesOfAKindThatSearchHides() {
+        List<ReferencePoint> road = List.of(HENDERSON, new ReferencePoint(-36.8700, 174.7900));
+        insertPoiOfKind("fuel-doubtful", "Doubtful Fuel", -36.8700, 174.7000, 0.1, "fuel");
+
+        assertThat(placeSearch.searchKindAlong(PlaceKind.FUEL, road, 8)).isEmpty();
+    }
+
+    @Test
+    void findsNoKindOfPlaceAlongNoRoad() {
+        insertPoiOfKind("fuel-anywhere", "Any Fuel", -36.8700, 174.7000, 0.9, "fuel");
+
+        assertThat(placeSearch.searchKindAlong(PlaceKind.FUEL, List.of(), 8)).isEmpty();
+    }
+
+    private void insertPoiOfKind(String id, String name, double latitude, double longitude,
+                                 double confidence, String kind) {
+        jdbc.sql("""
+                        INSERT INTO poi (id, source, name, confidence, latitude, longitude, place_kind)
+                        VALUES (:id, 'test', :name, :confidence, :latitude, :longitude, :kind)
+                        """)
+                .param("id", id)
+                .param("name", name)
+                .param("confidence", confidence)
+                .param("latitude", latitude)
+                .param("longitude", longitude)
+                .param("kind", kind)
+                .update();
+    }
+
     private static List<String> names(List<FoundPlace> found) {
         return found.stream().map(FoundPlace::name).toList();
     }
