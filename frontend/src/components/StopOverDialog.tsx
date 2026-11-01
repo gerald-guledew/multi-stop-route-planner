@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { CrossIcon } from './icons'
+import { CrossIcon, DownIcon, KindIcon } from './icons'
 import { findAlong, NotAnswering } from '../api'
+import { KINDS_OF_PLACE, type KindOfPlace } from '../kindsOfPlace'
 import { addedSaid, betweenSaid, hasOtherLegs } from '../onTheWay'
 import { isInTrip } from '../savedPlaces'
 import type { Place, PlaceAlong, RoutePlan } from '../types'
@@ -19,8 +20,9 @@ interface Props {
 }
 
 /**
- * Finds a place to stop at between two stops of a planned trip. The places that add the least
- * time come first, each with what it adds, and the search can be widened to the whole route.
+ * Finds a place to stop at between two stops of a planned trip, by its name, or by the kind of
+ * place for somebody with no name in mind. The places that add the least time come first, each
+ * with what it adds, and the search can be widened to the whole route.
  *
  * A dialog over everything, low on a phone and in the middle of a wide screen. It has a search of
  * its own, so the search box of the map screen only ever looks for stops.
@@ -31,6 +33,8 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
   // The leg looked along, or null for all of them.
   const [lookingAlong, setLookingAlong] = useState<number | null>(leg)
   const [query, setQuery] = useState('')
+  // The kind of place picked. Typing leaves it, since a name says more.
+  const [kind, setKind] = useState<KindOfPlace | null>(null)
   const [results, setResults] = useState<PlaceAlong[]>([])
   const [searching, setSearching] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
@@ -50,28 +54,30 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
     }
   }, [])
 
-  // A search on its way when the dialog goes has nobody to answer.
-  useEffect(() => () => inFlight.current?.abort(), [])
-
   useEffect(() => {
     const term = query.trim()
     // Whatever the last search said, it was about something else.
     setNothingFound(false)
     setResults([])
-    if (term.length < MINIMUM_CHARACTERS) {
+    setSearching(false)
+    setFailed(null)
+    if (kind === null && term.length < MINIMUM_CHARACTERS) {
       return
     }
 
     // Wait for a pause in typing, so one search runs instead of one per keystroke.
     const timer = setTimeout(async () => {
-      inFlight.current?.abort()
       const controller = new AbortController()
       inFlight.current = controller
 
       setSearching(true)
-      setFailed(null)
       try {
-        const found = await findAlong(term, plan.route, lookingAlong, controller.signal)
+        const found = await findAlong(
+          kind ? { placeKind: kind.name } : { q: term },
+          plan.route,
+          lookingAlong,
+          controller.signal,
+        )
         setResults(found)
         setNothingFound(found.length === 0)
       } catch (caught) {
@@ -83,10 +89,17 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
           setSearching(false)
         }
       }
-    }, DEBOUNCE_MS)
+    }, kind ? 0 : DEBOUNCE_MS)
 
-    return () => clearTimeout(timer)
-  }, [query, plan, lookingAlong])
+    // A search on its way has nobody to answer once what it was for has changed, or the dialog gone.
+    return () => {
+      clearTimeout(timer)
+      inFlight.current?.abort()
+    }
+  }, [query, kind, plan, lookingAlong])
+
+  // Nothing typed and nothing picked, so nothing to list yet.
+  const offeringKinds = kind === null && query.trim() === ''
 
   return (
     <dialog
@@ -134,12 +147,40 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
             value={query}
             placeholder="Search an address or a business"
             aria-label="Search for an address or a business to stop at"
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setKind(null)
+            }}
           />
         </div>
       </div>
 
-      <div className="stop-over-body">
+      {/* A phone's keyboard comes up over the lower half of the list, and no scrolling brings the
+          end of it out from under. So it goes down as soon as a finger moves on the list. */}
+      <div className="stop-over-body" onTouchMove={() => box.current?.blur()}>
+        {offeringKinds && (
+          <>
+            <p className="results-note">Or pick what you need</p>
+            <ul className="stop-over-kinds">
+              {KINDS_OF_PLACE.map((each) => (
+                <li key={each.name}>
+                  <button onClick={() => setKind(each)}>
+                    <KindIcon kind={each.name} />
+                    {each.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {kind && (
+          <button className="stop-over-back" aria-label="Back to the kinds of place" onClick={() => setKind(null)}>
+            <DownIcon />
+            {kind.label}
+          </button>
+        )}
+
         {searching && <p className="searching">Searching…</p>}
 
         {failed && <p className="error">{failed}</p>}

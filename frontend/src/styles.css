@@ -786,6 +786,70 @@ button:disabled {
   margin-top: 8px;
 }
 
+.stop-over-body > .results-note {
+  margin: 0;
+  padding: 2px 0 8px;
+}
+
+/* The kinds of place, three to a row at any width, each a target the size of a thumb. */
+.stop-over-kinds {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stop-over-kinds button {
+  align-items: center;
+  background: var(--page);
+  border: none;
+  border-radius: 10px;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 13px;
+  gap: 4px;
+  padding: 12px 4px;
+  width: 100%;
+}
+
+/* Only with a mouse. On a phone the colour would stay on the last tile tapped. */
+@media (hover: hover) {
+  .stop-over-kinds button:hover {
+    background: var(--line);
+  }
+}
+
+.stop-over-kinds .icon {
+  color: var(--accent);
+  height: 24px;
+  width: 24px;
+}
+
+/* The kind being listed, and the way back to the others. */
+.stop-over-back {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--ink);
+  display: flex;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  gap: 4px;
+  margin: 0 0 4px -4px;
+  padding: 4px;
+}
+
+.stop-over-back .icon {
+  height: 18px;
+  transform: rotate(90deg);
+  width: 18px;
+}
+
 /* In the dialog, rather than over the page as the search box's list is. */
 .stop-over-results {
   list-style: none;
