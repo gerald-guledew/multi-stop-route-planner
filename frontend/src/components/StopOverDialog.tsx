@@ -54,9 +54,6 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
     }
   }, [])
 
-  // A search on its way when the dialog goes has nobody to answer.
-  useEffect(() => () => inFlight.current?.abort(), [])
-
   useEffect(() => {
     const term = query.trim()
     // Whatever the last search said, it was about something else.
@@ -94,6 +91,7 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
       }
     }, kind ? 0 : DEBOUNCE_MS)
 
+    // A search on its way has nobody to answer once what it was for has changed, or the dialog gone.
     return () => {
       clearTimeout(timer)
       inFlight.current?.abort()
