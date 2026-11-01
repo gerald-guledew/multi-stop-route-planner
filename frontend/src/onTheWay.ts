@@ -1,19 +1,13 @@
 import { howLong } from './duration'
 import { sitsOn } from './foundStart'
 import { isFull, withLabelsInStep, withStopAt } from './stops'
-import type { FoundPlace, Place, PlaceAlong, RoutePlan } from './types'
+import type { Place, PlaceAlong, RoutePlan } from './types'
 
 /**
  * The rules about a stop on the way: a place added between two stops of a planned trip. The
  * stops keep the order the plan gave them, and the new one goes between the two it was added
  * between. Plain functions with no React in them, so each rule can be tested on its own.
  */
-
-/** What the search box looks along: one leg of a plan, by its number, or all of it, by null. */
-export interface LookingAlong {
-  plan: RoutePlan
-  leg: number | null
-}
 
 /** Under this, a stop adds nothing worth a figure. The screen gives times to the minute. */
 const A_MINUTE = 60
@@ -159,12 +153,7 @@ export function betweenSaid(plan: RoutePlan, leg: number): string {
   return `between ${plan.route[leg].name} and ${plan.route[leg + 1].name}`
 }
 
-/** What the box under the search bar says it finds: along all of the plan, or one leg of it. */
-export function alongSaid(plan: RoutePlan, leg: number | null): string {
-  return leg === null ? 'Find along the current route' : `Find ${betweenSaid(plan, leg)}`
-}
-
-/** Whether a place was found along a route, and so says what stopping there adds. */
-export function isAlong(found: FoundPlace): found is PlaceAlong {
-  return 'leg' in found
+/** Whether there is more of a plan to look along than the one leg a "+" sits on. */
+export function hasOtherLegs(plan: RoutePlan): boolean {
+  return plan.route.length > 2
 }

@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   addedSaid,
-  alongSaid,
   betweenSaid,
   canAddOnTheWay,
+  hasOtherLegs,
   heldInPlannedOrder,
   inPlannedOrder,
-  isAlong,
   legAfter,
   namedAs,
   withStopOn,
 } from './onTheWay'
-import type { FoundPlace, Leg, Place, PlaceAlong, RoutePlan } from './types'
+import type { Leg, Place, PlaceAlong, RoutePlan } from './types'
 
 const start: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const museum: Place = { name: 'Museum', latitude: -36.8604, longitude: 174.7778 }
@@ -273,25 +272,13 @@ describe('what a stop on the way adds', () => {
   })
 })
 
-describe('what the box under the search bar says', () => {
-  it('finds along the whole route', () => {
-    expect(alongSaid(planOf(start, museum, tower), null)).toBe('Find along the current route')
+describe('how much of a plan there is to look along', () => {
+  it('has more than the one leg when the trip does', () => {
+    expect(hasOtherLegs(planOf(start, museum, tower))).toBe(true)
   })
 
-  it('finds between the two stops of one leg', () => {
-    expect(alongSaid(planOf(start, museum, tower), 1)).toBe('Find between Museum and Sky Tower')
-  })
-})
-
-describe('a place in the results', () => {
-  it('says what it adds when it was found along a route', () => {
-    expect(isAlong(found())).toBe(true)
-  })
-
-  it('says no such thing when it was found by the search box alone', () => {
-    const place: FoundPlace = { ...fuel, kind: 'poi', detail: 'Ellerslie' }
-
-    expect(isAlong(place)).toBe(false)
+  it('has only that leg when the trip is one drive', () => {
+    expect(hasOtherLegs(planOf(start, museum))).toBe(false)
   })
 })
 

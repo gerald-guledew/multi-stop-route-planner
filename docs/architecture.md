@@ -106,11 +106,11 @@ Dotted lines happen at import time, not on a search.
 
 ## Stops on the way
 
-Once a trip is planned, the search box on the map screen finds a place to stop at between two stops, from the "+" between them in the list, or anywhere along the route, from the box under it. A third flow, built on the two above.
+Once a trip is planned, the "+" between two stops in the list opens a dialog that finds a place to stop at on that leg, or anywhere along the route. A third flow, built on the two above.
 
 ```mermaid
 flowchart TD
-    Screen["Map screen: the + between two stops, or Find along the current route"] -->|"POST /api/v1/places/along, with the route as planned"| AlongController[PlacesAlongController]
+    Screen["Map screen: the dialog of the + between two stops"] -->|"POST /api/v1/places/along, with the route as planned"| AlongController[PlacesAlongController]
     AlongController --> Along[PlacesAlongTheRoute]
     Along -->|"the road of each leg, then two drives for each place and the leg once"| Provider["TravelMatrixProvider (interface)"]
     Along -->|"what was typed, nearest the road"| PlaceSearch["PlaceSearch (interface)"]
