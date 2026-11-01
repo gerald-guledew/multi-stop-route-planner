@@ -1,4 +1,5 @@
 import type { ChosenFor } from './chosenFor'
+import type { PlaceKindName } from './kindsOfPlace'
 import type { Position } from './location'
 import type {
   CarVariant,
@@ -138,16 +139,18 @@ export async function searchPlaces(
   return (await response.json()) as FoundPlace[]
 }
 
+/** What to look for along a route: what was typed, or a kind of place. */
+export type LookingFor = { q: string } | { placeKind: PlaceKindName }
+
 /**
- * Places to stop at on the way, typed by name, the least out of the way first: along one leg of
- * a planned trip, or along all of it when `leg` is null. `route` is the trip as its plan drives
- * it.
+ * Places to stop at on the way, the least out of the way first: along one leg of a planned trip,
+ * or along all of it when `leg` is null. `route` is the trip as its plan drives it.
  *
  * <p>A POST, so the exact spots of the trip travel in the body and not in the URL, which is what
  * logs keep.
  */
 export async function findAlong(
-  query: string,
+  lookingFor: LookingFor,
   route: Place[],
   leg: number | null,
   signal: AbortSignal,
@@ -156,7 +159,7 @@ export async function findAlong(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      q: query,
+      ...lookingFor,
       route: route.map(({ name, latitude, longitude }) => ({ name, latitude, longitude })),
       ...(leg === null ? {} : { leg }),
     }),

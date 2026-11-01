@@ -103,7 +103,7 @@ Dotted lines happen at import time, not on a search.
 
 ## Stops on the way
 
-Once a trip is planned, the "+" between two stops in the list opens a dialog that finds a place to stop at on that leg, or anywhere along the route. A third flow, built on the two above.
+Once a trip is planned, the "+" between two stops in the list opens a dialog that finds a place to stop at on that leg, or anywhere along the route, by its name or by the kind of place. A third flow, built on the two above.
 
 ```mermaid
 flowchart TD

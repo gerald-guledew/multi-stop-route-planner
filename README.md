@@ -73,7 +73,7 @@ On a phone the map fills the screen. The search box floats over the top of it, a
 
 A trip takes 10 stops, or 9 when it returns to the start, so that every stop goes into the Google Maps link. With that many, the search box says "Max stops reached".
 
-Once the route is planned, the list of stops takes the order to be driven, and undo brings back the order it had. A "+" between two stops opens a search of its own for that part of the drive, which lists first the places that add the least time. A switch in it widens the search to the whole route. The place picked is a stop-over: it goes between the two stops, and the other stops keep their order. Planned again later, it stays between those two and the others are arranged around them. The link button beside it lets it go.
+Once the route is planned, the list of stops takes the order to be driven, and undo brings back the order it had. A "+" between two stops opens a search of its own for that part of the drive: by name, or by the kind of place, such as gas, food, toilets or a beach, for when you have no name in mind. It lists first the places that add the least time, and a switch widens it to the whole route. The place picked is a stop-over: it goes between the two stops, and the other stops keep their order. Planned again later, it stays between those two and the others are arranged around them. The link button beside it lets it go.
 
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
 
