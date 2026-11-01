@@ -212,6 +212,18 @@ public class PostgresPlaceSearch implements PlaceSearch {
             LIMIT :limit
             """;
 
+    /**
+     * The places of a kind in the order of how near they lie to the road, read from the index on
+     * their position. A place by the road is found without measuring the ones far from it.
+     */
+    private static final String KIND_ALONG = """
+            SELECT 'POI' AS kind, name, address, suburb, locality, latitude, longitude
+            FROM poi
+            WHERE place_kind = :placeKind AND confidence >= :minConfidence
+            ORDER BY location <-> CAST(ST_GeomFromText(:road, 4326) AS geography)
+            LIMIT :limit
+            """;
+
     private final JdbcClient jdbc;
     private final SearchProperties properties;
 
@@ -234,6 +246,20 @@ public class PostgresPlaceSearch implements PlaceSearch {
     @Override
     public List<FoundPlace> searchAlong(String typed, List<ReferencePoint> road, int limit) {
         return searchFrom(typed, lineThrough(road), limit);
+    }
+
+    @Override
+    public List<FoundPlace> searchKindAlong(PlaceKind kind, List<ReferencePoint> road, int limit) {
+        if (road.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.sql(KIND_ALONG)
+                .param("placeKind", kind.written())
+                .param("road", lineThrough(road))
+                .param("minConfidence", properties.minConfidence())
+                .param("limit", limit)
+                .query(PostgresPlaceSearch::toFoundPlace)
+                .list();
     }
 
     /** @param origin where the search is looking from, as text PostGIS reads. Null for nowhere */

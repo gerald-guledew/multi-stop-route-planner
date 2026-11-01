@@ -30,4 +30,12 @@ public interface PlaceSearch {
      * @param road the points of the road in order, such as the roads of a planned trip
      */
     List<FoundPlace> searchAlong(String typed, List<ReferencePoint> road, int limit);
+
+    /**
+     * The places of one kind nearest to a road, the nearest first. For when there is no name to
+     * type.
+     *
+     * @param road the points of the road in order, such as the roads of a planned trip
+     */
+    List<FoundPlace> searchKindAlong(PlaceKind kind, List<ReferencePoint> road, int limit);
 }
