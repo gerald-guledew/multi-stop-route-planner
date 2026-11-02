@@ -1,8 +1,9 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import {
   ApiError,
   getVehicle,
   listSavedPlaces,
+  nearestAddress,
   NotAnswering,
   optimizeRoute,
   removeSavedPlace,
@@ -11,9 +12,11 @@ import {
   saveVehicle,
 } from './api'
 import { chosenFor, type Order } from './chosenFor'
-import { afterABetterAnswer, afterDragging } from './foundStart'
+import { afterABetterAnswer, afterDragging, isRoughGuess } from './foundStart'
 import type { Picked } from './framing'
+import { spotOf } from './height'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
+import { addressSaid, MY_LOCATION, namedAt, spotsWantingAName, withNameTyped } from './naming'
 import { heldInPlannedOrder, inPlannedOrder, namedAs, withStopOn } from './onTheWay'
 import { asPlace, isInTrip, startingFrom } from './savedPlaces'
 import {
@@ -94,7 +97,7 @@ export default function App() {
       // If a start was picked while the browser was working it out, that choice stands.
       if (places.length === 0) {
         changePlaces(() => [
-          { name: 'My location', latitude: here.latitude, longitude: here.longitude },
+          { name: MY_LOCATION, latitude: here.latitude, longitude: here.longitude },
         ])
       }
       return
@@ -138,6 +141,55 @@ export default function App() {
     setLocationProblem(null)
     return followPosition(onAnswer, onProblem)
   }, [asking])
+
+  // What each spot's nearest address has it called, so that one spot is asked about once. Null
+  // while the answer is on its way, and for a spot with no address near it.
+  const addressNames = useRef(new Map<string, string | null>())
+  const startIsARoughGuess = isRoughGuess(places[0], devicePosition)
+
+  /**
+   * No change to undo, since nobody changed anything. Every trip in the history with a pin on the
+   * spot takes the name, so that undoing brings no "Stop 3" back. A plan made in the meantime goes
+   * by the new name too.
+   */
+  const giveName = useEffectEvent((spot: Position, name: string) => {
+    setHistory((current) =>
+      correctedThroughout(current, (trip) => ({ ...trip, places: namedAt(trip.places, spot, name) })),
+    )
+    setPlan((current) => current && namedAs(current, namedAt(places, spot, name)))
+  })
+
+  // An answer that lands while a plan is on its way waits for the plan: the plan is matched to the
+  // very list it was asked for. The effect below gives the name once planning is over.
+  const onAddressFound = useEffectEvent((spot: Position, name: string) => {
+    if (!planning) {
+      giveName(spot, name)
+    }
+  })
+
+  // A pin put down on the map is named from the address nearest it, a moment after it lands.
+  useEffect(() => {
+    for (const spot of spotsWantingAName(places, startIsARoughGuess)) {
+      const key = spotOf(spot)
+      const name = addressNames.current.get(key)
+      if (name === undefined) {
+        addressNames.current.set(key, null)
+        nearestAddress(spot).then(
+          (nearest) => {
+            if (nearest) {
+              const said = addressSaid(nearest.name, nearest.metres)
+              addressNames.current.set(key, said)
+              onAddressFound(spot, said)
+            }
+          },
+          // Not worth a word. The pin works as well under the label it has.
+          () => addressNames.current.delete(key),
+        )
+      } else if (name !== null && !planning) {
+        giveName(spot, name)
+      }
+    }
+  }, [places, startIsARoughGuess, planning])
 
   // Leaving the page while the list is on its way is not a failure, so it says nothing.
   useEffect(() => {
@@ -236,10 +288,7 @@ export default function App() {
   }
 
   function renamePlace(index: number, name: string) {
-    changePlaces(
-      (current) => current.map((place, at) => (at === index ? { ...place, name } : place)),
-      `label ${index}`,
-    )
+    changePlaces((current) => withNameTyped(current, index, name), `label ${index}`)
     // A name that was taken is put right by typing another, so the complaint about it goes.
     setSavedProblem(null)
   }

@@ -4,6 +4,7 @@ import type { Position } from './location'
 import type {
   CarVariant,
   FoundPlace,
+  NearestAddress,
   Place,
   PlaceAlong,
   ProblemDetail,
@@ -173,6 +174,11 @@ export async function findAlong(
   return (await response.json()) as PlaceAlong[]
 }
 
+/** How a place came by its name is the screen's business. */
+function asThePlannerTakesIt({ namedByAddress: _, ...place }: Place): Place {
+  return place
+}
+
 /**
  * `chosenFor` asks for the shortest order, for the fastest, or for the least fuel. A planner with
  * no heights to go on, or with no times, answers with the shortest order all the same.
@@ -203,8 +209,8 @@ export async function optimizeRoute(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      start,
-      stops,
+      start: asThePlannerTakesIt(start),
+      stops: stops.map(asThePlannerTakesIt),
       returnToStart,
       fastest: chosenFor === 'time',
       leastFuel: chosenFor === 'fuel',
@@ -238,6 +244,26 @@ export async function heightAt(at: Position): Promise<number | null> {
   }
 
   return ((await response.json()) as { heightMetres: number | null }).heightMetres
+}
+
+/**
+ * The address nearest a spot, to name a pin by. Null when none is near enough to say where it is.
+ *
+ * <p>A POST, so the exact spot travels in the body and not in the URL, which is what logs keep.
+ */
+export async function nearestAddress(at: Position): Promise<NearestAddress | null> {
+  const response = await ask('/api/v1/places/nearest-address', A_QUICK_ANSWER_MS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude: at.latitude, longitude: at.longitude }),
+  })
+
+  if (!response.ok) {
+    return refused(response)
+  }
+
+  const { name, metres } = (await response.json()) as { name: string | null; metres: number | null }
+  return name === null || metres === null ? null : { name, metres }
 }
 
 /**

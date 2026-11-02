@@ -112,6 +112,34 @@ describe('dragging a pin', () => {
   })
 })
 
+describe('dragging a pin named from its address', () => {
+  const named = { ...office, name: '277 Broadway, Newmarket', namedByAddress: true }
+
+  it('takes the address away, since it was where the pin stood', () => {
+    const { places } = afterDragging([startOnTheGuess, named], null, 1, -36.85, 174.77)
+
+    expect(places[1]).toEqual({ ...office, name: 'Stop 1', latitude: -36.85, longitude: 174.77 })
+  })
+
+  it('keeps a name somebody typed', () => {
+    const { places } = afterDragging([startOnTheGuess, office], null, 1, -36.85, 174.77)
+
+    expect(places[1].name).toBe(office.name)
+  })
+
+  it('keeps what else is marked on the stop', () => {
+    const { places } = afterDragging(
+      [startOnTheGuess, { ...named, keepInPlace: true }],
+      null,
+      1,
+      -36.85,
+      174.77,
+    )
+
+    expect(places[1].keepInPlace).toBe(true)
+  })
+})
+
 describe('a better answer from the browser', () => {
   /** The same laptop a few seconds on, now sure to about 30 metres, and somewhere else. */
   const better: DevicePosition = { latitude: -36.91466, longitude: 174.83916, accuracyMetres: 30 }

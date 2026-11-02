@@ -1,4 +1,5 @@
 import type { DevicePosition, Position } from './location'
+import { defaultLabel } from './stops'
 import type { Place } from './types'
 
 /**
@@ -75,9 +76,11 @@ export function afterABetterAnswer(
 /**
  * What a pin dragged to a new spot leaves behind.
  *
- * The pin keeps its name and its place in the list. If it was the start, still sitting where
- * the browser put it, then dragging it is the person saying where they really are, and they
- * know better than the browser: the device position goes with it and is marked as theirs.
+ * The pin keeps its name and its place in the list, unless the name was only the address it stood
+ * at: it then has the label of its turn until the new spot's address is found. If it was the
+ * start, still sitting where the browser put it, then dragging it is the person saying where they
+ * really are, and they know better than the browser: the device position goes with it and is
+ * marked as theirs.
  */
 export function afterDragging(
   places: Place[],
@@ -89,7 +92,13 @@ export function afterDragging(
   const draggedTheGuess = index === 0 && sitsOn(places[0], devicePosition)
 
   return {
-    places: places.map((place, at) => (at === index ? { ...place, latitude, longitude } : place)),
+    places: places.map((place, at) => {
+      if (at !== index) {
+        return place
+      }
+      const { namedByAddress, ...pin } = place
+      return { ...pin, name: namedByAddress ? defaultLabel(at) : place.name, latitude, longitude }
+    }),
     devicePosition:
       draggedTheGuess && devicePosition
         ? { ...devicePosition, latitude, longitude, correctedByHand: true }

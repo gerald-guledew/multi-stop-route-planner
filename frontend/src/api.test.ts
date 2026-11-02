@@ -9,6 +9,7 @@ import {
   listSavedPlaces,
   listVariants,
   listYears,
+  nearestAddress,
   NotAnswering,
   optimizeRoute,
   removeSavedPlace,
@@ -115,6 +116,36 @@ describe('searching for a place', () => {
     await expect(searchPlaces('new world', null, notCancelled)).rejects.toThrow(
       "Failed to convert 'near' with value: 'here'",
     )
+  })
+})
+
+describe('the address nearest a spot', () => {
+  const spot = { latitude: -36.917, longitude: 174.8414 }
+
+  it('sends the spot in the body, where logs do not keep it', async () => {
+    const fetched = apiThatAnswers(200, { name: null, metres: null })
+
+    await nearestAddress(spot)
+
+    const [url, init] = fetched.mock.calls[0]
+    expect(url).toBe('/api/v1/places/nearest-address')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual(spot)
+  })
+
+  it('gives the address and how far off it is', async () => {
+    apiThatAnswers(200, { name: '286 Mount Wellington Highway, Mount Wellington', metres: 14 })
+
+    expect(await nearestAddress(spot)).toEqual({
+      name: '286 Mount Wellington Highway, Mount Wellington',
+      metres: 14,
+    })
+  })
+
+  it('gives nothing when no address is near enough', async () => {
+    apiThatAnswers(200, { name: null, metres: null })
+
+    expect(await nearestAddress(spot)).toBeNull()
   })
 })
 
@@ -319,6 +350,16 @@ describe('finding a car in the register', () => {
 describe('planning a route', () => {
   const start = { name: 'Sky Tower', latitude: -36.8485, longitude: 174.7621 }
   const stops = [{ name: 'Takapuna', latitude: -36.787, longitude: 174.774 }]
+
+  it('keeps to the screen how a place came by its name', async () => {
+    const fetched = apiThatAnswers(200, {})
+
+    await optimizeRoute({ ...start, namedByAddress: true }, [{ ...stops[0], namedByAddress: true }], false, 'distance', null)
+
+    const body = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(body.start.namedByAddress).toBeUndefined()
+    expect(body.stops[0].namedByAddress).toBeUndefined()
+  })
 
   it('posts the start, the stops and whether to come back', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })

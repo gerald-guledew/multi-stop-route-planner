@@ -8,6 +8,7 @@ import {
   inPlannedOrder,
   legAfter,
   namedAs,
+  pinLabel,
   withStopOn,
 } from './onTheWay'
 import type { Leg, Place, PlaceAlong, RoutePlan } from './types'
@@ -269,6 +270,35 @@ describe('what a stop on the way adds', () => {
 
   it('says which two places its leg runs between', () => {
     expect(betweenSaid(planOf(start, museum, tower), 1)).toBe('between Museum and Sky Tower')
+  })
+})
+
+describe('what a pin says', () => {
+  it('says its turn in the list before planning', () => {
+    expect(pinLabel(tower, 2, null)).toBe('2')
+    expect(pinLabel(start, 0, null)).toBe('S')
+  })
+
+  it('says its turn on the plan once there is one', () => {
+    const planned = planOf(start, tower, museum)
+
+    expect(pinLabel(museum, 1, planned)).toBe('2')
+    expect(pinLabel(tower, 2, planned)).toBe('1')
+    expect(pinLabel(start, 0, planned)).toBe('S')
+  })
+
+  it('finds a pin renamed since the plan was made', () => {
+    expect(pinLabel({ ...tower, name: 'Lunch' }, 1, planOf(start, tower))).toBe('1')
+  })
+
+  it('tells apart two pins with the same name', () => {
+    const planned = planOf(start, tower, { ...museum, name: tower.name })
+
+    expect(pinLabel({ ...museum, name: tower.name }, 2, planned)).toBe('2')
+  })
+
+  it('says S for the start on a round trip, which the plan lists twice', () => {
+    expect(pinLabel(start, 0, planOf(start, tower, start))).toBe('S')
   })
 })
 
