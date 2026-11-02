@@ -1,6 +1,7 @@
 import { sitsOn } from './foundStart'
+import { spotOf } from './height'
 import type { Position } from './location'
-import { defaultLabel } from './stops'
+import { defaultLabel, NEAR } from './stops'
 import type { Place } from './types'
 
 /**
@@ -20,7 +21,7 @@ export const MY_LOCATION = 'My location'
 const AT_THE_ADDRESS_METRES = 50
 
 export function addressSaid(address: string, metres: number): string {
-  return metres <= AT_THE_ADDRESS_METRES ? address : `Near ${address}`
+  return metres <= AT_THE_ADDRESS_METRES ? address : `${NEAR}${address}`
 }
 
 /** Whether a place still has a name nobody gave it. */
@@ -37,6 +38,37 @@ export function spotsWantingAName(places: Place[], startIsARoughGuess: boolean):
   return places.filter(
     (place, turn) => hasNoNameOfItsOwn(place, turn) && !(turn === 0 && startIsARoughGuess),
   )
+}
+
+/** What to do next about naming: the spots to ask about, and the names to give. */
+export interface NamingSteps {
+  toAsk: Position[]
+  toGive: { spot: Position; name: string }[]
+}
+
+/**
+ * What to do about the spots wanting a name. A spot is asked about once. A name waits while a plan
+ * is on its way: the plan's answer is matched to the very list it was asked for, and a name would
+ * make that another list.
+ *
+ * @param names what each spot is to be called, by `spotOf`. Null while the answer is on its way,
+ *              and for a spot with no address near it
+ */
+export function namingSteps(
+  spots: Position[],
+  names: ReadonlyMap<string, string | null>,
+  planning: boolean,
+): NamingSteps {
+  const eachSpotOnce = [...new Map(spots.map((spot) => [spotOf(spot), spot])).values()]
+  return {
+    toAsk: eachSpotOnce.filter((spot) => !names.has(spotOf(spot))),
+    toGive: planning
+      ? []
+      : eachSpotOnce.flatMap((spot) => {
+          const name = names.get(spotOf(spot))
+          return name ? [{ spot, name }] : []
+        }),
+  }
 }
 
 /**

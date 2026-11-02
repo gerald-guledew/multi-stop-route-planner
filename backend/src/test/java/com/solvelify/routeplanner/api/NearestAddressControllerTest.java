@@ -1,5 +1,6 @@
 package com.solvelify.routeplanner.api;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,8 +52,8 @@ class NearestAddressControllerTest {
         ask("""
                 {"latitude": -45.5, "longitude": 167.5}""")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").doesNotExist())
-                .andExpect(jsonPath("$.metres").doesNotExist());
+                .andExpect(jsonPath("$.name").value(nullValue()))
+                .andExpect(jsonPath("$.metres").value(nullValue()));
     }
 
     @Test

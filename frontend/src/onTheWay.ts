@@ -1,6 +1,6 @@
 import { howLong } from './duration'
 import { sitsOn } from './foundStart'
-import { isFull, withLabelsInStep, withStopAt } from './stops'
+import { isFull, nameInASentence, withLabelsInStep, withStopAt } from './stops'
 import type { Place, PlaceAlong, RoutePlan } from './types'
 
 /**
@@ -160,7 +160,7 @@ export function addedSaid(found: PlaceAlong): string {
 
 /** Which two places a leg runs between, by the names the plan gives them: "between A and B". */
 export function betweenSaid(plan: RoutePlan, leg: number): string {
-  return `between ${plan.route[leg].name} and ${plan.route[leg + 1].name}`
+  return `between ${nameInASentence(plan.route[leg].name)} and ${nameInASentence(plan.route[leg + 1].name)}`
 }
 
 /** Whether there is more of a plan to look along than the one leg a "+" sits on. */

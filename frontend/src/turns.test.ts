@@ -99,6 +99,12 @@ describe('saying a turn', () => {
     expect(turnSaid(aTurn({ turn: 'ferry', street: 'Interislander' }), 'Picton')).toBe('Take the ferry, Interislander')
   })
 
+  it('arrives near a stop that is only near an address', () => {
+    expect(turnSaid(aTurn({ turn: 'arrive', distanceMetres: 0 }), 'Near 3 Titoki Street, Parnell')).toBe(
+      'Arrive near 3 Titoki Street, Parnell',
+    )
+  })
+
   it('arrives at the stop the leg ends at', () => {
     expect(turnSaid(aTurn({ turn: 'arrive', distanceMetres: 0 }), 'Auckland War Memorial Museum')).toBe(
       'Arrive at Auckland War Memorial Museum',

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { addressSaid, MY_LOCATION, namedAt, spotsWantingAName, withNameTyped } from './naming'
+import { spotOf } from './height'
+import {
+  addressSaid,
+  MY_LOCATION,
+  namedAt,
+  namingSteps,
+  spotsWantingAName,
+  withNameTyped,
+} from './naming'
 import type { Place } from './types'
 
 const start: Place = { name: 'Start', latitude: -36.917, longitude: 174.8414 }
@@ -50,9 +58,51 @@ describe('which pins want a name', () => {
 
     expect(spotsWantingAName([here, stop], true)).toEqual([stop])
   })
+})
 
-  it('takes a start put down by hand however rough the browser was', () => {
-    expect(spotsWantingAName([tower, stop], true)).toEqual([stop])
+describe('what to do about the pins wanting a name', () => {
+  const nothingKnown = new Map<string, string | null>()
+
+  it('asks about a spot nothing is known of', () => {
+    expect(namingSteps([stop], nothingKnown, false)).toEqual({ toAsk: [stop], toGive: [] })
+  })
+
+  it('does not ask again while the answer is on its way', () => {
+    const onItsWay = new Map([[spotOf(stop), null]])
+
+    expect(namingSteps([stop], onItsWay, false)).toEqual({ toAsk: [], toGive: [] })
+  })
+
+  it('asks once about a spot two pins stand on', () => {
+    expect(namingSteps([stop, { ...stop }], nothingKnown, false).toAsk).toHaveLength(1)
+  })
+
+  it('gives a name that is known', () => {
+    const known = new Map([[spotOf(stop), '12 Museum Circuit, Parnell']])
+
+    expect(namingSteps([stop], known, false)).toEqual({
+      toAsk: [],
+      toGive: [{ spot: stop, name: '12 Museum Circuit, Parnell' }],
+    })
+  })
+
+  it('holds a name back while a plan is on its way', () => {
+    const known = new Map([[spotOf(stop), '12 Museum Circuit, Parnell']])
+
+    expect(namingSteps([stop], known, true)).toEqual({ toAsk: [], toGive: [] })
+  })
+
+  it('still asks while a plan is on its way', () => {
+    expect(namingSteps([stop], nothingKnown, true).toAsk).toEqual([stop])
+  })
+
+  it('gives every name that is known at once', () => {
+    const known = new Map([
+      [spotOf(start), '286 Mount Wellington Highway'],
+      [spotOf(stop), '12 Museum Circuit, Parnell'],
+    ])
+
+    expect(namingSteps([start, stop], known, false).toGive).toHaveLength(2)
   })
 })
 

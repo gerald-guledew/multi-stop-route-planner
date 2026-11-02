@@ -16,7 +16,14 @@ import { afterABetterAnswer, afterDragging, isRoughGuess } from './foundStart'
 import type { Picked } from './framing'
 import { spotOf } from './height'
 import { afterChange, correctedThroughout, redone, startingWith, undone, type Trip } from './history'
-import { addressSaid, MY_LOCATION, namedAt, spotsWantingAName, withNameTyped } from './naming'
+import {
+  addressSaid,
+  MY_LOCATION,
+  namedAt,
+  namingSteps,
+  spotsWantingAName,
+  withNameTyped,
+} from './naming'
 import { heldInPlannedOrder, inPlannedOrder, namedAs, withStopOn } from './onTheWay'
 import { asPlace, isInTrip, startingFrom } from './savedPlaces'
 import {
@@ -150,17 +157,19 @@ export default function App() {
   /**
    * No change to undo, since nobody changed anything. Every trip in the history with a pin on the
    * spot takes the name, so that undoing brings no "Stop 3" back. A plan made in the meantime goes
-   * by the new name too.
+   * by the new name too, on that spot alone, as several names can be given at once.
    */
   const giveName = useEffectEvent((spot: Position, name: string) => {
     setHistory((current) =>
       correctedThroughout(current, (trip) => ({ ...trip, places: namedAt(trip.places, spot, name) })),
     )
-    setPlan((current) => current && namedAs(current, namedAt(places, spot, name)))
+    if (namedAt(places, spot, name) !== places) {
+      setPlan((current) => current && namedAs(current, [{ ...spot, name }]))
+    }
   })
 
-  // An answer that lands while a plan is on its way waits for the plan: the plan is matched to the
-  // very list it was asked for. The effect below gives the name once planning is over.
+  // An answer that lands while a plan is on its way waits for the plan. The effect below gives the
+  // name once planning is over.
   const onAddressFound = useEffectEvent((spot: Position, name: string) => {
     if (!planning) {
       giveName(spot, name)
@@ -169,25 +178,26 @@ export default function App() {
 
   // A pin put down on the map is named from the address nearest it, a moment after it lands.
   useEffect(() => {
-    for (const spot of spotsWantingAName(places, startIsARoughGuess)) {
+    const { toAsk, toGive } = namingSteps(
+      spotsWantingAName(places, startIsARoughGuess),
+      addressNames.current,
+      planning,
+    )
+    toGive.forEach(({ spot, name }) => giveName(spot, name))
+    for (const spot of toAsk) {
       const key = spotOf(spot)
-      const name = addressNames.current.get(key)
-      if (name === undefined) {
-        addressNames.current.set(key, null)
-        nearestAddress(spot).then(
-          (nearest) => {
-            if (nearest) {
-              const said = addressSaid(nearest.name, nearest.metres)
-              addressNames.current.set(key, said)
-              onAddressFound(spot, said)
-            }
-          },
-          // Not worth a word. The pin works as well under the label it has.
-          () => addressNames.current.delete(key),
-        )
-      } else if (name !== null && !planning) {
-        giveName(spot, name)
-      }
+      addressNames.current.set(key, null)
+      nearestAddress(spot).then(
+        (nearest) => {
+          if (nearest) {
+            const said = addressSaid(nearest.name, nearest.metres)
+            addressNames.current.set(key, said)
+            onAddressFound(spot, said)
+          }
+        },
+        // Not worth a word. The pin works as well under the label it has.
+        () => addressNames.current.delete(key),
+      )
     }
   }, [places, startIsARoughGuess, planning])
 

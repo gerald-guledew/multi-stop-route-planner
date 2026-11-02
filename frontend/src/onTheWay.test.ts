@@ -271,6 +271,27 @@ describe('what a stop on the way adds', () => {
   it('says which two places its leg runs between', () => {
     expect(betweenSaid(planOf(start, museum, tower), 1)).toBe('between Museum and Sky Tower')
   })
+
+  it('reads as a sentence with a place that is only near an address', () => {
+    const planned = planOf(start, { ...museum, name: 'Near 3 Titoki Street, Parnell' }, tower)
+
+    expect(betweenSaid(planned, 1)).toBe('between near 3 Titoki Street, Parnell and Sky Tower')
+  })
+})
+
+describe('the plan going by the names of the trip', () => {
+  it('leaves alone the places it is not given a name for', () => {
+    const named = namedAs(planOf(start, museum, tower), [{ ...museum, name: 'Lunch' }])
+
+    expect(named.route.map((place) => place.name)).toEqual(['Sylvia Park', 'Lunch', 'Sky Tower'])
+  })
+
+  it('keeps both of two names given one after the other', () => {
+    const once = namedAs(planOf(start, museum, tower), [{ ...museum, name: 'Lunch' }])
+    const twice = namedAs(once, [{ ...tower, name: 'Dinner' }])
+
+    expect(twice.route.map((place) => place.name)).toEqual(['Sylvia Park', 'Lunch', 'Dinner'])
+  })
 })
 
 describe('what a pin says', () => {

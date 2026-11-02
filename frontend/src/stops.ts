@@ -150,11 +150,19 @@ export function anyStopOver(places: Place[]): boolean {
   return places.some((place) => place.stopOver === true)
 }
 
+/** How a pin well away from any address begins its name. */
+export const NEAR = 'Near '
+
+/** A name in the middle of a sentence, where "Near 12 Bassett Road" reads "near 12 Bassett Road". */
+export function nameInASentence(name: string): string {
+  return name.startsWith(NEAR) ? `near ${name.slice(NEAR.length)}` : name
+}
+
 /** Which two places a stop-over stays between: "between A and B", or "after A" if nothing follows. */
 export function stopOverSaid(places: Place[], index: number, returnToStart: boolean): string {
   const next = places[index + 1] ?? (returnToStart ? places[0] : undefined)
-  const before = places[index - 1].name
-  return next ? `between ${before} and ${next.name}` : `after ${before}`
+  const before = nameInASentence(places[index - 1].name)
+  return next ? `between ${before} and ${nameInASentence(next.name)}` : `after ${before}`
 }
 
 /**
@@ -170,11 +178,8 @@ export function withoutPlace(places: Place[], index: number): Place[] {
   if (left.length === 0 || !left[0].keepInPlace) {
     return left
   }
-  const start = left[0]
-  return [
-    { name: start.name, latitude: start.latitude, longitude: start.longitude },
-    ...left.slice(1),
-  ]
+  const { keepInPlace: _, ...start } = left[0]
+  return [start, ...left.slice(1)]
 }
 
 /** Up is one turn earlier, down is one turn later, as the list is drawn. */
