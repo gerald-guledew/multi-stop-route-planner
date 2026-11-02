@@ -1,6 +1,7 @@
 package com.solvelify.routeplanner.search;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Turns typed text into places with coordinates, whether it was an address or a name.
@@ -38,4 +39,12 @@ public interface PlaceSearch {
      * @param road the points of the road in order, such as the roads of a planned trip
      */
     List<FoundPlace> searchKindAlong(PlaceKind kind, List<ReferencePoint> road, int limit);
+
+    /**
+     * The address nearest a spot, for naming a pin put down on the map.
+     *
+     * @param withinMetres how far off an address may be and still say where the spot is
+     * @return empty when no address is that near
+     */
+    Optional<NearbyAddress> nearestAddress(ReferencePoint at, double withinMetres);
 }
