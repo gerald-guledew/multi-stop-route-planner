@@ -12,6 +12,7 @@ import com.solvelify.routeplanner.planning.TravelMatrix;
 import com.solvelify.routeplanner.planning.TravelMatrixProvider;
 import com.solvelify.routeplanner.planning.UnroutablePlaceException;
 import com.solvelify.routeplanner.search.FoundPlace;
+import com.solvelify.routeplanner.search.NearbyAddress;
 import com.solvelify.routeplanner.search.PlaceKind;
 import com.solvelify.routeplanner.search.PlaceSearch;
 import com.solvelify.routeplanner.search.ReferencePoint;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -59,6 +61,11 @@ class PlacesAlongTheRouteTest {
         public List<FoundPlace> searchKindAlong(PlaceKind kind, List<ReferencePoint> road, int limit) {
             kindLookedFor = kind;
             return searchAlong(null, road, limit);
+        }
+
+        @Override
+        public Optional<NearbyAddress> nearestAddress(ReferencePoint at, double withinMetres) {
+            throw new AssertionError("looks along the road, not for an address");
         }
     };
 

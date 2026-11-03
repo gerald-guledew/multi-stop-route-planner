@@ -1,4 +1,4 @@
-import { ordinal } from './stops'
+import { NEAR, nameInASentence, ordinal } from './stops'
 import type { Turn } from './types'
 
 /**
@@ -48,7 +48,9 @@ export function turnSaid(turn: Turn, arrivingAt: string): string {
       return route === null ? 'Take the ferry' : `Take the ferry, ${route}`
     }
     case 'arrive':
-      return `Arrive at ${arrivingAt}`
+      return arrivingAt.startsWith(NEAR)
+        ? `Arrive ${nameInASentence(arrivingAt)}`
+        : `Arrive at ${arrivingAt}`
   }
 }
 

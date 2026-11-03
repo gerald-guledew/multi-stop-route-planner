@@ -15,6 +15,8 @@ export interface Place {
    * of it in the list, and the three move as one. Never set on the start.
    */
   stopOver?: boolean
+  /** Set when the name came from the address nearest the pin, so moving the pin takes it away. */
+  namedByAddress?: boolean
 }
 
 /** One search result: a street address, or a named place such as a shop or a school. */
@@ -22,6 +24,12 @@ export interface FoundPlace extends Place {
   kind: 'address' | 'poi'
   /** Where a named place is, to tell two with the same name apart. Null for an address. */
   detail: string | null
+}
+
+/** The address nearest a spot, and how far off it is in metres. */
+export interface NearestAddress {
+  name: string
+  metres: number
 }
 
 /** A place to stop at on the way, and what stopping there adds to the leg it is a stop on. */

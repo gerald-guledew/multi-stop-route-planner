@@ -1,6 +1,6 @@
 import { howLong } from './duration'
 import { sitsOn } from './foundStart'
-import { isFull, withLabelsInStep, withStopAt } from './stops'
+import { isFull, nameInASentence, withLabelsInStep, withStopAt } from './stops'
 import type { Place, PlaceAlong, RoutePlan } from './types'
 
 /**
@@ -78,6 +78,16 @@ export function namedAs(plan: RoutePlan, places: Place[]): RoutePlan {
 }
 
 /**
+ * What a pin says: "S" for the start, and otherwise its number. Once there is a plan that is its
+ * turn on the plan, found by where it stands: a name can change after planning, and two pins can
+ * have the same one.
+ */
+export function pinLabel(place: Place, index: number, plan: RoutePlan | null): string {
+  const turn = plan ? plan.route.findIndex((planned) => sitsOn(place, planned)) : index
+  return turn <= 0 ? 'S' : String(turn)
+}
+
+/**
  * The leg between a place in the list and the one after it, by its number: on a round trip the
  * last place has the way back to the start after it. Null when there is no place after it, and
  * when the plan does not drive straight from the one to the other.
@@ -150,7 +160,7 @@ export function addedSaid(found: PlaceAlong): string {
 
 /** Which two places a leg runs between, by the names the plan gives them: "between A and B". */
 export function betweenSaid(plan: RoutePlan, leg: number): string {
-  return `between ${plan.route[leg].name} and ${plan.route[leg + 1].name}`
+  return `between ${nameInASentence(plan.route[leg].name)} and ${nameInASentence(plan.route[leg + 1].name)}`
 }
 
 /** Whether there is more of a plan to look along than the one leg a "+" sits on. */

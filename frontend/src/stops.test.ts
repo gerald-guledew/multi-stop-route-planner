@@ -216,6 +216,15 @@ describe('a label nobody has changed', () => {
     expect(labels(withoutPlace([first, second, third], 0))).toEqual(['Start', 'Stop 1'])
   })
 
+  it('keeps it known that a kept stop became the start with its name from the address', () => {
+    const named = { ...second, name: '118 Broadway, Newmarket', keepInPlace: true, namedByAddress: true }
+
+    const [start] = withoutPlace([first, named, third], 0)
+
+    expect(start.keepInPlace).toBeUndefined()
+    expect(start.namedByAddress).toBe(true)
+  })
+
   it('still stops being kept on becoming the start', () => {
     const keptSecond = { ...second, keepInPlace: true }
 
@@ -413,6 +422,14 @@ describe('a place leaving the list', () => {
 describe('what a stop-over says', () => {
   it('says the two places either side of it', () => {
     expect(stopOverSaid([mall, shop, onTheWay, work], 2, false)).toBe('between Shop and Office')
+  })
+
+  it('reads as a sentence with a place that is only near an address', () => {
+    const near = { ...shop, name: 'Near 3 Titoki Street, Parnell' }
+
+    expect(stopOverSaid([mall, near, onTheWay, work], 2, false)).toBe(
+      'between near 3 Titoki Street, Parnell and Office',
+    )
   })
 
   it('counts the start as the place after it on the way back', () => {

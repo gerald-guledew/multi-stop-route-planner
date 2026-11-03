@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet'
 import { heightAt } from '../api'
 import { sitsOn } from '../foundStart'
+import { pinLabel } from '../onTheWay'
 import { closeEnoughToCheck, everywhereTheTripGoes, type Picked } from '../framing'
 import { heightSaid, spotOf } from '../height'
 import type { DevicePosition, Position } from '../location'
@@ -486,9 +487,6 @@ export default function RouteMap({
   onMovePlace,
   onCentreChange,
 }: Props) {
-  // Once planned, pins are numbered by driving order instead of the order they were clicked.
-  const plannedOrder = plan?.route.map((place) => place.name) ?? []
-
   // The height of each spot a pin has stood on, asked for when its popup first opens there.
   const [heights, setHeights] = useState<Record<string, number | null>>({})
 
@@ -503,14 +501,6 @@ export default function RouteMap({
       // of reach is said where it matters, when a plan is asked for.
       () => undefined,
     )
-  }
-
-  function labelFor(place: Place, index: number): string {
-    if (plannedOrder.length === 0) {
-      return index === 0 ? 'S' : String(index)
-    }
-    const position = plannedOrder.indexOf(place.name)
-    return position <= 0 ? 'S' : String(position)
   }
 
   return (
@@ -532,10 +522,10 @@ export default function RouteMap({
 
       {places.map((place, index) => (
         <Pin
-          key={`${place.name}-${place.latitude}-${place.longitude}`}
+          key={`${index}-${place.latitude}-${place.longitude}`}
           place={place}
           index={index}
-          label={labelFor(place, index)}
+          label={pinLabel(place, index, plan)}
           state={place.name === unroutablePlace ? 'problem' : plan ? 'planned' : 'entered'}
           keptInPlace={index > 0 && place.keepInPlace === true}
           height={heightSaid(heights[spotOf(place)])}

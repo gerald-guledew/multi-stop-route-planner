@@ -226,6 +226,29 @@ Measured on real roads: between Sylvia Park and the Sky Tower, New World Newmark
 
 400 for a request that breaks the rules above: `legOnTheRoute` when `leg` is not one of the route's legs. 422 when a place of the route has no road near it, as for the optimize endpoint below.
 
+## POST /api/v1/places/nearest-address
+
+The address nearest a spot. The map screen asks when a pin is put down, so that a stop reads as a place and not as "Stop 3".
+
+A POST, so the exact spot travels in the body rather than in a URL, which is what logs keep. A pin is often somebody's own front door.
+
+```json
+{ "latitude": -36.9170, "longitude": 174.8414 }
+```
+
+```json
+{ "name": "286 Mount Wellington Highway, Mount Wellington", "metres": 42 }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `name` | The street address and its suburb, or its town where it has no suburb. A flat is left out: "118 Broadway, Newmarket" for "4C19/118 Broadway, Newmarket, Auckland" |
+| `metres` | How far the spot is from that address, in a straight line |
+
+Both are `null` when no address is within 1 km, or none has been imported. One point in ten on New Zealand's roads is further than that from any address.
+
+How near is near enough, on 5,836 places whose street is known. The nearest address was on that street for 96% of places within 10 m of one, 91% from 10 to 25 m, 82% from 25 to 50 m, and about 67% from 50 to 500 m. So the map screen gives the address up to 50 m off, and "Near" the address past that.
+
 ## POST /api/v1/routes/optimize
 
 Takes a starting point and a list of places. Returns the order that makes the trip shortest, with the distance of every leg. Asked for the fastest order, it returns the order with the least driving time. Asked for the least fuel, it returns the order that takes the least fuel in the vehicle sent.

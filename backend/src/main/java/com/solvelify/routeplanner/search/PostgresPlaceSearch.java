@@ -224,6 +224,18 @@ public class PostgresPlaceSearch implements PlaceSearch {
             LIMIT :limit
             """;
 
+    /**
+     * The nearest address read from the index on its position, wherever that is. How far off is
+     * too far is the caller's to say, and asking it here would only cost the index its short cut.
+     */
+    private static final String NEAREST_ADDRESS = """
+            SELECT full_address,
+                   ST_Distance(location, CAST(ST_GeomFromText(:spot, 4326) AS geography), false) AS metres
+            FROM address
+            ORDER BY location <-> CAST(ST_GeomFromText(:spot, 4326) AS geography)
+            LIMIT 1
+            """;
+
     private final JdbcClient jdbc;
     private final SearchProperties properties;
 
@@ -260,6 +272,16 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 .param("limit", limit)
                 .query(PostgresPlaceSearch::toFoundPlace)
                 .list();
+    }
+
+    @Override
+    public Optional<NearbyAddress> nearestAddress(ReferencePoint at, double withinMetres) {
+        return jdbc.sql(NEAREST_ADDRESS)
+                .param("spot", pointAt(at))
+                .query((row, rowNumber) -> new NearbyAddress(
+                        NearbyAddress.calledFrom(row.getString("full_address")), row.getDouble("metres")))
+                .optional()
+                .filter(nearest -> nearest.metres() <= withinMetres);
     }
 
     /** @param origin where the search is looking from, as text PostGIS reads. Null for nowhere */

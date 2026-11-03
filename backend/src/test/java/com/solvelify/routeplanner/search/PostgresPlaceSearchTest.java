@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.search;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -806,6 +807,31 @@ class PostgresPlaceSearchTest {
         insertPoiOfKind("fuel-anywhere", "Any Fuel", -36.8700, 174.7000, 0.9, "fuel");
 
         assertThat(placeSearch.searchKindAlong(PlaceKind.FUEL, List.of(), 8)).isEmpty();
+    }
+
+    @Test
+    void namesASpotFromTheAddressNearestIt() {
+        // Under 10 m east of the address in the test data, and a long way from any other.
+        Optional<NearbyAddress> nearest = placeSearch.nearestAddress(new ReferencePoint(-36.9170, 174.8410), 1000);
+
+        assertThat(nearest).isPresent();
+        assertThat(nearest.get().name()).isEqualTo("286 Mount Wellington Highway, Mount Wellington");
+        assertThat(nearest.get().metres()).isBetween(8.0, 10.0);
+    }
+
+    @Test
+    void findsAnAddressAtItsOwnSpotNoDistanceOff() {
+        Optional<NearbyAddress> nearest = placeSearch.nearestAddress(new ReferencePoint(-36.8700, 174.7770), 1000);
+
+        assertThat(nearest).isPresent();
+        assertThat(nearest.get().name()).isEqualTo("100 Broadway, Newmarket");
+        assertThat(nearest.get().metres()).isLessThan(0.01);
+    }
+
+    @Test
+    void namesNoSpotWithNoAddressNearEnough() {
+        // Fiordland, hundreds of kilometres from the addresses in the test data.
+        assertThat(placeSearch.nearestAddress(new ReferencePoint(-45.5, 167.5), 1000)).isEmpty();
     }
 
     private void insertPoiOfKind(String id, String name, double latitude, double longitude,

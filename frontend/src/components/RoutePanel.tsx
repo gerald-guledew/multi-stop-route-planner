@@ -18,7 +18,7 @@ import { climbSaid } from '../climb'
 import { fastestSaid } from '../fastest'
 import { fuelNote, litresSaid } from '../fuel'
 import { howLong, legSaid } from '../duration'
-import { isRoughGuess, roughly } from '../foundStart'
+import { isRoughGuess, roughly, sitsOn } from '../foundStart'
 import { googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
 import { betweenSaid, canAddOnTheWay, legAfter } from '../onTheWay'
@@ -602,11 +602,11 @@ export default function RoutePanel(props: Props) {
                   const leg = isStart ? null : plan.legs[index - 1]
                   const legClimb = leg ? climbSaid(leg.climbMetres, leg.descentMetres) : null
                   const isReturnHome = index === plan.route.length - 1 && returnToStart
-                  // The plan carries names, not marks, so a kept stop is found again by its name.
+                  // The plan carries no marks, so a kept stop is found again by where it stands.
                   const keptInPlace =
                     !isStart &&
                     !isReturnHome &&
-                    places.some((entered, at) => at > 0 && entered.keepInPlace && entered.name === place.name)
+                    places.some((entered, at) => at > 0 && entered.keepInPlace && sitsOn(entered, place))
                   return (
                     <li key={index}>
                       <span

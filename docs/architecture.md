@@ -33,7 +33,7 @@ Dotted lines are not built yet. Exactly one distance provider is active, chosen 
 | `distance` | Where travel figures come from. The provider interface and its implementations, and the rule that turns the heights along a drive into a climb |
 | `address` | LINZ addresses: the table and its importer |
 | `poi` | Named places from Overture Maps and OpenStreetMap, and the kind of place each one is: the table and its importers |
-| `search` | Finds addresses and named places from what was typed. The `PlaceSearch` interface and its PostgreSQL implementation |
+| `search` | Finds addresses and named places from what was typed, and the address nearest a spot. The `PlaceSearch` interface and its PostgreSQL implementation |
 | `along` | Places to stop at on the way along a planned route, each with what it adds to its leg |
 | `saved` | Places somebody saved under a name: the JPA entity, its repository, and the rules about names |
 | `vehicle` | The vehicle the planner works out fuel for: one row, entered by hand or found in the register |
@@ -83,6 +83,8 @@ flowchart TD
 Dotted lines happen at import time, not on a search.
 
 **Two datasets, each used for what it is the authority on.** LINZ publishes every New Zealand address but no names. Overture Maps publishes named places but is no address register. They meet in two places: one query searches both tables, and each place borrows its suburb from the nearest LINZ address, because Overture usually gives only the city.
+
+**A pin takes its name from the address beside it.** `POST /api/v1/places/nearest-address` reads the spatial index on `address`, in about a millisecond through the API. `spotsWantingAName` in `naming.ts` says which pins have no name of their own, and `App.tsx` asks about each spot once. The name is no change to undo, so it goes in with `correctedThroughout`, through every trip in the history that has a pin on that spot. A pin named this way is marked, so that moving it takes the name away. A start that is a rough guess stays "My location", since an address would claim to know the house.
 
 **One list of places from two sources.** Overture has the fuller names, and OpenStreetMap says more reliably what a place is: its chains match the store counts they publish, where Overture lists many stores twice and files some under the wrong category. `PlaceKindImporter` gives a place on the map's kind to the Overture place of the likest name beside it, and adds the places only the map has. Where the map lacks a place, Overture's own category gives the kind, for the categories that were read and found right. The names must start with the same word, so BP Remuera stays apart from Z Remuera across the road. A place drawn as an outline reaches a long way over what is named after it, so its match has to read almost the same.
 
