@@ -94,8 +94,8 @@ const ORDERS: { order: Order; says: string }[] = [
 
 const LOCATION_PROBLEMS: Record<LocationProblem, string> = {
   refused:
-    'Your browser is not sharing its location with this page. Allow it beside the address bar, or pick your start on the map.',
-  unavailable: 'Could not work out where you are. Pick your start on the map instead.',
+    "Your browser is not sharing its location with this page. Allow it in the browser's settings for this site, or pick your start on the map.",
+  unavailable: 'Could not work out where you are within a minute. Search for your start, or pick it on the map.',
 }
 
 /** A finger that has moved this far up or down the top of the panel meant to swipe it. */
