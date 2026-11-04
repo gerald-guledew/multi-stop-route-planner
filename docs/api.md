@@ -27,7 +27,7 @@ The difference is not cosmetic. For the five Auckland stops below, straight line
 
 ## GET /api/v1/places/search
 
-Finds places by what you type, so a stop can be typed rather than hunted for on the map. A place is either a street address or a named place: a shop, a school, a hospital.
+Finds places by what you type, so a stop can be typed rather than hunted for on the map. A place is either a street address or a named place: a shop, a school, a hospital, or a suburb or a town.
 
 | Parameter | Rules |
 | --- | --- |
@@ -98,7 +98,7 @@ GET /api/v1/places/search?q=new%20world&near=-36.871,174.787&limit=2
 | --- | --- |
 | `kind` | `address`, or `poi` for a named place |
 | `name` | The full address, or the name of the place |
-| `detail` | Where a named place is, to tell two with the same name apart. `null` for an address |
+| `detail` | Where a named place is, to tell two with the same name apart. For a suburb or a town, its city. `null` for an address, and for a town that is its own city |
 | `latitude`, `longitude` | Where to drop the pin |
 
 ### How typing is matched
@@ -106,6 +106,7 @@ GET /api/v1/places/search?q=new%20world&near=-36.871,174.787&limit=2
 - Each space becomes a wildcard, so "bassett road remuera" matches "20A Bassett Road, Remuera, Auckland" despite the comma. Words have to be typed in the order they appear. A comma counts as a space.
 - Accents and apostrophes are ignored on both sides. "whangarei" finds Whangārei, and "mcdonalds" finds McDonald's.
 - A named place is found by its name, its address, its suburb or its city. "the warehouse newmarket" works although the name is only "The Warehouse".
+- A suburb, town or village is found by its name, with or without its city. "hillcrest" finds every Hillcrest, and "hillcrest hamilton" the one in Hamilton.
 - Some words are read both ways, whichever way they were typed. "12 bassett rd" finds 12 Bassett Road, "st heliers" finds Saint Heliers, and "80 saint lukes road" finds 80 St Lukes Road, which LINZ writes short. A full stop after one of them is ignored.
 
 | Short | In full |
@@ -129,6 +130,8 @@ An address can be typed with a flat in front of it. LINZ writes a flat before a 
 
 ### How results are ordered
 
+**An area called just what was typed comes first.** A suburb, town or village whose whole name was typed, with or without its city, comes ahead of everything else, the nearest first. So "remuera" lists Remuera before the shops named for it. While the last word is unfinished an area is scored like any other place, so "bun" does not put Bunnythorpe before a Bunnings nearby.
+
 Each match gets a score, and the highest comes first. The score is these multiplied together.
 
 - **How well the words appear in what the place is called.** That is the address, for an address, and the name with or without its suburb, for a named place. Words that appear together, as whole words, score in full wherever in the name they are. So "new world" matches "New World Remuera" as fully as it matches "New World". Other words may come between them in a name, unless something found is called just what was typed. So "auckland hospital" matches "Auckland City Hospital" in full, but "the warehouse" does not match "The Rug Warehouse", because places are called The Warehouse. The last word may be unfinished: "mcdonald" finds McDonald's.
@@ -144,12 +147,14 @@ Between equal scores, the name the words account for most of comes first, then t
 - Other abbreviations are not read. "ter" finds Terrace, being the beginning of the word, but "terrace" does not find a place that writes "Ter".
 - "n" between two words, as in Fish 'n' Chips, is not read as "and". Nor is "&" inside a word: "b&b" does not find a place written B and B.
 - Near means in a straight line, not by road. Across a harbour, the nearest branch to drive to can be a different one.
+- Areas come from the map, which lacks a few of the suburbs LINZ names, such as Auckland Central. Their addresses and places are still found.
+- Every area called just what was typed comes first, however far away it is. From Auckland, "hillcrest" lists the Hillcrests of four cities before the shops of the nearest one.
 - When nothing is called just what was typed, a name that holds the words apart scores as fully as one that holds them together, and the nearer comes first. From the Sky Tower, "auckland hospital" lists Auckland City Hospital third, after a birthing suite placed nearer and a pet hospital, more of whose name was typed.
 - A word that matches more than 20,000 rows of a table, such as "road" or "auckland" alone, is ranked from the first 20,000 found, not the nearest. A second word fixes it.
 
 Named places come from Overture Maps, which scores each one from 0 to 1 for how likely it is to exist. Those under `routeplanner.search.min-confidence`, 0.3 by default, are left out.
 
-Results are empty until the data is imported: LINZ addresses for `address`, Overture places for `poi`, and the OpenStreetMap export for `placeKind`. See the README.
+Results are empty until the data is imported: LINZ addresses for `address`, Overture places for `poi`, and the OpenStreetMap exports for `placeKind` and for the suburbs and towns. See the README.
 
 ## POST /api/v1/places/along
 
@@ -211,7 +216,7 @@ A POST, so the exact spots of the trip travel in the body rather than in a URL, 
 
 ### How the places are found and ordered
 
-1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point. With `placeKind`, the places of that kind nearest the road are taken instead.
+1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point. With `placeKind`, the places of that kind nearest the road are taken instead. An area called just what was typed is not put first here, as it is in the search above.
 2. The first 12 it ranks, or as many as `limit` when that is more, are each driven to from the start of their leg and on to its end. What a place adds is those two drives less the leg as planned, never below nought. A place on the road the leg follows anyway adds nothing.
 3. They come back in the order of the time they add, and of the distance they add on straight lines.
 

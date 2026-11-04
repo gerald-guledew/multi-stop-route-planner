@@ -74,15 +74,20 @@ flowchart TD
     PlaceSearch --> Postgres[PostgresPlaceSearch]
     Postgres --> Address[("address: 2.4 million LINZ addresses")]
     Postgres --> Poi[("poi: 200,000 Overture places")]
+    Postgres --> Area[("area: 6,400 suburbs and towns")]
     Linz["LINZ export"] -.->|AddressImporter| Address
     Overture["Overture export"] -.->|PoiImporter| Poi
     Map["OpenStreetMap export"] -.->|PlaceKindImporter| Poi
+    Areas["OpenStreetMap areas export"] -.->|AreaImporter| Area
     Address -.->|"suburb of the nearest address"| Poi
+    Address -.->|"city of the nearest address"| Area
 ```
 
 Dotted lines happen at import time, not on a search.
 
 **Two datasets, each used for what it is the authority on.** LINZ publishes every New Zealand address but no names. Overture Maps publishes named places but is no address register. They meet in two places: one query searches both tables, and each place borrows its suburb from the nearest LINZ address, because Overture usually gives only the city.
+
+**A suburb is a place too.** Neither lists the suburbs themselves, so "remuera" found the businesses named for Remuera and never Remuera. The map does: a point where each suburb, town and village is known to be, and for some an outline. `AreaImporter` loads them into a table of their own, keeping one of an area drawn twice, and each takes the city of the nearest address, which tells Hillcrest in Auckland from Hillcrest in Hamilton. The map names most of LINZ's suburbs: 2,660 of 3,187 by exactly the same name, where 95.6% of addresses are, and more written another way, as Saint Johns for St Johns. The same query searches the three tables. An area whose whole name was typed, with or without its city, comes first, the nearest first, on a key of its own rather than a higher score: a score is worth less the farther away a place is, and a business next door named for the suburb would otherwise come first. Along a road it does not, since there what counts is how near the road a place is, and a Hillcrest in another city would take the place of a stop on the way.
 
 **A pin takes its name from the address beside it.** `POST /api/v1/places/nearest-address` reads the spatial index on `address`, in about a millisecond through the API. `spotsWantingAName` in `naming.ts` says which pins have no name of their own, and `App.tsx` asks about each spot once. The name is no change to undo, so it goes in with `correctedThroughout`, through every trip in the history that has a pin on that spot. A pin named this way is marked, so that moving it takes the name away. A start that is a rough guess stays "My location", since an address would claim to know the house.
 

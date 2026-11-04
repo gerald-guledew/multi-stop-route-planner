@@ -8,16 +8,20 @@ import java.util.Locale;
 /**
  * One search result.
  *
- * @param name   what to call the place: the full address, or the name of the business
+ * @param name   what to call the place: the full address, or the name of the business or
+ *               the area
  * @param detail a second line that tells two places with the same name apart, such as
- *               "10 Clonbern Rd, Remuera, Auckland". Null for an address, whose name
- *               already says where it is
+ *               "10 Clonbern Rd, Remuera, Auckland", and for a suburb or a town its city. Null
+ *               for an address, whose name already says where it is
  */
 public record FoundPlace(Kind kind, String name, String detail, double latitude, double longitude) {
 
     public enum Kind {
         ADDRESS,
-        /** A point of interest: a shop, a school, a hospital, anything known by its name. */
+        /**
+         * A named place: a shop, a school, a hospital, anything known by its name, and a suburb or
+         * a town as well.
+         */
         POI
     }
 

@@ -11,10 +11,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 /**
- * Searches LINZ addresses and Overture places together, in PostgreSQL.
+ * Searches LINZ addresses, named places, and suburbs and towns together, in PostgreSQL.
  *
  * <p>Plain SQL through {@link JdbcClient} rather than a JPA repository, because nothing here
- * is an entity being loaded or saved. It is one read across two tables that share no class,
+ * is an entity being loaded or saved. It is one read across three tables that share no class,
  * and the parts that make it work, the trigram index, {@code word_similarity} and the
  * distance between two points, belong to PostgreSQL and PostGIS.
  */
@@ -22,8 +22,8 @@ import org.springframework.stereotype.Service;
 public class PostgresPlaceSearch implements PlaceSearch {
 
     /**
-     * One statement for both tables, so there is a single ranking rather than two lists to
-     * merge.
+     * One statement for the three tables, so there is a single ranking rather than three lists
+     * to merge.
      *
      * <p><b>Finding and ranking use different text on purpose.</b> A place is found if the
      * words appear, in order, anywhere in its {@code search_text}: name, address, suburb or
@@ -86,6 +86,18 @@ public class PostgresPlaceSearch implements PlaceSearch {
      * by the tie-break rather than by which gate is a few metres closer. Where it is looking
      * from is a point, or a road, and then near means near any part of it.
      *
+     * <p><b>An area called just what was typed comes first.</b> Suburbs, towns and the other
+     * areas have a table of their own, and are scored as a business is on its name, with the
+     * city where a business has its suburb. One whose whole name was typed, with or without its
+     * city after it, comes ahead of everything else, the nearest first. Whoever types "remuera"
+     * in full most likely means Remuera, and the places named for it follow. Until the last
+     * word is finished an area is scored like anything else, so "bun" does not put Bunnythorpe
+     * ahead of the Bunnings nearby. {@code called} says which: a key of its own and not a
+     * higher score, as a score is worth less the farther away a place is. Along a road no area
+     * comes first by its name, and {@code :areasFirst} is false. There what counts is how near
+     * the road a place is, and a Hillcrest in another city would take the place of a stop on the
+     * way.
+     *
      * <p><b>Ties</b> go to the name the words account for most of, which is what plain
      * {@code similarity} measures, and then to the place the source is more sure of. Without
      * a reference point most matches tie on the score, and this is what puts them in order.
@@ -124,11 +136,13 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 FROM (SELECT lower(searchable(written.words)) AS words,
                              searchable(written.pattern) AS pattern,
                              searchable(written.name) AS whole_name,
+                             searchable(written.exact_name) AS exact_name,
                              ARRAY(SELECT word
                                    FROM unnest(string_to_array(lower(searchable(written.words)), ' ')) AS word
                                    WHERE cardinality(show_trgm(word)) > 0) AS each_word
-                      FROM unnest(CAST(:words AS text[]), CAST(:patterns AS text[]), CAST(:names AS text[]))
-                          AS written(words, pattern, name)) AS spelt
+                      FROM unnest(CAST(:words AS text[]), CAST(:patterns AS text[]), CAST(:names AS text[]),
+                                  CAST(:exactNames AS text[]))
+                          AS written(words, pattern, name, exact_name)) AS spelt
             ),
             nearest_address AS (
                 SELECT matched.*, ST_Distance(matched.location, term.origin, false) / 1000 AS km
@@ -153,6 +167,17 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 ORDER BY km
                 LIMIT :candidates
             ),
+            nearest_area AS (
+                SELECT matched.*, ST_Distance(matched.location, term.origin, false) / 1000 AS km,
+                       searchable(matched.name) AS plain_name,
+                       searchable(matched.name || ' ' || coalesce(matched.city, '')) AS plain_name_and_city
+                FROM (SELECT name, city, search_text, latitude, longitude, location
+                      FROM area
+                      WHERE search_text ~* searchable(:anySpelling)
+                      LIMIT :scan) AS matched, term
+                ORDER BY km
+                LIMIT :candidates
+            ),
             named AS MATERIALIZED (
                 SELECT EXISTS (SELECT 1 FROM nearest_poi, spelling
                                WHERE nearest_poi.plain_name ~* spelling.whole_name
@@ -163,7 +188,8 @@ public class PostgresPlaceSearch implements PlaceSearch {
                         NULL AS address, NULL AS suburb, NULL AS locality,
                         latitude, longitude, 1.0 AS confidence,
                         best.match * coalesce(0.5 + 0.5 / (1 + round(km * 2) / 2 / 50.0), 1.0) AS score,
-                        best.coverage
+                        best.coverage,
+                        false AS called
                  FROM nearest_address
                  CROSS JOIN LATERAL (
                      SELECT max(least(1.0, word_similarity(spelling.words, search_text) + spelling.slack)
@@ -180,7 +206,8 @@ public class PostgresPlaceSearch implements PlaceSearch {
                         best.match
                             * CASE WHEN plain_name ~* term.first_word THEN 1.0 ELSE 0.8 END
                             * coalesce(0.5 + 0.5 / (1 + round(km * 2) / 2 / 50.0), 1.0) AS score,
-                        best.coverage
+                        best.coverage,
+                        false AS called
                  FROM nearest_poi
                  CROSS JOIN term
                  CROSS JOIN named
@@ -205,10 +232,32 @@ public class PostgresPlaceSearch implements PlaceSearch {
                      WHERE :oneSpelling OR search_text ~* spelling.pattern) AS best
                  ORDER BY score DESC, coverage DESC, confidence DESC, length(name)
                  LIMIT :limit)
+                UNION ALL
+                (SELECT 'POI', name, NULL, city, NULL,
+                        latitude, longitude, 1.0,
+                        best.match
+                            * CASE WHEN plain_name ~* term.first_word THEN 1.0 ELSE 0.8 END
+                            * coalesce(0.5 + 0.5 / (1 + round(km * 2) / 2 / 50.0), 1.0) AS score,
+                        best.coverage,
+                        best.called
+                 FROM nearest_area
+                 CROSS JOIN term
+                 CROSS JOIN LATERAL (
+                     SELECT max(least(1.0, word_similarity(spelling.words, plain_name_and_city) + spelling.slack))
+                                AS match,
+                            max(greatest(similarity(plain_name, spelling.words),
+                                         similarity(plain_name_and_city, spelling.words))) AS coverage,
+                            coalesce(bool_or(plain_name ~* spelling.exact_name
+                                             OR plain_name_and_city ~* spelling.exact_name), false)
+                                AND :areasFirst AS called
+                     FROM spelling
+                     WHERE :oneSpelling OR search_text ~* spelling.pattern) AS best
+                 ORDER BY called DESC, score DESC, coverage DESC, length(name)
+                 LIMIT :limit)
             )
             SELECT kind, name, address, suburb, locality, latitude, longitude
             FROM found
-            ORDER BY score DESC, coverage DESC, confidence DESC, length(name), name
+            ORDER BY called DESC, score DESC, coverage DESC, confidence DESC, length(name), name
             LIMIT :limit
             """;
 
@@ -252,12 +301,12 @@ public class PostgresPlaceSearch implements PlaceSearch {
      */
     @Override
     public List<FoundPlace> search(String typed, ReferencePoint near, int limit) {
-        return searchFrom(typed, near == null ? null : pointAt(near), limit);
+        return searchFrom(typed, near == null ? null : pointAt(near), true, limit);
     }
 
     @Override
     public List<FoundPlace> searchAlong(String typed, List<ReferencePoint> road, int limit) {
-        return searchFrom(typed, lineThrough(road), limit);
+        return searchFrom(typed, lineThrough(road), false, limit);
     }
 
     @Override
@@ -284,18 +333,21 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 .filter(nearest -> nearest.metres() <= withinMetres);
     }
 
-    /** @param origin where the search is looking from, as text PostGIS reads. Null for nowhere */
-    private List<FoundPlace> searchFrom(String typed, String origin, int limit) {
-        List<FoundPlace> found = find(typed, origin, limit);
+    /**
+     * @param origin     where the search is looking from, as text PostGIS reads. Null for nowhere
+     * @param areasFirst whether an area called just what was typed comes ahead of everything else
+     */
+    private List<FoundPlace> searchFrom(String typed, String origin, boolean areasFirst, int limit) {
+        List<FoundPlace> found = find(typed, origin, areasFirst, limit);
 
         Iterator<String> otherWays = Unit.otherWaysToFind(typed).iterator();
         while (found.isEmpty() && otherWays.hasNext()) {
-            found = find(otherWays.next(), origin, limit);
+            found = find(otherWays.next(), origin, areasFirst, limit);
         }
         return found;
     }
 
-    private List<FoundPlace> find(String typed, String origin, int limit) {
+    private List<FoundPlace> find(String typed, String origin, boolean areasFirst, int limit) {
         Optional<SearchTerm> term = SearchTerm.from(typed);
         if (term.isEmpty()) {
             return List.of();
@@ -312,9 +364,11 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 .param("words", spellings.stream().map(SearchTerm.Spelling::words).toArray(String[]::new))
                 .param("patterns", spellings.stream().map(SearchTerm.Spelling::pattern).toArray(String[]::new))
                 .param("names", spellings.stream().map(SearchTerm.Spelling::name).toArray(String[]::new))
+                .param("exactNames", spellings.stream().map(SearchTerm.Spelling::exactName).toArray(String[]::new))
                 .param("anySpelling", term.get().anySpelling())
                 .param("firstWord", term.get().firstWord())
                 .param("oneSpelling", spellings.size() == 1)
+                .param("areasFirst", areasFirst)
                 // Typed, because a bare null gives PostgreSQL nothing to tell its type from.
                 .param("origin", origin, Types.VARCHAR)
                 .param("minConfidence", properties.minConfidence())

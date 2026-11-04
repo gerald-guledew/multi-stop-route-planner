@@ -1,6 +1,7 @@
 package com.solvelify.routeplanner.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,7 @@ class PostgresPlaceSearchTest {
     private static final ReferencePoint REEFTON = new ReferencePoint(-42.1100, 171.8600);
     private static final ReferencePoint INVERCARGILL = new ReferencePoint(-46.4130, 168.3540);
     private static final ReferencePoint PALMERSTON_NORTH = new ReferencePoint(-40.3560, 175.6110);
+    private static final ReferencePoint HAMILTON = new ReferencePoint(-37.7870, 175.2790);
 
     @Autowired
     private PlaceSearch placeSearch;
@@ -703,6 +705,117 @@ class PostgresPlaceSearchTest {
                 .containsExactlyInAnyOrder("100 Broadway, Newmarket", "The Warehouse");
     }
 
+    // Suburbs and towns.
+
+    @Test
+    void findsASuburbByItsNameWithItsCityAsTheSecondLine() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+
+        assertThat(placeSearch.search("hillcrest", 8)).singleElement().satisfies(found -> {
+            assertThat(found.kind()).isEqualTo(FoundPlace.Kind.POI);
+            assertThat(found.name()).isEqualTo("Hillcrest");
+            assertThat(found.detail()).isEqualTo("Auckland");
+        });
+    }
+
+    @Test
+    void putsAnAreaCalledJustWhatWasTypedAheadOfANearerPlaceNamedForIt() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+        // Next door, and its name begins with every word typed.
+        insertPoi("hb", "Hillcrest Bakery", "1 Hillcrest Ave", "Hillcrest", "Auckland", 0.9, -36.7990, 174.7460);
+
+        assertThat(names(placeSearch.search("hillcrest", NORTHCOTE, 8)))
+                .containsExactly("Hillcrest", "Hillcrest Bakery");
+    }
+
+    @Test
+    void ranksAnAreaLikeAnyPlaceWhileTheLastWordIsUnfinished() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+        insertPoi("hb", "Hillcrest Bakery", "1 Hillcrest Ave", "Hillcrest", "Auckland", 0.9, -36.7990, 174.7460);
+
+        assertThat(names(placeSearch.search("hillcr", NORTHCOTE, 8)))
+                .containsExactly("Hillcrest Bakery", "Hillcrest");
+    }
+
+    @Test
+    void putsTheNearerOfTwoAreasOfOneNameFirst() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+        insertArea("node/2", "Hillcrest", "Hamilton", -37.7930, 175.3190);
+
+        assertThat(placeSearch.search("hillcrest", NORTHCOTE, 8)).extracting(FoundPlace::detail)
+                .containsExactly("Auckland", "Hamilton");
+        assertThat(placeSearch.search("hillcrest", HAMILTON, 8)).extracting(FoundPlace::detail)
+                .containsExactly("Hamilton", "Auckland");
+    }
+
+    @Test
+    void findsAnAreaWithItsCityTypedAfterIt() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+        insertArea("node/2", "Hillcrest", "Hamilton", -37.7930, 175.3190);
+        insertPoi("hb", "Hillcrest Bakery", "1 Hillcrest Ave", "Hillcrest", "Auckland", 0.9, -36.7990, 174.7460);
+
+        // From the other end of the country to the first, and a long way from the second.
+        List<FoundPlace> found = placeSearch.search("hillcrest, hamilton", INVERCARGILL, 8);
+
+        assertThat(found).extracting(FoundPlace::name, FoundPlace::detail)
+                .containsExactly(tuple("Hillcrest", "Hamilton"));
+    }
+
+    @Test
+    void findsAnAreaWrittenWithSaintFromSt() {
+        insertArea("node/3", "Saint Heliers", "Auckland", -36.8540, 174.8590);
+        insertPoi("sh", "St Heliers Bay Cafe", "1 Tamaki Dr", "Saint Heliers", "Auckland", 0.9, -36.8500, 174.8600);
+
+        assertThat(names(placeSearch.search("st heliers", REMUERA, 8)).getFirst()).isEqualTo("Saint Heliers");
+    }
+
+    @Test
+    void putsAnAreaWrittenWithAMacronFirstWhenItIsTypedWithout() {
+        ReferencePoint besideTheCafe = new ReferencePoint(-37.9700, 177.0500);
+        insertArea("node/5", "Ōhope", "Whakatāne", -37.9760, 177.0600);
+        insertPoi("oc", "Ohope Beach Cafe", "1 West End Rd", "Ōhope", "Whakatāne", 0.9, -37.9700, 177.0500);
+
+        assertThat(names(placeSearch.search("ohope", besideTheCafe, 8)))
+                .containsExactly("Ōhope", "Ohope Beach Cafe");
+    }
+
+    @Test
+    void putsAnAreaWrittenWithAnApostropheFirstWhenItIsTypedWithout() {
+        ReferencePoint besideTheDairy = new ReferencePoint(-36.7350, 174.7500);
+        insertArea("node/6", "Murray's Bay", "Auckland", -36.7290, 174.7560);
+        insertPoi("md", "Murrays Bay Dairy", "1 Beach Rd", "Murrays Bay", "Auckland", 0.9, -36.7350, 174.7500);
+
+        assertThat(names(placeSearch.search("murrays bay", besideTheDairy, 8)))
+                .containsExactly("Murray's Bay", "Murrays Bay Dairy");
+    }
+
+    @Test
+    void putsNoAreaFirstByItsNameAlongARoad() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+        insertPoi("hb", "Hillcrest Bakery", "1 Hillcrest Ave", "Hillcrest", "Auckland", 0.9, -36.7990, 174.7460);
+
+        // On the road is what counts here.
+        assertThat(names(placeSearch.searchAlong("hillcrest", List.of(NORTHCOTE), 8)))
+                .containsExactly("Hillcrest Bakery", "Hillcrest");
+    }
+
+    @Test
+    void givesNoSecondLineToAnAreaThatIsItsOwnCity() {
+        insertArea("node/4", "Warkworth", null, -36.3990, 174.6630);
+
+        assertThat(placeSearch.search("warkworth", 8)).singleElement()
+                .extracting(FoundPlace::detail).isNull();
+    }
+
+    @Test
+    void leavesAreasOutOfTheKindsOfPlace() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+        insertPoiOfKind("pk", "Hillcrest Park", -36.7940, 174.7390, 0.9, "park");
+
+        assertThat(names(placeSearch.searchKindAlong(PlaceKind.PARK, List.of(NORTHCOTE), 8)))
+                .containsExactly("Hillcrest Park");
+    }
+
     // A flat typed in front of the street number.
 
     @Test
@@ -892,6 +1005,12 @@ class PostgresPlaceSearchTest {
     private void insertAddress(long id, String fullAddress, double latitude, double longitude) {
         jdbc.sql("INSERT INTO address (id, full_address, latitude, longitude) VALUES (?, ?, ?, ?)")
                 .params(id, fullAddress, latitude, longitude)
+                .update();
+    }
+
+    private void insertArea(String id, String name, String city, double latitude, double longitude) {
+        jdbc.sql("INSERT INTO area (id, name, city, latitude, longitude) VALUES (?, ?, ?, ?, ?)")
+                .params(id, name, city, latitude, longitude)
                 .update();
     }
 

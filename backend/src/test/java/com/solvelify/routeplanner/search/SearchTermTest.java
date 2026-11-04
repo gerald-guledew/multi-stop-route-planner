@@ -241,6 +241,20 @@ class SearchTermTest {
     }
 
     @Test
+    void matchesANameOfTheWordsTypedAndNothingElseExactlyWhenTheLastIsFinished() {
+        SearchTerm.Spelling spelling = SearchTerm.from("glen eden").orElseThrow().spellings().getFirst();
+
+        assertThat(spelling.exactName()).isEqualTo("^glen[^[:alnum:]]*eden[^[:alnum:]]*$");
+        assertThat(spelling.name()).isEqualTo("^glen[^[:alnum:]]*eden[[:alnum:]]*[^[:alnum:]]*$");
+    }
+
+    @Test
+    void matchesANameExactlyEveryWayItsWordsAreSpelt() {
+        assertThat(SearchTerm.from("mt eden").orElseThrow().spellings()).extracting(SearchTerm.Spelling::exactName)
+                .containsExactly("^mt[^[:alnum:]]*eden[^[:alnum:]]*$", "^mount[^[:alnum:]]*eden[^[:alnum:]]*$");
+    }
+
+    @Test
     void matchesANameWrittenWithEitherWayOfWritingAnd() {
         assertThat(SearchTerm.from("fish and chips").orElseThrow().spellings()).extracting(SearchTerm.Spelling::name)
                 .containsExactly(

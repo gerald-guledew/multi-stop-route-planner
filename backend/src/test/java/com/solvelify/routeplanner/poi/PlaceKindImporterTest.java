@@ -49,7 +49,7 @@ class PlaceKindImporterTest {
     @BeforeEach
     void startClean() {
         removeWhatTheImportCommitted();
-        importer = new PlaceKindImporter(dataSource, new PoiProperties(false, null, null), searchProperties);
+        importer = new PlaceKindImporter(dataSource, new PoiProperties(false, null, null, null), searchProperties);
     }
 
     @AfterEach
