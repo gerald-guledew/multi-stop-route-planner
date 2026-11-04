@@ -14,6 +14,9 @@ import java.util.stream.Collectors;
  * <p>"12 mt eden rd" is also "12 mount eden road", and both of the two in between. Each is a
  * spelling. A place is found when it matches any of them.
  *
+ * <p>"fish and chips" is also "fish &amp; chips". Names write the word both ways, about as often
+ * one way as the other: 8,713 places with " &amp; " and 9,465 with " and ".
+ *
  * @param spellings   the ways of writing what was typed, the way it was typed first
  * @param anySpelling one pattern that matches whatever any of the spellings matches
  * @param firstWord   a pattern that matches the first word where a word of a name begins,
@@ -32,6 +35,8 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
      */
     static final int MOST_SPELLINGS = 8;
 
+    private static final String AND = "and";
+    private static final String AMPERSAND = "&";
     private static final int CURLED_APOSTROPHE = '\u2019';
     private static final Pattern MEANS_SOMETHING_IN_A_PATTERN = Pattern.compile("[\\\\^$.|?*+()\\[\\]{}]");
     private static final Pattern THREE_LETTERS_OR_DIGITS = Pattern.compile("[\\p{L}\\p{Nd}]{3}");
@@ -79,12 +84,14 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
         }
 
         /**
-         * An abbreviation looked for on behalf of the word typed in full: after a space or at
-         * the very start, and ending where the word ends. The space is spelt out because that
-         * is what lets the index narrow the search. It is told that a word begins here.
+         * A word looked for on behalf of the one typed, standing as a word of its own: after a
+         * space or at the very start, and ending where the word ends. An abbreviation on behalf
+         * of the word typed in full, so that "saint" does not find Stanley, and "and" on behalf
+         * of "&amp;", so that it does not find the end of Auckland. The space is spelt out because
+         * that is what lets the index narrow the search. It is told that a word begins here.
          */
-        static Way anAbbreviationOf(String abbreviation) {
-            return new Way(abbreviation, "(^| )" + abbreviation + "\\M", abbreviation + "\\M");
+        static Way aWordOfItsOwn(String word) {
+            return new Way(word, "(^| )" + word + "\\M", word + "\\M");
         }
     }
 
@@ -100,11 +107,14 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
 
         List<String> words = List.of(tidied.split(" "));
         boolean somethingElseToFindItBy = words.stream().anyMatch(SearchTerm::narrowsTheSearch);
+        // Read as "&" as well, "and" narrows nothing, so it takes another word to.
+        boolean somethingBesidesAnd = words.stream()
+                .anyMatch(word -> !word.equalsIgnoreCase(AND) && narrowsTheSearch(word));
 
         List<List<Way>> waysOfEachWord = new ArrayList<>();
         int spellings = 1;
         for (String word : words) {
-            List<Way> ways = waysOfWriting(word, somethingElseToFindItBy);
+            List<Way> ways = waysOfWriting(word, somethingElseToFindItBy, somethingBesidesAnd);
             if (spellings * ways.size() > MOST_SPELLINGS) {
                 ways = ways.subList(0, 1);
             }
@@ -163,9 +173,25 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
      * characters, which "st" has none of, so on its own "saint" would have every address on
      * a street read through to find the few that say "St".
      *
+     * <p>"and" and "&amp;" are each looked for as the other too. "and" on behalf of "&amp;" has to
+     * stand as a word of its own. "&amp;" on behalf of "and" is looked for only when another word
+     * typed narrows the search, for the same reason: the index finds nothing in "&amp;". Until
+     * then "and" is looked for as typed, and may be what narrows the search for a word in full,
+     * as in "saint and" on the way to typing St Andrews.
+     *
      * <p>A full stop after one of these words is left out, so "st. lukes" finds St Lukes.
      */
-    private static List<Way> waysOfWriting(String word, boolean somethingElseToFindItBy) {
+    private static List<Way> waysOfWriting(String word, boolean somethingElseToFindItBy,
+                                           boolean somethingBesidesAnd) {
+        if (word.equals(AMPERSAND)) {
+            return List.of(Way.asLetters(word, word), Way.aWordOfItsOwn(AND));
+        }
+        if (word.equalsIgnoreCase(AND)) {
+            return somethingBesidesAnd
+                    ? List.of(Way.asLetters(word, word), Way.asLetters(AMPERSAND, AMPERSAND))
+                    : List.of(Way.asLetters(word, word));
+        }
+
         String bare = withoutItsFullStop(word);
         String known = bare.toLowerCase(Locale.ROOT);
         if (!Abbreviations.knows(known)) {
@@ -181,7 +207,7 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
             ways.add(Way.asLetters(wordInFull, wordInFull));
         }
         if (somethingElseToFindItBy) {
-            Abbreviations.shortFor(known).ifPresent(abbreviation -> ways.add(Way.anAbbreviationOf(abbreviation)));
+            Abbreviations.shortFor(known).ifPresent(abbreviation -> ways.add(Way.aWordOfItsOwn(abbreviation)));
         }
         return ways;
     }
@@ -249,12 +275,18 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
 
     /**
      * The first word typed, in any way of writing it, where a word of a name begins. A
-     * pattern can only say "a word begins here" before a letter or a digit, so a word typed
-     * with something else in front is looked for anywhere.
+     * pattern can only say "a word begins here" before a letter or a digit, so a way of
+     * writing it with something else in front, such as "&amp;", is looked for anywhere. Each
+     * way is told so on its own: "&amp; chips" looks for "and" where a word begins, and "and
+     * fish" for "&amp;" anywhere.
      */
     private static String inAName(List<Way> waysOfTheFirstWord) {
-        String any = oneOf(waysOfTheFirstWord.stream().map(Way::inAName).toList());
-        boolean beginsLikeAWord = Character.isLetterOrDigit(waysOfTheFirstWord.getFirst().word().codePointAt(0));
-        return beginsLikeAWord ? "\\m" + any : any;
+        return oneOf(waysOfTheFirstWord.stream()
+                .map(way -> beginsLikeAWord(way) ? "\\m" + way.inAName() : way.inAName())
+                .toList());
+    }
+
+    private static boolean beginsLikeAWord(Way way) {
+        return Character.isLetterOrDigit(way.word().codePointAt(0));
     }
 }
