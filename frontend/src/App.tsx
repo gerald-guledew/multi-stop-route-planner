@@ -40,6 +40,7 @@ import {
 } from './stops'
 import {
   followPosition,
+  worthSaying,
   type DevicePosition,
   type LocationProblem,
   type Position,
@@ -134,9 +135,7 @@ export default function App() {
     if (problem === 'refused') {
       setDevicePosition(null)
     }
-    // Saying no to the page's own question is an answer, not an error, so nothing is shown.
-    // Pressing the button is asking for an answer, so a failure then is worth explaining.
-    if (asking.byButton) {
+    if (worthSaying(problem, asking.byButton, places.length > 0)) {
       setLocationProblem(problem)
     }
   })
@@ -148,6 +147,15 @@ export default function App() {
     setLocationProblem(null)
     return followPosition(onAnswer, onProblem)
   }, [asking])
+
+  // A word about not finding the device belongs to the asking it came from. A start ends that
+  // asking's use, so the trip emptied later does not bring the word back.
+  const hasAStart = places.length > 0
+  useEffect(() => {
+    if (hasAStart) {
+      setLocationProblem(null)
+    }
+  }, [hasAStart])
 
   // What each spot's nearest address has it called, so that one spot is asked about once. Null
   // while the answer is on its way, and for a spot with no address near it.

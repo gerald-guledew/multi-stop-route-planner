@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { followPosition, type DevicePosition, type LocationProblem } from './location'
+import { followPosition, worthSaying, type DevicePosition, type LocationProblem } from './location'
 
 type Answer = (found: { coords: { latitude: number; longitude: number; accuracy: number } }) => void
 type Failure = (error: { code: number; PERMISSION_DENIED: number }) => void
@@ -66,9 +66,9 @@ describe('asking the browser where the device is', () => {
 
     followPosition(() => {}, () => {})
 
+    // No timeout. How long to wait is decided here, not by the browser.
     expect(browser.watchPosition.mock.calls[0][2]).toEqual({
       enableHighAccuracy: true,
-      timeout: 10_000,
       maximumAge: 60_000,
     })
   })
@@ -157,7 +157,7 @@ describe('listening for a better answer', () => {
     const browser = aBrowser()
 
     followPosition(() => {}, () => {})
-    vi.advanceTimersByTime(60_000)
+    vi.advanceTimersByTime(45_000)
 
     expect(browser.clearWatch).not.toHaveBeenCalled()
   })
@@ -195,21 +195,84 @@ describe('when the browser cannot or will not say', () => {
 
     followPosition(app.onAnswer, app.onProblem)
     browser.refuses()
+    vi.advanceTimersByTime(120_000)
 
     expect(app.problems).toEqual(['refused'])
     expect(browser.clearWatch).toHaveBeenCalledWith(7)
   })
 
-  it('reports every other failure as unavailable', () => {
-    for (const fail of ['cannotTell', 'timesOut'] as const) {
+  it('keeps listening while the device cannot tell yet, or the browser has stopped waiting', () => {
+    // A phone that cannot find itself at once says so and keeps trying. A browser that has waited
+    // as long as it was asked to says so and keeps looking.
+    for (const notYet of ['cannotTell', 'timesOut'] as const) {
       const browser = aBrowser()
       const app = aListener()
 
       followPosition(app.onAnswer, app.onProblem)
-      browser[fail]()
+      browser[notYet]()
+      vi.advanceTimersByTime(20_000)
+      browser.says(65)
 
-      expect(app.problems).toEqual(['unavailable'])
+      expect(app.problems).toEqual([])
+      expect(browser.clearWatch).not.toHaveBeenCalled()
+      expect(app.answers).toEqual([{ accuracyMetres: 65, isFirst: true }])
     }
+  })
+
+  it('waits the minute however often it hears not yet', () => {
+    const browser = aBrowser()
+    const app = aListener()
+
+    followPosition(app.onAnswer, app.onProblem)
+    for (let second = 0; second < 55; second += 5) {
+      vi.advanceTimersByTime(5_000)
+      browser.cannotTell()
+      browser.timesOut()
+    }
+    browser.says(65)
+
+    expect(app.problems).toEqual([])
+    expect(app.answers).toEqual([{ accuracyMetres: 65, isFirst: true }])
+  })
+
+  it('reports unavailable when there is no answer within a minute, and stops', () => {
+    const browser = aBrowser()
+    const app = aListener()
+
+    followPosition(app.onAnswer, app.onProblem)
+    vi.advanceTimersByTime(59_999)
+    expect(app.problems).toEqual([])
+
+    vi.advanceTimersByTime(1)
+    expect(app.problems).toEqual(['unavailable'])
+    expect(browser.clearWatch).toHaveBeenCalledWith(7)
+
+    browser.says(65)
+    expect(app.answers).toEqual([])
+  })
+
+  it('does not report unavailable once there is an answer', () => {
+    const browser = aBrowser()
+    const app = aListener()
+
+    followPosition(app.onAnswer, app.onProblem)
+    vi.advanceTimersByTime(50_000)
+    browser.says(65)
+    vi.advanceTimersByTime(120_000)
+
+    expect(app.problems).toEqual([])
+  })
+
+  it('reports nothing after it was told to stop', () => {
+    const browser = aBrowser()
+    const app = aListener()
+
+    const stop = followPosition(app.onAnswer, app.onProblem)
+    stop()
+    vi.advanceTimersByTime(120_000)
+
+    expect(app.problems).toEqual([])
+    expect(browser.clearWatch).toHaveBeenCalledTimes(1)
   })
 
   it('says nothing about a hiccup once it has an answer', () => {
@@ -244,5 +307,27 @@ describe('when the browser cannot or will not say', () => {
 
     expect(app.problems).toEqual(['unavailable'])
     expect(() => stop()).not.toThrow()
+  })
+})
+
+describe('what is worth a word on the screen', () => {
+  it("says nothing of a refusal of the page's own question, which was the person's answer", () => {
+    expect(worthSaying('refused', false, false)).toBe(false)
+  })
+
+  it('explains a refusal when the button asked', () => {
+    expect(worthSaying('refused', true, false)).toBe(true)
+  })
+
+  it('says when the device could not tell, whoever asked', () => {
+    expect(worthSaying('unavailable', false, false)).toBe(true)
+    expect(worthSaying('unavailable', true, false)).toBe(true)
+  })
+
+  it('says nothing once the trip has a start', () => {
+    for (const problem of ['refused', 'unavailable'] as const) {
+      expect(worthSaying(problem, true, true)).toBe(false)
+      expect(worthSaying(problem, false, true)).toBe(false)
+    }
   })
 })
