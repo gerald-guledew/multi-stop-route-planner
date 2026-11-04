@@ -173,6 +173,45 @@ class SearchTermTest {
         assertThat(words(term)).allMatch(spelling -> spelling.endsWith(" rd lukes"));
     }
 
+    // "and", written two ways.
+
+    @Test
+    void readsAndAsAnAmpersand() {
+        SearchTerm term = SearchTerm.from("fish and chips").orElseThrow();
+
+        assertThat(term.spellings()).extracting(SearchTerm.Spelling::words, SearchTerm.Spelling::pattern).containsExactly(
+                tuple("fish and chips", "fish.*and.*chips"),
+                tuple("fish & chips", "fish.*&.*chips"));
+        assertThat(term.anySpelling()).isEqualTo("fish.*(and|&).*chips");
+    }
+
+    @Test
+    void readsAnAmpersandAsAndStandingAsAWordOfItsOwn() {
+        SearchTerm term = SearchTerm.from("Fish & Chips").orElseThrow();
+
+        assertThat(term.spellings()).extracting(SearchTerm.Spelling::words, SearchTerm.Spelling::pattern).containsExactly(
+                tuple("Fish & Chips", "Fish.*&.*Chips"),
+                tuple("Fish and Chips", "Fish.*(^| )and\\M.*Chips"));
+        assertThat(term.anySpelling()).isEqualTo("Fish.*(&|(^| )and\\M).*Chips");
+    }
+
+    @Test
+    void readsAndAsAnAmpersandOnlyWhenSomethingElseNarrowsTheSearch() {
+        assertThat(words(SearchTerm.from("and").orElseThrow())).containsExactly("and");
+        assertThat(words(SearchTerm.from("b and b").orElseThrow())).containsExactly("b and b");
+        assertThat(words(SearchTerm.from("rock AND roll").orElseThrow())).containsExactly("rock AND roll", "rock & roll");
+    }
+
+    @Test
+    void doesNotCountAndAsNarrowingTheSearch() {
+        assertThat(words(SearchTerm.from("and saint").orElseThrow())).containsExactly("and saint");
+    }
+
+    @Test
+    void leavesAnAmpersandInsideAWordAsItIs() {
+        assertThat(words(SearchTerm.from("h&m newmarket").orElseThrow())).containsExactly("h&m newmarket");
+    }
+
     // A name that is just the words typed.
 
     @Test
@@ -188,6 +227,14 @@ class SearchTermTest {
                 .isEqualTo("^pak[^[:alnum:]]*n[^[:alnum:]]*save[[:alnum:]]*[^[:alnum:]]*$");
         assertThat(SearchTerm.from("h&m").orElseThrow().spellings().getFirst().name())
                 .isEqualTo("^h[^[:alnum:]]*m[[:alnum:]]*[^[:alnum:]]*$");
+    }
+
+    @Test
+    void matchesANameWrittenWithEitherWayOfWritingAnd() {
+        assertThat(SearchTerm.from("fish and chips").orElseThrow().spellings()).extracting(SearchTerm.Spelling::name)
+                .containsExactly(
+                        "^fish[^[:alnum:]]*and[^[:alnum:]]*chips[[:alnum:]]*[^[:alnum:]]*$",
+                        "^fish[^[:alnum:]]*chips[[:alnum:]]*[^[:alnum:]]*$");
     }
 
     @Test
