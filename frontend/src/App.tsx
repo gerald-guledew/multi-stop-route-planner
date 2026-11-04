@@ -40,6 +40,7 @@ import {
 } from './stops'
 import {
   followPosition,
+  worthSaying,
   type DevicePosition,
   type LocationProblem,
   type Position,
@@ -134,9 +135,7 @@ export default function App() {
     if (problem === 'refused') {
       setDevicePosition(null)
     }
-    // Saying no to the page's own question is an answer, not an error, so nothing is shown.
-    // Pressing the button is asking for an answer, so a failure then is worth explaining.
-    if (asking.byButton) {
+    if (worthSaying(problem, asking.byButton, places.length > 0)) {
       setLocationProblem(problem)
     }
   })

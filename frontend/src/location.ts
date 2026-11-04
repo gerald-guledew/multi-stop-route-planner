@@ -25,6 +25,12 @@ export type LocationProblem = 'refused' | 'unavailable'
 /** How long to go on listening after the first answer. A phone's GPS has settled by then. */
 const LISTEN_FOR_MS = 30_000
 
+/**
+ * How long to wait for the first answer before saying the device could not tell. A phone indoors
+ * can take longer than ten seconds to find itself.
+ */
+const FIRST_ANSWER_WITHIN_MS = 60_000
+
 /** Close enough that listening for better is not worth a phone's battery. */
 const GOOD_ENOUGH_METRES = 20
 
@@ -39,9 +45,12 @@ const GOOD_ENOUGH_METRES = 20
  * Listening stops by itself half a minute after the first answer, or sooner once an answer
  * is within 20 metres. It is not tracking: nothing follows the device after that.
  *
- * `onProblem` is called if the browser refuses, or cannot answer at all. The browser reports
- * three kinds of failure and the rest of the app has no use for more than two: the person said
- * no, or the device could not tell. Once there is an answer, only a refusal is still worth
+ * `onProblem` is called if the browser refuses, or has no answer within a minute. The browser
+ * reports three kinds of failure and the rest of the app has no use for more than two: the person
+ * said no, or the device could not tell. Only a refusal is taken at its word. The other two mean
+ * "not yet" as often as "never": a phone that cannot find itself at once says so and keeps trying,
+ * and a browser that has waited as long as it was asked to says so and keeps looking. So they
+ * change nothing, and the minute decides. Once there is an answer, only a refusal is still worth
  * reporting, because permission can be taken back.
  *
  * Browsers only answer on a secure page. That means https, or localhost while developing.
@@ -86,6 +95,7 @@ export function followPosition(
 
       if (best === null) {
         best = answer
+        clearTimeout(giveUp)
         giveUp = setTimeout(stop, LISTEN_FOR_MS)
         onAnswer(answer, true)
       } else if (answer.accuracyMetres < best.accuracyMetres) {
@@ -98,26 +108,39 @@ export function followPosition(
       }
     },
     (error) => {
-      if (stopped) {
-        return
-      }
-      const refused = error.code === error.PERMISSION_DENIED
-      // With an answer in hand, a later hiccup changes nothing. The answer still stands.
-      if (best !== null && !refused) {
+      // Not yet is not no. And with an answer in hand, a later hiccup changes nothing.
+      if (stopped || error.code !== error.PERMISSION_DENIED) {
         return
       }
       stop()
-      onProblem(refused ? 'refused' : 'unavailable')
+      onProblem('refused')
     },
-    // A phone's GPS is worth waiting a few seconds for. A fix from the last minute will do
-    // as a first answer.
-    { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    // A phone's GPS is worth waiting for. A fix from the last minute will do as a first answer.
+    // No timeout: how long to wait is the minute below, and a browser's own wait ends nothing.
+    { enableHighAccuracy: true, maximumAge: 60_000 },
   )
 
   // A browser answers later, never during the call above. A stand-in in a test might not.
   if (stopped) {
     navigator.geolocation.clearWatch(watch)
+  } else if (best === null) {
+    giveUp = setTimeout(() => {
+      stop()
+      onProblem('unavailable')
+    }, FIRST_ANSWER_WITHIN_MS)
   }
 
   return stop
+}
+
+/**
+ * Whether a problem finding the device is worth a word on the screen.
+ *
+ * Saying no to the page's own question is an answer, not an error, so a refusal is explained only
+ * when the button asked. A device that could not tell is worth saying either way: nobody chose
+ * that, and without a word the page just never shows a start. Once the trip has a start, neither
+ * is. It came from somewhere else.
+ */
+export function worthSaying(problem: LocationProblem, askedByButton: boolean, hasAStart: boolean): boolean {
+  return !hasAStart && (askedByButton || problem === 'unavailable')
 }
