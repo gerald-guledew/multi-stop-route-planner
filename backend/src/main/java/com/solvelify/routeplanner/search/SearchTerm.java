@@ -56,8 +56,10 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
      *                else, with or without spaces or punctuation between them, and the last one
      *                perhaps unfinished. So "pak n save" is the whole of "PAK'nSAVE", and "the
      *                wareh" the whole of "The Warehouse" though not of "The Rug Warehouse"
+     * @param exactName the same, with the last word finished. So "remuera" is the whole of
+     *                Remuera, and "remu" is not
      */
-    record Spelling(String words, String pattern, String name) {
+    record Spelling(String words, String pattern, String name, String exactName) {
     }
 
     /**
@@ -246,7 +248,8 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
                 .map(combination -> new Spelling(
                         combination.stream().map(Way::word).collect(Collectors.joining(" ")),
                         combination.stream().map(Way::pattern).collect(Collectors.joining(".*")),
-                        asAWholeName(combination)))
+                        asAWholeName(combination, true),
+                        asAWholeName(combination, false)))
                 .toList();
     }
 
@@ -254,7 +257,7 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
      * Only the letters and digits are kept, so nothing in the pattern needs escaping. A
      * spelling with none at all is the whole of no name.
      */
-    private static String asAWholeName(List<Way> combination) {
+    private static String asAWholeName(List<Way> combination, boolean lastPerhapsUnfinished) {
         List<String> runs = combination.stream()
                 .flatMap(way -> LETTERS_OR_DIGITS.matcher(way.word()).results().map(MatchResult::group))
                 .toList();
@@ -262,7 +265,7 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
             return "^$";
         }
         return "^" + String.join(ANYTHING_BUT_LETTERS_OR_DIGITS, runs)
-                + "[[:alnum:]]*" + ANYTHING_BUT_LETTERS_OR_DIGITS + "$";
+                + (lastPerhapsUnfinished ? "[[:alnum:]]*" : "") + ANYTHING_BUT_LETTERS_OR_DIGITS + "$";
     }
 
     private static String anyOf(List<Way> ways) {

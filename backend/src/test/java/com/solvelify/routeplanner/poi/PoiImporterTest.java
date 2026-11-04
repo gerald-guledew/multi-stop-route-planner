@@ -51,7 +51,7 @@ class PoiImporterTest {
     @BeforeEach
     void startClean() {
         removeWhatTheImportCommitted();
-        importer = new PoiImporter(dataSource, new PoiProperties(false, null, null));
+        importer = new PoiImporter(dataSource, new PoiProperties(false, null, null, null));
     }
 
     @AfterEach

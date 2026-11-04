@@ -139,6 +139,12 @@ cd backend && duckdb -f scripts/export-osm-places.sql
 
 The import matches the two lists, so that a place both have shows once, under Overture's name.
 
+It also adds the suburbs and towns, so that "remuera" finds Remuera itself, and not only what is in it. They come from the same extract, and each takes its city from the nearest address. Export them before the import too:
+
+```bash
+cd backend && duckdb -f scripts/export-osm-areas.sql
+```
+
 ### Finding a car
 
 Finding a car by its make, model, year and engine needs NZTA's Motor Vehicle Register, which is free and needs no account. Export New Zealand's petrol cars, about 9,300 makes, models, years and engines in a 0.5 MB file. It needs curl and jq, and takes a few minutes:

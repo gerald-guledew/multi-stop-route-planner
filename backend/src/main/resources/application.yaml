@@ -61,12 +61,13 @@ routeplanner:
     import-enabled: false
     csv: data/lds-nz-addresses-CSV/nz-addresses.csv
   poi:
-    # Set to true with the Overture and OpenStreetMap exports in place to load named places and
-    # what kind each one is. Safe to repeat after every new export: it updates, adds and removes
-    # to match the files.
+    # Set to true with the Overture and OpenStreetMap exports in place to load named places, what
+    # kind each one is, and the suburbs and towns. Safe to repeat after every new export: it
+    # updates, adds and removes to match the files.
     import-enabled: false
     csv: data/overture-nz-places.csv
     osm-csv: data/osm-nz-places.csv
+    areas-csv: data/osm-nz-areas.csv
   cars:
     # Set to true with the NZTA export in place to load the cars a driver finds theirs among.
     # Safe to repeat after every new export: the cars are replaced with what the file holds.
