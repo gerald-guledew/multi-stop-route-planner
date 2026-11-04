@@ -203,8 +203,19 @@ class SearchTermTest {
     }
 
     @Test
-    void doesNotCountAndAsNarrowingTheSearch() {
-        assertThat(words(SearchTerm.from("and saint").orElseThrow())).containsExactly("and saint");
+    void letsAndAsTypedNarrowTheSearchForAWordInFull() {
+        // On the way to typing St Andrews. With nothing else to narrow the search, "and" is looked
+        // for as typed, and does the narrowing.
+        SearchTerm term = SearchTerm.from("saint and").orElseThrow();
+
+        assertThat(words(term)).containsExactly("saint and", "st and");
+        assertThat(term.anySpelling()).isEqualTo("(saint|(^| )st\\M).*and");
+    }
+
+    @Test
+    void looksForTheFirstWordWhereAWordBeginsInEachWayOfWritingAnd() {
+        assertThat(SearchTerm.from("& chips").orElseThrow().firstWord()).isEqualTo("(&|\\mand\\M)");
+        assertThat(SearchTerm.from("and chips").orElseThrow().firstWord()).isEqualTo("(\\mand|&)");
     }
 
     @Test
@@ -271,13 +282,13 @@ class SearchTermTest {
 
     @Test
     void looksForAnAbbreviationInANameAsAWholeWordOrAsTheWordItStandsFor() {
-        assertThat(SearchTerm.from("st johns").orElseThrow().firstWord()).isEqualTo("\\m(st\\M|saint)");
-        assertThat(SearchTerm.from("St. Johns").orElseThrow().firstWord()).isEqualTo("\\m(St\\M|saint)");
+        assertThat(SearchTerm.from("st johns").orElseThrow().firstWord()).isEqualTo("(\\mst\\M|\\msaint)");
+        assertThat(SearchTerm.from("St. Johns").orElseThrow().firstWord()).isEqualTo("(\\mSt\\M|\\msaint)");
     }
 
     @Test
     void looksForAWordInFullInANameAsThatOrAsItsAbbreviation() {
-        assertThat(SearchTerm.from("mount eden village").orElseThrow().firstWord()).isEqualTo("\\m(mount|mt\\M)");
+        assertThat(SearchTerm.from("mount eden village").orElseThrow().firstWord()).isEqualTo("(\\mmount|\\mmt\\M)");
         assertThat(SearchTerm.from("mount").orElseThrow().firstWord()).isEqualTo("\\mmount");
     }
 

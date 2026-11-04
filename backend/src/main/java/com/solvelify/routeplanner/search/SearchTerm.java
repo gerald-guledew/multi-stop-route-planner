@@ -107,11 +107,14 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
 
         List<String> words = List.of(tidied.split(" "));
         boolean somethingElseToFindItBy = words.stream().anyMatch(SearchTerm::narrowsTheSearch);
+        // Read as "&" as well, "and" narrows nothing, so it takes another word to.
+        boolean somethingBesidesAnd = words.stream()
+                .anyMatch(word -> !word.equalsIgnoreCase(AND) && narrowsTheSearch(word));
 
         List<List<Way>> waysOfEachWord = new ArrayList<>();
         int spellings = 1;
         for (String word : words) {
-            List<Way> ways = waysOfWriting(word, somethingElseToFindItBy);
+            List<Way> ways = waysOfWriting(word, somethingElseToFindItBy, somethingBesidesAnd);
             if (spellings * ways.size() > MOST_SPELLINGS) {
                 ways = ways.subList(0, 1);
             }
@@ -171,18 +174,20 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
      * a street read through to find the few that say "St".
      *
      * <p>"and" and "&amp;" are each looked for as the other too. "and" on behalf of "&amp;" has to
-     * stand as a word of its own. "&amp;" on behalf of "and" is looked for only when something
-     * else was typed that narrows the search, for the same reason: the index finds nothing in
-     * "&amp;", and in "and" nothing narrower than every address in Auckland.
+     * stand as a word of its own. "&amp;" on behalf of "and" is looked for only when another word
+     * typed narrows the search, for the same reason: the index finds nothing in "&amp;". Until
+     * then "and" is looked for as typed, and may be what narrows the search for a word in full,
+     * as in "saint and" on the way to typing St Andrews.
      *
      * <p>A full stop after one of these words is left out, so "st. lukes" finds St Lukes.
      */
-    private static List<Way> waysOfWriting(String word, boolean somethingElseToFindItBy) {
+    private static List<Way> waysOfWriting(String word, boolean somethingElseToFindItBy,
+                                           boolean somethingBesidesAnd) {
         if (word.equals(AMPERSAND)) {
             return List.of(Way.asLetters(word, word), Way.aWordOfItsOwn(AND));
         }
         if (word.equalsIgnoreCase(AND)) {
-            return somethingElseToFindItBy
+            return somethingBesidesAnd
                     ? List.of(Way.asLetters(word, word), Way.asLetters(AMPERSAND, AMPERSAND))
                     : List.of(Way.asLetters(word, word));
         }
@@ -210,7 +215,6 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
     /** A word the index can find, that is not itself one of the words written two ways. */
     private static boolean narrowsTheSearch(String word) {
         return !Abbreviations.knows(withoutItsFullStop(word).toLowerCase(Locale.ROOT))
-                && !word.equalsIgnoreCase(AND)
                 && THREE_LETTERS_OR_DIGITS.matcher(word).find();
     }
 
@@ -271,12 +275,18 @@ record SearchTerm(List<Spelling> spellings, String anySpelling, String firstWord
 
     /**
      * The first word typed, in any way of writing it, where a word of a name begins. A
-     * pattern can only say "a word begins here" before a letter or a digit, so a word typed
-     * with something else in front is looked for anywhere.
+     * pattern can only say "a word begins here" before a letter or a digit, so a way of
+     * writing it with something else in front, such as "&amp;", is looked for anywhere. Each
+     * way is told so on its own: "&amp; chips" looks for "and" where a word begins, and "and
+     * fish" for "&amp;" anywhere.
      */
     private static String inAName(List<Way> waysOfTheFirstWord) {
-        String any = oneOf(waysOfTheFirstWord.stream().map(Way::inAName).toList());
-        boolean beginsLikeAWord = Character.isLetterOrDigit(waysOfTheFirstWord.getFirst().word().codePointAt(0));
-        return beginsLikeAWord ? "\\m" + any : any;
+        return oneOf(waysOfTheFirstWord.stream()
+                .map(way -> beginsLikeAWord(way) ? "\\m" + way.inAName() : way.inAName())
+                .toList());
+    }
+
+    private static boolean beginsLikeAWord(Way way) {
+        return Character.isLetterOrDigit(way.word().codePointAt(0));
     }
 }
