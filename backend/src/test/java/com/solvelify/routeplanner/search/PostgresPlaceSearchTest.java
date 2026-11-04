@@ -311,6 +311,42 @@ class PostgresPlaceSearchTest {
     }
 
     @Test
+    void findsANameWrittenWithAnAmpersandFromAndAndTheOtherWayRound() {
+        insertPoi("f1", "Ocean Fish & Chips", "1 Jervois Rd", "Herne Bay", "Auckland", 0.9, -36.8470, 174.7360);
+        insertPoi("f2", "Harbour Fish and Chips", "2 Ponsonby Rd", "Ponsonby", "Auckland", 0.9, -36.8560, 174.7460);
+
+        assertThat(names(placeSearch.search("fish and chips", 8)))
+                .containsExactlyInAnyOrder("Ocean Fish & Chips", "Harbour Fish and Chips");
+        assertThat(names(placeSearch.search("fish & chips", 8)))
+                .containsExactlyInAnyOrder("Ocean Fish & Chips", "Harbour Fish and Chips");
+    }
+
+    @Test
+    void ranksANameTheSameWhicheverWayAndWasTyped() {
+        insertPoi("f1", "Ocean Fish & Chips", "1 Jervois Rd", "Herne Bay", "Auckland", 0.9, -36.8470, 174.7360);
+        insertPoi("f2", "Harbour Fish and Chips", "2 Ponsonby Rd", "Ponsonby", "Auckland", 0.9, -36.8560, 174.7460);
+        ReferencePoint besideTheFirst = new ReferencePoint(-36.8470, 174.7360);
+        ReferencePoint besideTheSecond = new ReferencePoint(-36.8560, 174.7460);
+
+        // Each is all of what was typed, in one way of writing it, so the nearer comes first.
+        for (String typed : List.of("fish and chips", "fish & chips")) {
+            assertThat(names(placeSearch.search(typed, besideTheFirst, 8))).as(typed)
+                    .containsExactly("Ocean Fish & Chips", "Harbour Fish and Chips");
+            assertThat(names(placeSearch.search(typed, besideTheSecond, 8))).as(typed)
+                    .containsExactly("Harbour Fish and Chips", "Ocean Fish & Chips");
+        }
+    }
+
+    @Test
+    void readsAnAmpersandAsAndOnlyWhereThatStandsAsAWord() {
+        insertPoi("f2", "Harbour Fish and Chips", "2 Ponsonby Rd", "Ponsonby", "Auckland", 0.9, -36.8560, 174.7460);
+        // "and" ends a word here, and nothing in it is "&".
+        insertPoi("f3", "Fishland Chips", "3 Karangahape Rd", "Newton", "Auckland", 0.9, -36.8580, 174.7550);
+
+        assertThat(names(placeSearch.search("fish & chips", 8))).containsExactly("Harbour Fish and Chips");
+    }
+
+    @Test
     void stillFindsAStreetFromSt() {
         insertAddress(20, "12 Queen Street, Papakura", -37.0650, 174.9430);
 
