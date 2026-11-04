@@ -770,6 +770,36 @@ class PostgresPlaceSearchTest {
     }
 
     @Test
+    void putsAnAreaWrittenWithAMacronFirstWhenItIsTypedWithout() {
+        ReferencePoint besideTheCafe = new ReferencePoint(-37.9700, 177.0500);
+        insertArea("node/5", "Ōhope", "Whakatāne", -37.9760, 177.0600);
+        insertPoi("oc", "Ohope Beach Cafe", "1 West End Rd", "Ōhope", "Whakatāne", 0.9, -37.9700, 177.0500);
+
+        assertThat(names(placeSearch.search("ohope", besideTheCafe, 8)))
+                .containsExactly("Ōhope", "Ohope Beach Cafe");
+    }
+
+    @Test
+    void putsAnAreaWrittenWithAnApostropheFirstWhenItIsTypedWithout() {
+        ReferencePoint besideTheDairy = new ReferencePoint(-36.7350, 174.7500);
+        insertArea("node/6", "Murray's Bay", "Auckland", -36.7290, 174.7560);
+        insertPoi("md", "Murrays Bay Dairy", "1 Beach Rd", "Murrays Bay", "Auckland", 0.9, -36.7350, 174.7500);
+
+        assertThat(names(placeSearch.search("murrays bay", besideTheDairy, 8)))
+                .containsExactly("Murray's Bay", "Murrays Bay Dairy");
+    }
+
+    @Test
+    void putsNoAreaFirstByItsNameAlongARoad() {
+        insertArea("node/1", "Hillcrest", "Auckland", -36.7930, 174.7380);
+        insertPoi("hb", "Hillcrest Bakery", "1 Hillcrest Ave", "Hillcrest", "Auckland", 0.9, -36.7990, 174.7460);
+
+        // On the road is what counts here.
+        assertThat(names(placeSearch.searchAlong("hillcrest", List.of(NORTHCOTE), 8)))
+                .containsExactly("Hillcrest Bakery", "Hillcrest");
+    }
+
+    @Test
     void givesNoSecondLineToAnAreaThatIsItsOwnCity() {
         insertArea("node/4", "Warkworth", null, -36.3990, 174.6630);
 

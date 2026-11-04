@@ -25,7 +25,8 @@ import org.springframework.stereotype.Component;
  *
  * <p>The map often has one area twice: a point where it is known to be, and an outline of where it
  * reaches. Of two areas of one name within 5 km, the point is kept, and of two points the larger
- * kind of area, a suburb before a locality.
+ * kind of area, a suburb before a locality. An area goes only for one that stays, so three of a
+ * name in a row, 3 km apart, keep the first and the third.
  *
  * <p>Each area takes the city of the nearest LINZ address, as a place takes its suburb, so the
  * addresses are imported first. The address has to be within 2 km, as a remote locality's nearest
@@ -80,13 +81,23 @@ class AreaImporter implements ApplicationRunner {
 
     private static final String READ_THE_TABLE_FILLED = "ANALYZE on_the_map";
 
-    /** Of one area drawn twice, the one that comes first stays. */
+    /**
+     * Of one area drawn twice, the one that comes first stays. An area that nothing near comes
+     * before is sure to stay, so each round removes what comes after one of those. One removed can
+     * leave another with nothing before it, which then stays, so the rounds go on until one removes
+     * nothing.
+     */
     private static final String KEEP_ONE_OF_EACH = """
             DELETE FROM on_the_map drawn_again
             USING on_the_map kept
             WHERE kept.plain_name = drawn_again.plain_name
               AND ST_DWithin(kept.location, drawn_again.location, ?, false)
               AND (kept.drawn, kept.size, kept.id) < (drawn_again.drawn, drawn_again.size, drawn_again.id)
+              AND NOT EXISTS (
+                  SELECT 1 FROM on_the_map before_it
+                  WHERE before_it.plain_name = kept.plain_name
+                    AND ST_DWithin(before_it.location, kept.location, ?, false)
+                    AND (before_it.drawn, before_it.size, before_it.id) < (kept.drawn, kept.size, kept.id))
             """;
 
     private static final String REMOVE_THE_AREAS = "DELETE FROM area";
@@ -155,7 +166,7 @@ class AreaImporter implements ApplicationRunner {
                 execute(connection, READ_POSITIONS);
                 execute(connection, INDEX_POSITIONS);
                 execute(connection, READ_THE_TABLE_FILLED);
-                long drawnTwice = update(connection, KEEP_ONE_OF_EACH, ONE_AREA_METRES);
+                long drawnTwice = keepOneOfEach(connection);
                 execute(connection, REMOVE_THE_AREAS);
                 long added = update(connection, ADD_THE_AREAS, CITY_METRES);
                 long withACity = count(connection, COUNT_AREAS_WITH_A_CITY);
@@ -172,6 +183,20 @@ class AreaImporter implements ApplicationRunner {
                 throw failure;
             }
         }
+    }
+
+    private static long keepOneOfEach(Connection connection) throws SQLException {
+        long removed = 0;
+        try (PreparedStatement statement = connection.prepareStatement(KEEP_ONE_OF_EACH)) {
+            statement.setInt(1, ONE_AREA_METRES);
+            statement.setInt(2, ONE_AREA_METRES);
+            long thisRound;
+            do {
+                thisRound = statement.executeLargeUpdate();
+                removed += thisRound;
+            } while (thisRound > 0);
+        }
+        return removed;
     }
 
     private long copyInto(Connection connection, Path csv) throws Exception {

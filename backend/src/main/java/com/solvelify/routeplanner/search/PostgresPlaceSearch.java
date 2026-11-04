@@ -93,7 +93,10 @@ public class PostgresPlaceSearch implements PlaceSearch {
      * in full most likely means Remuera, and the places named for it follow. Until the last
      * word is finished an area is scored like anything else, so "bun" does not put Bunnythorpe
      * ahead of the Bunnings nearby. {@code called} says which: a key of its own and not a
-     * higher score, as a score is worth less the farther away a place is.
+     * higher score, as a score is worth less the farther away a place is. Along a road no area
+     * comes first by its name, and {@code :areasFirst} is false. There what counts is how near
+     * the road a place is, and a Hillcrest in another city would take the place of a stop on the
+     * way.
      *
      * <p><b>Ties</b> go to the name the words account for most of, which is what plain
      * {@code similarity} measures, and then to the place the source is more sure of. Without
@@ -245,7 +248,8 @@ public class PostgresPlaceSearch implements PlaceSearch {
                             max(greatest(similarity(plain_name, spelling.words),
                                          similarity(plain_name_and_city, spelling.words))) AS coverage,
                             coalesce(bool_or(plain_name ~* spelling.exact_name
-                                             OR plain_name_and_city ~* spelling.exact_name), false) AS called
+                                             OR plain_name_and_city ~* spelling.exact_name), false)
+                                AND :areasFirst AS called
                      FROM spelling
                      WHERE :oneSpelling OR search_text ~* spelling.pattern) AS best
                  ORDER BY called DESC, score DESC, coverage DESC, length(name)
@@ -297,12 +301,12 @@ public class PostgresPlaceSearch implements PlaceSearch {
      */
     @Override
     public List<FoundPlace> search(String typed, ReferencePoint near, int limit) {
-        return searchFrom(typed, near == null ? null : pointAt(near), limit);
+        return searchFrom(typed, near == null ? null : pointAt(near), true, limit);
     }
 
     @Override
     public List<FoundPlace> searchAlong(String typed, List<ReferencePoint> road, int limit) {
-        return searchFrom(typed, lineThrough(road), limit);
+        return searchFrom(typed, lineThrough(road), false, limit);
     }
 
     @Override
@@ -329,18 +333,21 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 .filter(nearest -> nearest.metres() <= withinMetres);
     }
 
-    /** @param origin where the search is looking from, as text PostGIS reads. Null for nowhere */
-    private List<FoundPlace> searchFrom(String typed, String origin, int limit) {
-        List<FoundPlace> found = find(typed, origin, limit);
+    /**
+     * @param origin     where the search is looking from, as text PostGIS reads. Null for nowhere
+     * @param areasFirst whether an area called just what was typed comes ahead of everything else
+     */
+    private List<FoundPlace> searchFrom(String typed, String origin, boolean areasFirst, int limit) {
+        List<FoundPlace> found = find(typed, origin, areasFirst, limit);
 
         Iterator<String> otherWays = Unit.otherWaysToFind(typed).iterator();
         while (found.isEmpty() && otherWays.hasNext()) {
-            found = find(otherWays.next(), origin, limit);
+            found = find(otherWays.next(), origin, areasFirst, limit);
         }
         return found;
     }
 
-    private List<FoundPlace> find(String typed, String origin, int limit) {
+    private List<FoundPlace> find(String typed, String origin, boolean areasFirst, int limit) {
         Optional<SearchTerm> term = SearchTerm.from(typed);
         if (term.isEmpty()) {
             return List.of();
@@ -361,6 +368,7 @@ public class PostgresPlaceSearch implements PlaceSearch {
                 .param("anySpelling", term.get().anySpelling())
                 .param("firstWord", term.get().firstWord())
                 .param("oneSpelling", spellings.size() == 1)
+                .param("areasFirst", areasFirst)
                 // Typed, because a bare null gives PostgreSQL nothing to tell its type from.
                 .param("origin", origin, Types.VARCHAR)
                 .param("minConfidence", properties.minConfidence())

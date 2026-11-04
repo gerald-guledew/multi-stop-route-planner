@@ -103,6 +103,18 @@ class AreaImporterTest {
     }
 
     @Test
+    void removesAnAreaOnlyForOneThatStays() throws Exception {
+        // Three in a row, 3 km apart, in the order they come. The second goes for the first, and
+        // the third, 6 km from the first, is then near nothing that stays.
+        importer.importFrom(fileWith(
+                "node/1,Riverside,locality,-38.7000,176.0800",
+                "node/2,Riverside,locality,-38.7270,176.0800",
+                "node/3,Riverside,locality,-38.7540,176.0800"));
+
+        assertThat(areas()).containsExactly("node/1|Riverside|", "node/3|Riverside|");
+    }
+
+    @Test
     void keepsTwoAreasOfOneNameFarApart() throws Exception {
         importer.importFrom(fileWith(
                 "node/6,Hillcrest,suburb,-36.7930,174.7380",

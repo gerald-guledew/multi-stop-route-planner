@@ -216,7 +216,7 @@ A POST, so the exact spots of the trip travel in the body rather than in a URL, 
 
 ### How the places are found and ordered
 
-1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point. With `placeKind`, the places of that kind nearest the road are taken instead.
+1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point. With `placeKind`, the places of that kind nearest the road are taken instead. An area called just what was typed is not put first here, as it is in the search above.
 2. The first 12 it ranks, or as many as `limit` when that is more, are each driven to from the start of their leg and on to its end. What a place adds is those two drives less the leg as planned, never below nought. A place on the road the leg follows anyway adds nothing.
 3. They come back in the order of the time they add, and of the distance they add on straight lines.
 
