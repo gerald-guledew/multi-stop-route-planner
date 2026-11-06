@@ -904,4 +904,30 @@ class RouteControllerTest {
                 13.836,
                 1);
     }
+
+    @Test
+    void countsTheLoadInTheFuel() throws Exception {
+        given(routePlanningService.plan(any(), any(), any(), any(), anyBoolean(), any(), any())).willReturn(aPlan());
+
+        // 13.836 km at 7.5 L/100 km is 1.04 L. 300 kg more takes 0.063 L: 98 J a kilogram for
+        // every kilometre to roll it, and 143 J to get it going again over the 37% the test
+        // drives in town, at 30% of 33 MJ a litre.
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5, \"kilograms\": 1225, \"loadKilograms\": 300 }")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalFuelLitres").value(1.10));
+    }
+
+    @Test
+    void refusesALoadBeyondWhatAVanCarries() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/optimize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_REQUEST.replace("\"returnToStart\": true",
+                                "\"returnToStart\": true, \"vehicle\": { \"litresPer100Km\": 7.5, \"loadKilograms\": 1501 }")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("vehicle.loadKilograms"))
+                .andExpect(jsonPath("$.errors[0].message").value("must be between 0 and 1500"));
+    }
 }

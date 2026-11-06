@@ -32,6 +32,7 @@ export default function VehicleSection(props: Props) {
   const [found, setFound] = useState<CarVariant | null>(null)
   const [size, setSize] = useState<VehicleSize>('medium')
   const [typed, setTyped] = useState('')
+  const [typedLoad, setTypedLoad] = useState('')
   const [typingProblem, setTypingProblem] = useState<string | null>(null)
 
   function startEntering() {
@@ -40,6 +41,7 @@ export default function VehicleSection(props: Props) {
     setFound(null)
     setSize(vehicle?.size ?? 'medium')
     setTyped(vehicle?.figureFrom === 'dashboard' ? String(vehicle.litresPer100Km) : '')
+    setTypedLoad(vehicle !== null && vehicle.loadKilograms > 0 ? String(vehicle.loadKilograms) : '')
     setTypingProblem(null)
     setEntering(true)
   }
@@ -58,7 +60,7 @@ export default function VehicleSection(props: Props) {
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    const toSave = vehicleToSave(way, { size, found, typed })
+    const toSave = vehicleToSave(way, { size, found, typed, typedLoad })
     if ('problem' in toSave) {
       setTypingProblem(toSave.problem)
       return
@@ -141,6 +143,18 @@ export default function VehicleSection(props: Props) {
           />
         </label>
         {way === 'enter' && <p className="note">As your dashboard shows it. Petrol cars only, for now.</p>}
+        <label>
+          Load, kg, if you carry one
+          <input
+            inputMode="numeric"
+            value={typedLoad}
+            onChange={(event) => {
+              setTypedLoad(event.target.value)
+              setTypingProblem(null)
+            }}
+          />
+        </label>
+        <p className="note">Passengers, luggage or cargo, besides you. It counts in the fuel.</p>
         {typingProblem && <p className="warning">{typingProblem}</p>}
         {problem && <p className="warning">{problem}</p>}
         <div className="buttons">

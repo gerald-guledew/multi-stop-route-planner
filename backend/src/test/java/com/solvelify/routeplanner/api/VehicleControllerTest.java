@@ -3,6 +3,7 @@ package com.solvelify.routeplanner.api;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -68,7 +69,8 @@ class VehicleControllerTest {
                 .andExpect(jsonPath("$.litresPer100Km").value(7.5))
                 .andExpect(jsonPath("$.figureFrom").value("dashboard"))
                 .andExpect(jsonPath("$.size").value("medium"))
-                .andExpect(jsonPath("$.car").value(nullValue()));
+                .andExpect(jsonPath("$.car").value(nullValue()))
+                .andExpect(jsonPath("$.loadKilograms").value(0));
     }
 
     @Test
@@ -140,19 +142,19 @@ class VehicleControllerTest {
 
     @Test
     void savesTheVehicleSent() throws Exception {
-        given(vehicles.save(anyDouble(), any())).willReturn(new Vehicle(7.5, VehicleSize.MEDIUM));
+        given(vehicles.save(anyDouble(), any(), anyInt())).willReturn(new Vehicle(7.5, VehicleSize.MEDIUM));
 
         mockMvc.perform(put("/api/v1/vehicle").contentType(MediaType.APPLICATION_JSON).content(A_MEDIUM_CAR))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.litresPer100Km").value(7.5))
                 .andExpect(jsonPath("$.size").value("medium"));
 
-        verify(vehicles).save(7.5, VehicleSize.MEDIUM);
+        verify(vehicles).save(7.5, VehicleSize.MEDIUM, 0);
     }
 
     @Test
     void savesACarFoundInTheRegister() throws Exception {
-        given(vehicles.saveFromRegister(any(), any())).willReturn(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null));
+        given(vehicles.saveFromRegister(any(), any(), anyInt())).willReturn(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null));
 
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -161,12 +163,12 @@ class VehicleControllerTest {
                 .andExpect(jsonPath("$.figureFrom").value("register"))
                 .andExpect(jsonPath("$.car.model").value("SWIFT"));
 
-        verify(vehicles).saveFromRegister(SWIFT, null);
+        verify(vehicles).saveFromRegister(SWIFT, null, 0);
     }
 
     @Test
     void savesACarFoundInTheRegisterWithItsDashboardsFigure() throws Exception {
-        given(vehicles.saveFromRegister(any(), any())).willReturn(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), 5.6));
+        given(vehicles.saveFromRegister(any(), any(), anyInt())).willReturn(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), 5.6));
 
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -175,7 +177,7 @@ class VehicleControllerTest {
                 .andExpect(jsonPath("$.litresPer100Km").value(5.6))
                 .andExpect(jsonPath("$.figureFrom").value("dashboard"));
 
-        verify(vehicles).saveFromRegister(SWIFT, 5.6);
+        verify(vehicles).saveFromRegister(SWIFT, 5.6, 0);
     }
 
     @Test
@@ -241,7 +243,7 @@ class VehicleControllerTest {
 
     @Test
     void saysSoWhenTheRegisterDoesNotListTheCar() throws Exception {
-        given(vehicles.saveFromRegister(any(), any())).willThrow(new CarNotInRegisterException(SWIFT));
+        given(vehicles.saveFromRegister(any(), any(), anyInt())).willThrow(new CarNotInRegisterException(SWIFT));
 
         mockMvc.perform(put("/api/v1/vehicle")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -257,5 +259,46 @@ class VehicleControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(vehicles).remove();
+    }
+
+    @Test
+    void savesTheLoadSent() throws Exception {
+        given(vehicles.save(anyDouble(), any(), anyInt())).willReturn(new Vehicle(7.5, VehicleSize.MEDIUM).carrying(200));
+
+        mockMvc.perform(put("/api/v1/vehicle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"litresPer100Km\": 7.5, \"size\": \"medium\", \"loadKilograms\": 200 }"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.loadKilograms").value(200));
+
+        verify(vehicles).save(7.5, VehicleSize.MEDIUM, 200);
+    }
+
+    @Test
+    void savesTheLoadOfACarFoundInTheRegister() throws Exception {
+        given(vehicles.saveFromRegister(any(), any(), anyInt()))
+                .willReturn(new Vehicle(new CarVariant(SWIFT, 4.8, 1896), null).carrying(80));
+
+        mockMvc.perform(put("/api/v1/vehicle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"car\": " + THE_SWIFT + ", \"loadKilograms\": 80 }"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.loadKilograms").value(80));
+
+        verify(vehicles).saveFromRegister(SWIFT, null, 80);
+    }
+
+    @Test
+    void refusesALoadBelowNoughtOrBeyondWhatAVanCarries() throws Exception {
+        for (int notALoad : new int[] {-1, 1501}) {
+            mockMvc.perform(put("/api/v1/vehicle")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{ \"litresPer100Km\": 7.5, \"size\": \"medium\", \"loadKilograms\": " + notALoad + " }"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].field").value("loadKilograms"))
+                    .andExpect(jsonPath("$.errors[0].message").value("must be between 0 and 1500"));
+        }
+
+        verifyNoInteractions(vehicles);
     }
 }

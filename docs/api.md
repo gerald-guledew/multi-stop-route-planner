@@ -282,6 +282,7 @@ Distances are straight lines unless real roads are switched on, as under "Straig
 | `vehicle.townLitresPer100Km` | number | Optional, 2 to 40, with `openRoadLitresPer100Km`. What town roads take. Left out, both are worked out from `litresPer100Km`. See "Town and the open road" below |
 | `vehicle.openRoadLitresPer100Km` | number | Optional, 2 to 40, with `townLitresPer100Km`. What the open road takes |
 | `vehicle.kilograms` | number | Optional, 400 to 4,000. What the vehicle weighs empty. Without it the fuel does not count the hills |
+| `vehicle.loadKilograms` | number | Optional, 0 to 1,500. What it carries besides the driver: passengers, luggage, cargo. Left out, nothing. See "A load" under "Fuel" |
 
 ```json
 {
@@ -536,12 +537,22 @@ On roads read with their heights, and with `kilograms`, the fuel counts the hill
 - **A round trip's hills cost little.** It comes down as far as it went up, and most descents are gentle. Measured over 142 drives across Auckland, the hills add 0.2% to the fuel. In Wellington, whose descents are steeper, they add 3%, and in Christchurch 0.1%. On real roads the five stops above take 6.19 L in a medium car at 7.5 L/100 km either way, while the legs run from 0.06 L less, down to the airport, to 0.06 L more, up from Devonport.
 - **A dashboard figure is taken as the figure for level road.** It is an average over the driving the car has done, hills included, and those hills add so little over time that this trip's are counted on top.
 
+#### A load
+
+Send `loadKilograms` with the vehicle, passengers or cargo besides the driver, and every leg counts it. The vehicle's own figures do not hold it.
+
+- **On the level it takes what rolling it along takes**, 1% of its weight against the tyres, and in town what getting it going again after each stop takes, as often as the town part of the approval test stops. The engine turns 30% of that fuel into work, as on a climb. For 100 kg that is 0.24 L/100 km in town and 0.10 on the open road, 2% more over the test for a medium car at 7.5 L/100 km.
+- **Checked against what is published.** The US Department of Energy says about 1% for every 100 lb, which is 2.2% for 100 kg. Germany's automobile club is quoted at up to 0.3 L/100 km for 100 kg.
+- **On a hill it is lifted with the car**, and gives that back coming down, as the car does.
+- **It needs no weight.** Without `kilograms` the hills are not counted, and the load still is, on the level.
+- **It rides the whole trip**, so it adds to every order. Two orders differ for it in how long each is, how much of it is in town and how it climbs.
+
 The rest:
 
 - **The order is chosen as it would be without a vehicle**, unless the least fuel is asked for. See below.
 - **Rounded to a hundredth of a litre**, as distances are to a hundredth of a kilometre. The legs can add up to a hundredth more or less than the total.
 
-The screen sends the vehicle saved in the planner, its figures in town and on the open road and its weight, see "The vehicle" below.
+The screen sends the vehicle saved in the planner, its figures in town and on the open road, its weight and its load, see "The vehicle" below.
 
 ### The least fuel
 
@@ -770,7 +781,7 @@ Planning takes positions, not ids. To plan a trip through a saved place, send it
 
 ## The vehicle
 
-The vehicle the planner works out fuel for, saved so it is given once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The screen sends its fuel use and its weight with every plan, see "Fuel" above.
+The vehicle the planner works out fuel for, saved so it is given once and not with every trip. Petrol cars only for now. There is one, because there is one driver. The screen sends its fuel use, its weight and its load with every plan, see "Fuel" above.
 
 It is given one of two ways. Entered by hand: its size and what its dashboard shows. Or found in NZTA's vehicle register, see "Cars" below: its make, model, year and engine, which bring the register's figure, and what its dashboard shows if the driver knows it.
 
@@ -779,7 +790,7 @@ It is given one of two ways. Entered by hand: its size and what its dashboard sh
 Entered by hand:
 
 ```json
-{ "litresPer100Km": 7.5, "figureFrom": "dashboard", "townLitresPer100Km": 9.8, "openRoadLitresPer100Km": 6.1, "size": "medium", "car": null, "kilograms": 1270 }
+{ "litresPer100Km": 7.5, "figureFrom": "dashboard", "townLitresPer100Km": 9.8, "openRoadLitresPer100Km": 6.1, "size": "medium", "car": null, "kilograms": 1270, "loadKilograms": 0 }
 ```
 
 Found in the register, and going by the register's figure:
@@ -792,7 +803,8 @@ Found in the register, and going by the register's figure:
   "openRoadLitresPer100Km": 4.2,
   "size": null,
   "car": { "make": "SUZUKI", "model": "SWIFT", "year": 2018, "engineLitres": 1.2 },
-  "kilograms": 890
+  "kilograms": 890,
+  "loadKilograms": 0
 }
 ```
 
@@ -804,6 +816,7 @@ Found in the register, and going by the register's figure:
 | `size` | For a vehicle entered by hand. `null` for a car found in the register |
 | `car` | For a car found in the register, as it describes it. `null` for a vehicle entered by hand |
 | `kilograms` | What it weighs empty, to the nearest 10 kg, see "The weight" below. `null` when the register no longer lists the car |
+| `loadKilograms` | What it carries besides the driver, in kilograms. `0` for nothing |
 
 Answers **204** with no body until a vehicle is saved. Having none is not an error. The answer is marked `Cache-Control: no-store`, so a vehicle changed on one device is not shown as it was on another.
 
@@ -826,6 +839,7 @@ Found in the register, sent back as `/api/v1/cars/variants` gave it. With `litre
 | `litresPer100Km` | 2 to 30. What the dashboard shows. Required with `size`, and may be left out with `car` |
 | `size` | `small`: a city hatchback. `medium`: a family hatchback or sedan. `large`: a large car, an SUV or a people mover |
 | `car` | `make`, `model`, `year` and `engineLitres`, all required, as the register lists the car |
+| `loadKilograms` | 0 to 1,500, in whole kilograms. What it carries besides the driver, either way the vehicle is given. Left out, nothing. See "A load" under "Fuel" |
 
 Send a `size` or a `car`, not both. The size stands in for the weight, which is what a climb costs, and which few drivers know in kilograms. A car found in the register keeps its description when the register is imported again.
 

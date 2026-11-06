@@ -184,16 +184,19 @@ function asThePlannerTakesIt({ namedByAddress: _, ...place }: Place): Place {
  * no heights to go on, or with no times, answers with the shortest order all the same.
  *
  * `vehicle` is what the fuel is worked out for. Without one the plan says nothing about fuel, and
- * the least fuel cannot be asked for. Its figures, in town and on the open road as well, and its
- * weight are sent: all the planner reads of it. Without the weight, the fuel does not count the
- * hills.
+ * the least fuel cannot be asked for. Its figures, in town and on the open road as well, its
+ * weight and its load are sent: all the planner reads of it. Without the weight, the fuel does
+ * not count the hills. A load of nought is left out, as the planner takes none for nothing.
  */
 export async function optimizeRoute(
   start: Place,
   stops: Place[],
   returnToStart: boolean,
   chosenFor: ChosenFor,
-  vehicle: Pick<Vehicle, 'litresPer100Km' | 'townLitresPer100Km' | 'openRoadLitresPer100Km' | 'kilograms'> | null,
+  vehicle: Pick<
+    Vehicle,
+    'litresPer100Km' | 'townLitresPer100Km' | 'openRoadLitresPer100Km' | 'kilograms' | 'loadKilograms'
+  > | null,
 ): Promise<RoutePlan> {
   const fuel = vehicle
     ? {
@@ -202,6 +205,7 @@ export async function optimizeRoute(
           townLitresPer100Km: vehicle.townLitresPer100Km,
           openRoadLitresPer100Km: vehicle.openRoadLitresPer100Km,
           ...(vehicle.kilograms === null ? {} : { kilograms: vehicle.kilograms }),
+          ...(vehicle.loadKilograms > 0 ? { loadKilograms: vehicle.loadKilograms } : {}),
         },
       }
     : {}
@@ -318,7 +322,8 @@ export async function getVehicle(signal?: AbortSignal): Promise<Vehicle | null> 
 
 /**
  * Saves the vehicle in place of the one there was. A car found in the register is sent as
- * the register described it, with the dashboard's figure only when the driver gave one.
+ * the register described it, with the dashboard's figure only when the driver gave one. The
+ * load goes either way, nought included, so a load taken off is saved as taken off.
  */
 export async function saveVehicle(vehicle: VehicleToSave): Promise<Vehicle> {
   const body =
@@ -326,8 +331,9 @@ export async function saveVehicle(vehicle: VehicleToSave): Promise<Vehicle> {
       ? {
           car: vehicle.car,
           ...(vehicle.litresPer100Km === null ? {} : { litresPer100Km: vehicle.litresPer100Km }),
+          loadKilograms: vehicle.loadKilograms,
         }
-      : { size: vehicle.size, litresPer100Km: vehicle.litresPer100Km }
+      : { size: vehicle.size, litresPer100Km: vehicle.litresPer100Km, loadKilograms: vehicle.loadKilograms }
   const response = await ask('/api/v1/vehicle', A_QUICK_ANSWER_MS, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

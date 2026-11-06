@@ -35,7 +35,7 @@ Give it a starting point and a list of places. It works out the order that makes
 - The fastest order when picked instead. Another order is taken only when it saves a minute or more over the shortest
 - With a vehicle saved, the plan says what the other choice comes to, in minutes and litres
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
-- Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes: more in town than on the open road, with what each climb costs and each descent gives back
+- Your vehicle saved once, found in NZTA's vehicle register or entered by hand, with what it carries, and the fuel each leg and the whole trip takes: more in town than on the open road, more with a load, with what each climb costs and each descent gives back
 
 ## Measured
 
@@ -189,7 +189,7 @@ A trip takes 10 stops, or 9 when it returns to the start, so that every stop goe
 
 Once the route is planned, the list of stops takes the order to be driven, and undo brings back the order it had. A "+" between two stops opens a search of its own for that part of the drive: by name, or by the kind of place, such as petrol, food, toilets or a beach, for when you have no name in mind. It lists first the places that add the least time, and a switch widens it to the whole route. The place picked is a stop-over: it goes between the two stops, and the other stops keep their order. Planned again later, it stays between those two and the others are arranged around them. The link button beside it lets it go.
 
-With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest" is picked: more for every kilometre in town than on the open road, and its hills when heights are on and the vehicle's weight is known. On straight lines the fuel goes with the distance, the answer is the shortest order, and the screen says why.
+With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest" is picked: more for every kilometre in town than on the open road, and its hills when heights are on and the vehicle's weight is known. A load saved with the vehicle, passengers or cargo, takes more on every kilometre, most in town. On straight lines the fuel goes with the distance, the answer is the shortest order, and the screen says why.
 
 On real roads, picking "Fastest" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so.
 
@@ -201,7 +201,7 @@ With a vehicle saved, on real roads, the plan says in one line what the other ch
 - [x] 2. Address search and saved places, in PostgreSQL
 - [x] 3. Real driving distances from GraphHopper
 - [x] 4. Map screen, first release
-- [ ] 5. Vehicle information: engine, size and load. Begun: petrol cars, by engine or by size
+- [ ] 5. Vehicle information: engine, size and load. Begun: petrol cars, by engine or by size, with their load
 - [x] 6. Fuel-efficient route option, using that vehicle information
 
 ## Later

@@ -195,4 +195,99 @@ class FuelUseTest {
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
+
+    // A load besides the driver.
+
+    @Test
+    void changesNothingWhenItCarriesNothing() {
+        FuelUse carryingNothing = MEDIUM_CAR.carrying(0);
+        Optional<ClimbAndDescent> hills = Optional.of(new ClimbAndDescent(120, 120, List.of(new Descent(120, 1000))));
+
+        assertThat(carryingNothing).isEqualTo(MEDIUM_CAR);
+        // The figure of the steep descent above, as it was before there was a load.
+        ClimbAndDescent steep = new ClimbAndDescent(100, 100, List.of(new Descent(100, 1000)));
+        assertThat(carryingNothing.litresFor(10, Optional.of(steep))).isCloseTo(0.75 + HUNDRED_METRES_UP - 0.075, within(1e-9));
+        assertThat(carryingNothing.litresFor(10, OptionalDouble.of(4), hills))
+                .isEqualTo(MEDIUM_CAR.litresFor(10, OptionalDouble.of(4), hills));
+        assertThat(carryingNothing.litresUsedUpFor(10, OptionalDouble.of(4), hills))
+                .isEqualTo(MEDIUM_CAR.litresUsedUpFor(10, OptionalDouble.of(4), hills));
+    }
+
+    @Test
+    void takesForEveryHundredKilogramsAQuarterOfALitreInTownAndATenthOnTheOpenRoad() {
+        // Over 100 km. Rolling it along takes 0.099 L, and in town getting it going again after
+        // every stop another 0.144 L.
+        FuelUse loaded = MEDIUM_CAR.carrying(100);
+
+        assertThat(loaded.litresOnTheLevel(100, OptionalDouble.of(100)) - MEDIUM_CAR.litresOnTheLevel(100, OptionalDouble.of(100)))
+                .isCloseTo(0.243, within(0.001));
+        assertThat(loaded.litresOnTheLevel(100, OptionalDouble.of(0)) - MEDIUM_CAR.litresOnTheLevel(100, OptionalDouble.of(0)))
+                .isCloseTo(0.099, within(0.001));
+    }
+
+    @Test
+    void takesAboutWhatIsPublishedForALoadOverTheApprovalTest() {
+        // About 1% for every 100 lb, says the US Department of Energy, which is 2.2% for 100 kg,
+        // and up to 0.3 L/100 km for 100 kg, as the German automobile club is quoted.
+        double more = MEDIUM_CAR.carrying(100).litresFor(100) - MEDIUM_CAR.litresFor(100);
+
+        assertThat(more).isCloseTo(0.152, within(0.001)).isLessThan(0.3);
+        assertThat(more / MEDIUM_CAR.litresFor(100)).isCloseTo(0.02, within(0.001));
+    }
+
+    @Test
+    void liftsTheLoadWithTheCarAndTheDriver() {
+        // 1,300 kg with the driver, and 130 kg more: a tenth more for every metre up.
+        FuelUse loaded = MEDIUM_CAR.carrying(130);
+
+        assertThat(loaded.litresFor(10, Optional.of(new ClimbAndDescent(100, 0))) - loaded.litresFor(10, Optional.empty()))
+                .isCloseTo(HUNDRED_METRES_UP * 1.1, within(1e-9));
+    }
+
+    @Test
+    void countsALoadOnTheLevelWhenTheWeightIsNotKnown() {
+        FuelUse weightUnknown = new FuelUse(7.5).carrying(100);
+
+        assertThat(weightUnknown.countsHills()).isFalse();
+        assertThat(weightUnknown.litresFor(100, Optional.of(new ClimbAndDescent(300, 0))))
+                .isCloseTo(7.5 + 0.152, within(0.001));
+    }
+
+    @Test
+    void refusesALoadThatIsNotOne() {
+        for (double notALoad : new double[] {-1, Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertThatThrownBy(() -> MEDIUM_CAR.carrying(notALoad)).isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    void givesBackOnASteepDescentNoMoreThanItsStretchTakesWithTheLoad() {
+        // 100 m down in 1 km, with 100 kg on board. The slope could give back 0.14 L, but that
+        // kilometre takes 0.075 L on the level and 0.0015 L more for the load, and no more.
+        FuelUse loaded = MEDIUM_CAR.carrying(100);
+        ClimbAndDescent steep = new ClimbAndDescent(100, 100, List.of(new Descent(100, 1000)));
+        double cap = loaded.litresFor(1);
+
+        assertThat(cap).isCloseTo(0.075 + 0.00152, within(0.00001));
+        assertThat(loaded.litresFor(10, Optional.of(steep)))
+                .isCloseTo(loaded.litresFor(10) + HUNDRED_METRES_UP * 1400 / 1300 - cap, within(1e-9));
+    }
+
+    @Test
+    void givesBackNoMoreThanTheLoadedDriveTakesOnTheLevelForADescentKnownOnlyAsATotal() {
+        // 1,000 m down over 10 km: no more than the 10 km take on the level, the load's share
+        // included.
+        assertThat(MEDIUM_CAR.carrying(100).litresFor(10, Optional.of(new ClimbAndDescent(0, 1000)))).isZero();
+    }
+
+    @Test
+    void usesUpWhatTheLoadTakesOnTheLevelAndNotItsClimb() {
+        // Up 100 m and gently down again: the climb is kept as height and given back, and what
+        // is used up for good is the level fuel, the load's 0.015 L included.
+        FuelUse loaded = MEDIUM_CAR.carrying(100);
+        ClimbAndDescent upAndBack = new ClimbAndDescent(100, 100, List.of(new Descent(100, 5000)));
+
+        assertThat(loaded.litresUsedUpFor(10, Optional.of(upAndBack))).isCloseTo(0.75 + 0.0152, within(0.0001));
+        assertThat(loaded.litresUsedUpFor(10, Optional.of(upAndBack))).isCloseTo(loaded.litresFor(10), within(1e-9));
+    }
 }

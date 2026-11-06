@@ -247,25 +247,25 @@ describe('asking how high a spot is', () => {
 })
 
 describe('the vehicle saved in the planner', () => {
-  const car = { litresPer100Km: 7.5, size: 'medium' as const }
+  const car = { litresPer100Km: 7.5, size: 'medium' as const, loadKilograms: 0 }
   const swift = { make: 'SUZUKI', model: 'SWIFT', year: 2018, engineLitres: 1.2 }
   const foundSwift = { litresPer100Km: 4.8, figureFrom: 'register', size: null, car: swift }
 
   it('is saved as the register describes it when it was found there', async () => {
     const fetched = apiThatAnswers(200, foundSwift)
 
-    await expect(saveVehicle({ car: swift, litresPer100Km: null })).resolves.toEqual(foundSwift)
+    await expect(saveVehicle({ car: swift, litresPer100Km: null, loadKilograms: 0 })).resolves.toEqual(foundSwift)
 
     // No figure is sent, so the register's is used.
-    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: swift })
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: swift, loadKilograms: 0 })
   })
 
   it("is saved with the dashboard's figure when one was typed for a car found in the register", async () => {
     const fetched = apiThatAnswers(200, foundSwift)
 
-    await saveVehicle({ car: swift, litresPer100Km: 5.6 })
+    await saveVehicle({ car: swift, litresPer100Km: 5.6, loadKilograms: 0 })
 
-    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: swift, litresPer100Km: 5.6 })
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ car: swift, litresPer100Km: 5.6, loadKilograms: 0 })
   })
 
   it('is none until one is saved', async () => {
@@ -290,6 +290,14 @@ describe('the vehicle saved in the planner', () => {
     expect(url).toBe('/api/v1/vehicle')
     expect(init?.method).toBe('PUT')
     expect(JSON.parse(String(init?.body))).toEqual(car)
+  })
+
+  it('is saved with the load it carries', async () => {
+    const fetched = apiThatAnswers(200, { ...car, loadKilograms: 200 })
+
+    await saveVehicle({ ...car, loadKilograms: 200 })
+
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body))).toEqual({ ...car, loadKilograms: 200 })
   })
 
   it('is removed', async () => {
@@ -379,7 +387,7 @@ describe('planning a route', () => {
   })
 
   /** A medium car's figures, as the planner gives them for a vehicle entered by hand. */
-  const A_MEDIUM_CAR = { litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, kilograms: 1270 }
+  const A_MEDIUM_CAR = { litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, kilograms: 1270, loadKilograms: 0 }
 
   it('sends the fuel use of the vehicle, in town and on the open road, and its weight, when there is one', async () => {
     const fetched = apiThatAnswers(200, { route: [], legs: [] })
@@ -388,6 +396,21 @@ describe('planning a route', () => {
 
     const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
     expect(sent.vehicle).toEqual({ litresPer100Km: 7.5, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, kilograms: 1270 })
+  })
+
+  it('sends the load when the vehicle carries one', async () => {
+    const fetched = apiThatAnswers(200, { route: [], legs: [] })
+
+    await optimizeRoute(start, stops, true, 'fuel', { ...A_MEDIUM_CAR, loadKilograms: 200 })
+
+    const sent = JSON.parse(String(fetched.mock.calls[0][1]?.body))
+    expect(sent.vehicle).toEqual({
+      litresPer100Km: 7.5,
+      townLitresPer100Km: 9.8,
+      openRoadLitresPer100Km: 6.1,
+      kilograms: 1270,
+      loadKilograms: 200,
+    })
   })
 
   it('sends the fuel use alone for a vehicle whose weight is not known', async () => {

@@ -15,6 +15,7 @@ import java.util.Optional;
  * The vehicle the planner works out fuel for. Petrol cars only for now. It is entered by hand,
  * with the fuel use its dashboard shows and its size, or found in NZTA's register by make,
  * model, year and engine, which gives a laboratory figure unless the dashboard's is typed too.
+ * Either way it may carry a load besides the driver, which counts in the fuel.
  *
  * <p>One row at most, because there is one driver. So the id is not handed out by the
  * database. It is always the same, and saving a vehicle replaces the one there was.
@@ -34,6 +35,9 @@ public class Vehicle {
 
     /** Well beyond a large petrol car in town. A figure above it is a mistake. */
     public static final double MOST_LITRES_PER_100_KM = 30;
+
+    /** About what a large van may carry. A load above it is a mistake. */
+    public static final int MOST_LOAD_KILOGRAMS = 1500;
 
     @Id
     private short id = THE_ONE;
@@ -55,6 +59,10 @@ public class Vehicle {
     private Short year;
     @Column(name = "engine_litres")
     private BigDecimal engineLitres;
+
+    /** What it carries besides the driver. Nought until said. */
+    @Column(name = "load_kilograms")
+    private int loadKilograms;
 
     /** For JPA, which makes an empty one and then fills it in from the row. */
     protected Vehicle() {
@@ -91,6 +99,20 @@ public class Vehicle {
         this.engineLitres = car.engineLitres();
     }
 
+    /**
+     * Says what the vehicle carries besides the driver: passengers, luggage, cargo.
+     *
+     * @return this vehicle, so it can be said where the vehicle is made
+     */
+    public Vehicle carrying(int loadKilograms) {
+        if (loadKilograms < 0 || loadKilograms > MOST_LOAD_KILOGRAMS) {
+            throw new IllegalArgumentException("loadKilograms must be between 0 and " + MOST_LOAD_KILOGRAMS
+                    + ", was " + loadKilograms);
+        }
+        this.loadKilograms = loadKilograms;
+        return this;
+    }
+
     private static double checked(double litresPer100Km) {
         // Written as "not inside the range" rather than "outside it", so NaN is refused too.
         if (!(litresPer100Km >= LEAST_LITRES_PER_100_KM && litresPer100Km <= MOST_LITRES_PER_100_KM)) {
@@ -111,6 +133,11 @@ public class Vehicle {
     /** Null for a car found in the register. */
     public VehicleSize getSize() {
         return size;
+    }
+
+    /** What it carries besides the driver. Nought when nothing was said. */
+    public int getLoadKilograms() {
+        return loadKilograms;
     }
 
     /** The car found in the register. Empty for a vehicle entered by hand. */

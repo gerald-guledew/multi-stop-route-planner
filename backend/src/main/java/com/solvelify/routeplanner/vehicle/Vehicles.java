@@ -28,20 +28,23 @@ public class Vehicles {
     /**
      * Saves a vehicle entered by hand, in place of the one there was, if any. The id is always
      * the same, so JPA reads the row first and then inserts or updates it.
+     *
+     * @param loadKilograms what it carries besides the driver, nought for nothing
      */
-    public Vehicle save(double litresPer100Km, VehicleSize size) {
-        return repository.saveAndFlush(new Vehicle(litresPer100Km, size));
+    public Vehicle save(double litresPer100Km, VehicleSize size, int loadKilograms) {
+        return repository.saveAndFlush(new Vehicle(litresPer100Km, size).carrying(loadKilograms));
     }
 
     /**
      * Saves a car found in NZTA's register, in place of the vehicle there was, if any.
      *
      * @param dashboardLitresPer100Km what its dashboard shows, or null to go by the register's figure
+     * @param loadKilograms           what it carries besides the driver, nought for nothing
      * @throws CarNotInRegisterException when the register does not list the car
      */
-    public Vehicle saveFromRegister(Car car, Double dashboardLitresPer100Km) {
+    public Vehicle saveFromRegister(Car car, Double dashboardLitresPer100Km, int loadKilograms) {
         CarVariant found = register.find(car).orElseThrow(() -> new CarNotInRegisterException(car));
-        return repository.saveAndFlush(new Vehicle(found, dashboardLitresPer100Km));
+        return repository.saveAndFlush(new Vehicle(found, dashboardLitresPer100Km).carrying(loadKilograms));
     }
 
     /**

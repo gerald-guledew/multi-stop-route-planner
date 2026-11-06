@@ -4,6 +4,7 @@ import {
   dashboardLitresFrom,
   engineSaid,
   litresFrom,
+  loadFrom,
   SIZES,
   variantKey,
   variantToPick,
@@ -22,20 +23,20 @@ const FIGURES = { townLitresPer100Km: 6.3, openRoadLitresPer100Km: 3.9 }
 
 describe('saying what the vehicle is', () => {
   it('gives the size and the fuel use of a vehicle entered by hand', () => {
-    const entered = { figureFrom: 'dashboard' as const, car: null, kilograms: 1270, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1 }
+    const entered = { figureFrom: 'dashboard' as const, car: null, kilograms: 1270, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1, loadKilograms: 0 }
     expect(vehicleSaid({ ...entered, litresPer100Km: 7.5, size: 'medium' })).toBe('Medium car, 7.5 L/100 km')
     expect(vehicleSaid({ ...entered, litresPer100Km: 11, size: 'large' })).toBe('Large car or SUV, 11 L/100 km')
     expect(vehicleSaid({ ...entered, litresPer100Km: 5.2, size: 'small' })).toBe('Small car, 5.2 L/100 km')
   })
 
   it('names a car found in the register, and calls its figure the official one', () => {
-    expect(vehicleSaid({ ...FIGURES, litresPer100Km: 4.8, figureFrom: 'register', size: null, car: SWIFT, kilograms: 890 })).toBe(
+    expect(vehicleSaid({ ...FIGURES, litresPer100Km: 4.8, figureFrom: 'register', size: null, car: SWIFT, kilograms: 890, loadKilograms: 0 })).toBe(
       '2018 SUZUKI SWIFT 1.2 L, 4.8 L/100 km (official figure)',
     )
   })
 
   it('does not call the dashboard figure of a car found in the register the official one', () => {
-    expect(vehicleSaid({ ...FIGURES, litresPer100Km: 5.6, figureFrom: 'dashboard', size: null, car: SWIFT, kilograms: 890 })).toBe(
+    expect(vehicleSaid({ ...FIGURES, litresPer100Km: 5.6, figureFrom: 'dashboard', size: null, car: SWIFT, kilograms: 890, loadKilograms: 0 })).toBe(
       '2018 SUZUKI SWIFT 1.2 L, 5.6 L/100 km',
     )
   })
@@ -125,41 +126,98 @@ describe('what the form saves', () => {
   const picked = found(SWIFT, 4.8)
 
   it("saves a vehicle entered by hand with its size and the dashboard's figure", () => {
-    expect(vehicleToSave('enter', { size: 'small', found: picked, typed: '5,2' })).toEqual({
+    expect(vehicleToSave('enter', { size: 'small', found: picked, typed: '5,2', typedLoad: '' })).toEqual({
       size: 'small',
       litresPer100Km: 5.2,
+      loadKilograms: 0,
     })
   })
 
   it("needs the dashboard's figure for a vehicle entered by hand", () => {
-    expect(vehicleToSave('enter', { size: 'small', found: null, typed: '' })).toEqual({
+    expect(vehicleToSave('enter', { size: 'small', found: null, typed: '', typedLoad: '' })).toEqual({
       problem: 'Type the fuel use your dashboard shows, such as 7.5.',
     })
   })
 
   it("saves a car found in the register with no figure when none was typed, so the register's is used", () => {
-    expect(vehicleToSave('find', { size: 'medium', found: picked, typed: ' ' })).toEqual({
+    expect(vehicleToSave('find', { size: 'medium', found: picked, typed: ' ', typedLoad: '' })).toEqual({
       car: SWIFT,
       litresPer100Km: null,
+      loadKilograms: 0,
     })
   })
 
   it("saves the dashboard's figure with a car found in the register when one was typed", () => {
-    expect(vehicleToSave('find', { size: 'medium', found: picked, typed: '5.6' })).toEqual({
+    expect(vehicleToSave('find', { size: 'medium', found: picked, typed: '5.6', typedLoad: '' })).toEqual({
       car: SWIFT,
       litresPer100Km: 5.6,
+      loadKilograms: 0,
     })
   })
 
   it('asks for the car down to its engine before saving it', () => {
-    expect(vehicleToSave('find', { size: 'medium', found: null, typed: '5.6' })).toEqual({
+    expect(vehicleToSave('find', { size: 'medium', found: null, typed: '5.6', typedLoad: '' })).toEqual({
       problem: 'Pick your car down to its engine, or enter it yourself.',
     })
   })
 
   it('refuses a figure no petrol car shows, whichever way', () => {
     const problem = { problem: 'A petrol car uses between 2 and 30 L/100 km.' }
-    expect(vehicleToSave('find', { size: 'medium', found: picked, typed: '75' })).toEqual(problem)
-    expect(vehicleToSave('enter', { size: 'medium', found: null, typed: '75' })).toEqual(problem)
+    expect(vehicleToSave('find', { size: 'medium', found: picked, typed: '75', typedLoad: '' })).toEqual(problem)
+    expect(vehicleToSave('enter', { size: 'medium', found: null, typed: '75', typedLoad: '' })).toEqual(problem)
+  })
+})
+
+describe('the load', () => {
+  const entered = { figureFrom: 'dashboard' as const, car: null, kilograms: 1270, townLitresPer100Km: 9.8, openRoadLitresPer100Km: 6.1 }
+
+  it('is said last, when there is one', () => {
+    expect(vehicleSaid({ ...entered, litresPer100Km: 7.5, size: 'medium', loadKilograms: 200 })).toBe(
+      'Medium car, 7.5 L/100 km, carrying 200 kg',
+    )
+    expect(
+      vehicleSaid({ ...FIGURES, litresPer100Km: 4.8, figureFrom: 'register', size: null, car: SWIFT, kilograms: 890, loadKilograms: 80 }),
+    ).toBe('2018 SUZUKI SWIFT 1.2 L, 4.8 L/100 km (official figure), carrying 80 kg')
+  })
+
+  it('is nothing when the box is left empty', () => {
+    expect(loadFrom('')).toEqual({ kilograms: 0 })
+    expect(loadFrom('  ')).toEqual({ kilograms: 0 })
+  })
+
+  it('is read in whole kilograms', () => {
+    expect(loadFrom(' 200 ')).toEqual({ kilograms: 200 })
+    expect(loadFrom('1500')).toEqual({ kilograms: 1500 })
+    expect(loadFrom('0')).toEqual({ kilograms: 0 })
+  })
+
+  it('refuses what is not whole kilograms', () => {
+    const problem = { problem: 'Type the load in whole kilograms, such as 200.' }
+    expect(loadFrom('200.5')).toEqual(problem)
+    expect(loadFrom('-5')).toEqual(problem)
+    expect(loadFrom('two hundred')).toEqual(problem)
+  })
+
+  it('refuses more than a large van carries', () => {
+    expect(loadFrom('1501')).toEqual({ problem: 'A load is 1500 kg at most.' })
+  })
+
+  it('is saved either way the vehicle is given', () => {
+    expect(vehicleToSave('enter', { size: 'medium', found: null, typed: '7.5', typedLoad: '200' })).toEqual({
+      size: 'medium',
+      litresPer100Km: 7.5,
+      loadKilograms: 200,
+    })
+    expect(vehicleToSave('find', { size: 'medium', found: found(SWIFT, 4.8), typed: '', typedLoad: '80' })).toEqual({
+      car: SWIFT,
+      litresPer100Km: null,
+      loadKilograms: 80,
+    })
+  })
+
+  it('stops a save when it cannot be read', () => {
+    expect(vehicleToSave('enter', { size: 'medium', found: null, typed: '7.5', typedLoad: '2000' })).toEqual({
+      problem: 'A load is 1500 kg at most.',
+    })
   })
 })
