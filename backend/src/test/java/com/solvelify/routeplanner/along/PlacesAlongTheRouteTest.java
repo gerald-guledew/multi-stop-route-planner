@@ -156,7 +156,7 @@ class PlacesAlongTheRouteTest {
     }
 
     @Test
-    void putsEachPlaceOnTheLegWhoseRoadPassesNearest() {
+    void putsEachPlaceOnTheLegWhoseRoadPassesNearestWhenItAddsLeastThere() {
         // West to east, then south to north.
         road("Start", "Shops", point(-36.90, 174.70), point(-36.90, 174.75), point(-36.90, 174.80));
         road("Shops", "Work", point(-36.90, 174.80), point(-36.85, 174.80), point(-36.80, 174.80));
@@ -168,6 +168,11 @@ class PlacesAlongTheRouteTest {
         drive("Start", "Shops", 10, 600);
         drive("Start", "Cafe", 2, 120);
         drive("Cafe", "Shops", 8.5, 540);
+        // Each is tried on the other leg as well, where it adds more.
+        drive("Start", "Petrol", 9, 560);
+        drive("Petrol", "Shops", 7, 420);
+        drive("Shops", "Cafe", 8.5, 540);
+        drive("Cafe", "Work", 14, 800);
 
         List<PlaceAlong> along = placesAlong.find("p", List.of(START, SHOPS, WORK), OptionalInt.empty(), 8);
 
@@ -323,5 +328,47 @@ class PlacesAlongTheRouteTest {
 
     private void road(String from, String to, GeoPoint... points) {
         roads.put(from + ">" + to, new Directions(List.of(points), List.of()));
+    }
+
+    @Test
+    void putsAPlaceOnTheLegItAddsLeastToOfTheTwoWhoseRoadsPassNearest() {
+        // West to east, then south to north. The cafe stands by the corner, 445 m from the second
+        // leg's road and 556 m from the first's, but the first leg passes its door.
+        road("Start", "Shops", point(-36.90, 174.70), point(-36.90, 174.80));
+        road("Shops", "Work", point(-36.90, 174.80), point(-36.80, 174.80));
+        found.add(place("Corner Cafe", -36.895, 174.795));
+        drive("Start", "Shops", 10, 600);
+        drive("Shops", "Work", 12, 700);
+        drive("Start", "Corner Cafe", 9.6, 590);
+        drive("Corner Cafe", "Shops", 0.6, 40);
+        drive("Shops", "Corner Cafe", 0.6, 40);
+        drive("Corner Cafe", "Work", 12.5, 860);
+
+        List<PlaceAlong> along = placesAlong.find("cafe", List.of(START, SHOPS, WORK), OptionalInt.empty(), 8);
+
+        assertThat(along).extracting(PlaceAlong::leg).containsExactly(0);
+        assertThat(along.getFirst().secondsAdded()).hasValue(30);
+    }
+
+    @Test
+    void triesAPlaceOnTheTwoLegsWhoseRoadsPassNearestAndNoOther() {
+        // A round trip: west to east, south to north, and back diagonally. The cafe is beside the
+        // first leg, then the way back. The second leg is 7 km off and has no drives to it.
+        road("Start", "Shops", point(-36.90, 174.70), point(-36.90, 174.80));
+        road("Shops", "Work", point(-36.90, 174.80), point(-36.80, 174.80));
+        road("Work", "Start", point(-36.80, 174.80), point(-36.90, 174.70));
+        found.add(place("Cafe", -36.901, 174.72));
+        drive("Start", "Shops", 10, 600);
+        drive("Work", "Start", 15, 900);
+        drive("Start", "Cafe", 2, 120);
+        drive("Cafe", "Shops", 8.5, 540);
+        drive("Work", "Cafe", 14, 840);
+        drive("Cafe", "Start", 2, 120);
+
+        List<PlaceAlong> along = placesAlong.find("cafe", List.of(START, SHOPS, WORK, START), OptionalInt.empty(), 8);
+
+        assertThat(along).extracting(stop -> stop.place().name() + " on leg " + stop.leg())
+                .containsExactly("Cafe on leg 0");
+        assertThat(timesDriven).containsKeys("Start>Cafe", "Work>Cafe").doesNotContainKey("Shops>Cafe");
     }
 }

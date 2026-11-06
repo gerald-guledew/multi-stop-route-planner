@@ -113,7 +113,7 @@ Dotted lines happen at import time, not on a search.
 
 ## Stops on the way
 
-Once a trip is planned, the "+" between two stops in the list opens a dialog that finds a place to stop at on that leg, or anywhere along the route, by its name or by the kind of place. A third flow, built on the two above.
+Once a trip is planned, the "+" between two stops in the list opens a dialog that finds a place to stop at on that leg, or anywhere along the route, by its name or by the kind of place. The search along the planned route, beside the search box, does the same for the whole route, for a stop-over whose leg the driver does not know or mind. A third flow, built on the two above.
 
 ```mermaid
 flowchart TD
@@ -123,7 +123,7 @@ flowchart TD
     Along -->|"what was typed, nearest the road"| PlaceSearch["PlaceSearch (interface)"]
 ```
 
-**Near is found by the search, and what a stop adds by driving.** The search ranks places by how near they are to the road of a leg, the line its points draw, as it ranks them by how near they are to a point. The road is thinned to a point every 100 m first, since the engine gives one at every bend and the search measures each place against every point. Near is not the same as on the way. A shop across a motorway can be a long way round. So the first twelve are each driven to from the start of their leg and on to its end, and given back in the order of the time they add.
+**Near is found by the search, and what a stop adds by driving.** The search ranks places by how near they are to the road of a leg, the line its points draw, as it ranks them by how near they are to a point. The road is thinned to a point every 100 m first, since the engine gives one at every bend and the search measures each place against every point. Near is not the same as on the way. A shop across a motorway can be a long way round. So the first twelve are each driven to from the start of their leg and on to its end, and given back in the order of the time they add. Along the whole route each is driven on the two legs whose roads pass nearest, and kept on the one it adds less to, since a place by the corner where two legs meet can be cheaper on the one a little further off. That is two more drives a place.
 
 **The list takes the order of the plan.** When a plan comes back, the list of stops changes to the order it drives, as one change that undo takes back. Two stops side by side are then a leg of the plan, which is what the "+" between them needs. A label nobody changed moves with its turn, so the plan is renamed to match: a pin finds its turn in the plan by name. A plan is held against the order the list had when it was asked for, and after the first plan that is the order of the one before.
 

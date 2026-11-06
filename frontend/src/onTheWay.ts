@@ -167,3 +167,28 @@ export function betweenSaid(plan: RoutePlan, leg: number): string {
 export function hasOtherLegs(plan: RoutePlan): boolean {
   return plan.route.length > 2
 }
+
+/**
+ * Whether the search along the planned route is open: it was opened on this very plan, and a stop
+ * can still be added on the way. Another plan, or none, or a full trip, closes it.
+ */
+export function searchAlongOpen(
+  openedOn: RoutePlan | null,
+  plan: RoutePlan | null,
+  addsOnTheWay: boolean,
+): boolean {
+  return addsOnTheWay && openedOn !== null && openedOn === plan
+}
+
+/**
+ * The plan the search along the route stays open on: the one it was opened on while it is open,
+ * and none once it closes, whatever closed it. Forgotten, so that the same plan coming back, after
+ * a plan that failed or an undo and a redo, does not open it again by itself.
+ */
+export function searchAlongOpenedOn(
+  openedOn: RoutePlan | null,
+  plan: RoutePlan | null,
+  addsOnTheWay: boolean,
+): RoutePlan | null {
+  return searchAlongOpen(openedOn, plan, addsOnTheWay) ? openedOn : null
+}

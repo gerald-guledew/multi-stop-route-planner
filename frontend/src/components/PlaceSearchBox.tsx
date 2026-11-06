@@ -27,8 +27,9 @@ const NEAREST_TO: Record<LookedFrom, string> = {
 }
 
 /**
- * Type an address or the name of a business, pick it, and the pin lands there rather than
- * wherever a click happened to fall. Clicking the map still works for anywhere else.
+ * Type a place, an address, a business or a suburb, pick it, and the pin lands there rather than
+ * wherever a click happened to fall. Clicking the map still works for anywhere else. The words
+ * say "a place" and not "a destination", since the first place of a trip is its start.
  *
  * Of several matches the nearest comes first, and the list says nearest to what.
  */
@@ -109,7 +110,7 @@ export default function PlaceSearchBox({ onPick, devicePosition, places, mapCent
           value=""
           disabled
           placeholder="Max stops reached"
-          aria-label="Search for an address or a business"
+          aria-label="Search for a place"
         />
       </div>
     )
@@ -120,8 +121,8 @@ export default function PlaceSearchBox({ onPick, devicePosition, places, mapCent
       <input
         type="search"
         value={query}
-        placeholder="Search an address or a business"
-        aria-label="Search for an address or a business"
+        placeholder="Search a place"
+        aria-label="Search for a place"
         onChange={(event) => setQuery(event.target.value)}
       />
 
