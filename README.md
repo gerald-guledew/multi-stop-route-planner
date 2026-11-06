@@ -1,10 +1,12 @@
 # Multi-Stop Route Planner
 
+[![CI](https://github.com/gerald-guledew/multi-stop-route-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/gerald-guledew/multi-stop-route-planner/actions/workflows/ci.yml)
+
 Works out the efficient order to drive to several places, then hands the route to Google Maps.
 
-**Status: early development.** The first usable version is being built in the open. Star or watch the repository to hear when it lands.
+**Status: working, for one driver and one trip.** It plans up to 10 stops on real roads, for the least fuel or the fastest drive. Several drivers and delivery time windows come later.
 
-Built and tested in Auckland NZ, but it works anywhere OpenStreetMap has road data.
+Built and tested in Auckland NZ. The routing works anywhere OpenStreetMap has road data. Address search and the list of cars use New Zealand's registers.
 
 ## The problem
 
@@ -17,13 +19,13 @@ The usual navigation apps do not solve this:
 
 With five stops there are 120 possible orders. With ten stops there are more than three million. Nobody can check those by hand.
 
-## The plan
+## What it does
 
-Develop an application that can accept a starting point and a list of places. It works out the order that makes the trip efficient, then hands the route to Google Maps for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
+Give it a starting point and a list of places. It works out the order that makes the trip efficient, then hands the route to Google Maps for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
 
 - Efficient stop order for a list of addresses
 - A stop that has to keep its turn, such as the one that must come first, stays there while the rest are arranged around it
-- Type an address or a business name and have it found, nearest first, instead of hunting for it on the map
+- Type an address, a business name or a suburb and have it found, nearest first, instead of hunting for it on the map
 - A stop-over between two stops of the planned route, found by name with the minutes it adds. It stays on that leg when the trip is planned again
 - Save the places you go to often, such as home, and pick them again with one press
 - Real driving distances and times from OpenStreetMap, not straight lines. The times are for clear roads, since the map data has no traffic in it
@@ -31,10 +33,20 @@ Develop an application that can accept a starting point and a list of places. It
 - The turns of each leg written out, along the roads drawn on the map, from setting off to arriving
 - The order that takes the least fuel in your vehicle, picked to begin with. Town roads take more fuel for every kilometre than the open road, so it often keeps to the motorway, a little longer and quicker. It needs your vehicle, and until one is saved the fastest order is planned instead
 - The fastest order when picked instead. Another order is taken only when it saves a minute or more over the shortest
+- With a vehicle saved, the plan says what the other choice comes to, in minutes and litres
 - How high the ground is where a pin stands, shown when the pin is clicked or tapped
 - Your vehicle saved once, found in NZTA's vehicle register or entered by hand, and the fuel each leg and the whole trip takes: more in town than on the open road, with what each climb costs and each descent gives back
-- Fuel estimates from the road (distance, speed limits, hills) and the vehicle (engine, size, load)
-- A choice between the fastest route and the most fuel-efficient one, showing the real difference in minutes and litres
+
+## Measured
+
+On 400 round trips around Auckland, 85 km at the middle, in a medium car, the order that takes the least fuel was another order than the shortest in 265. Where it changed, it saved 0.09 L at the middle, 1.4%, and 0.58 L at most, 8.3%. Over all 400 it took 1.2% less fuel than the shortest orders. It was also 111 s quicker at the middle, and none was a minute or more slower. [docs/api.md](docs/api.md#the-least-fuel) has the details, and the same test in Wellington.
+
+## How it works
+
+The API asks for the travel figures between every pair of places: straight lines with no setup, or real roads from GraphHopper. It turns them into a table of costs, in kilometres, seconds or litres, and checks every possible order for the cheapest. The map screen is a React app that calls it.
+
+- [docs/architecture.md](docs/architecture.md): how the pieces fit together, and why each was built that way
+- [docs/api.md](docs/api.md): every endpoint, with examples, and how each figure is worked out
 
 ## Stack
 
@@ -49,11 +61,13 @@ Runs on free, open data, so anyone can host their own copy without paying for an
 
 ## Running it
 
-You need Java 25, pnpm and PostgreSQL with PostGIS. On a Mac, [Postgres.app](https://postgresapp.com) includes PostGIS:
+You need Java 25, Node 24 with pnpm, and PostgreSQL with PostGIS. On a Mac, [Postgres.app](https://postgresapp.com) includes PostGIS:
 
 ```bash
 createdb routeplanner
 ```
+
+The API logs in to PostgreSQL as your own username with no password, as Postgres.app expects. Anywhere else, set `DB_USERNAME` and `DB_PASSWORD` first.
 
 Two halves. The API, which applies its own database migrations on start:
 
@@ -67,17 +81,9 @@ The map screen, in a second terminal:
 cd frontend && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173. If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. On a phone, hold it until it lifts, then drag it. Beside each stop a padlock keeps it at its turn, two arrows move it up or down the list, and a bookmark saves the place for next time under the label you gave it. Once the data below is loaded you can type them instead, and the nearest match comes first.
+Open http://localhost:5173, click your start, then each stop, and plan the route. [Using it](#using-it) says what else the screen does.
 
-With the addresses imported, a pin put down on the map takes the name of the address nearest it, or "Near" that address when it is over 50 m off. So does your location, once the browser is sure of it. A name you type stays, and a pin that moves takes the address of its new spot.
-
-On a phone the map fills the screen. The search box floats over the top of it, and the trip is a panel that comes up from the bottom.
-
-A trip takes 10 stops, or 9 when it returns to the start, so that every stop goes into the Google Maps link. With that many, the search box says "Max stops reached".
-
-Once the route is planned, the list of stops takes the order to be driven, and undo brings back the order it had. A "+" between two stops opens a search of its own for that part of the drive: by name, or by the kind of place, such as petrol, food, toilets or a beach, for when you have no name in mind. It lists first the places that add the least time, and a switch widens it to the whole route. The place picked is a stop-over: it goes between the two stops, and the other stops keep their order. Planned again later, it stays between those two and the others are arranged around them. The link button beside it lets it go.
-
-That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, 385 MB, and start the API with the routing provider switched on:
+That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, about 400 MB, and start the API with the routing provider switched on:
 
 ```bash
 curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
@@ -96,14 +102,6 @@ cd backend && ./mvnw spring-boot:run -Dspring-boot.run.arguments="--routeplanner
 ```
 
 The first start with heights on fetches the height of the ground for New Zealand, 70 files and 480 MB, into `backend/data/heights`, and builds a second graph beside the first. Later starts fetch nothing. Switching heights off again goes back to the first graph, which is left as it was. The climb is an estimate, and [docs/api.md](docs/api.md) says how it is counted and where it is wrong.
-
-A copy whose graph with heights is in `backend/data/graph-cache-heights-2`, from an earlier version, builds it again in `backend/data/graph-cache-heights` on its next start with heights on. That took under a minute where it was measured, and fetches nothing. The old folder can then be deleted.
-
-With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest" is picked: more for every kilometre in town than on the open road, and its hills when heights are on and the vehicle's weight is known. On straight lines the fuel goes with the distance, the answer is the shortest order, and the screen says why.
-
-On real roads, picking "Fastest" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so.
-
-With a vehicle saved, on real roads, the plan says in one line what the other choice comes to: "Fastest: 4 min quicker, 0.3 L more" beside the least fuel, or "Same as Fastest" when the two come out the same. Under a minute apart is about the same time.
 
 ### Address search
 
@@ -179,13 +177,31 @@ The app has no login, so it answers only the machine it runs on. Nothing else on
 
 Do not put the app on an address that anyone can open. Do not point a tunnel at the two development servers either. They are not built to face other people.
 
+## Using it
+
+If you let the browser share your location, the trip starts from where you are. Otherwise click your start, then each stop, and plan the route. A pin in the wrong spot can be dragged. On a phone, hold it until it lifts, then drag it. Beside each stop a padlock keeps it at its turn, two arrows move it up or down the list, and a bookmark saves the place for next time under the label you gave it. With the addresses and places imported, you can type them instead, and the nearest match comes first.
+
+With the addresses imported, a pin put down on the map takes the name of the address nearest it, or "Near" that address when it is over 50 m off. So does your location, once the browser is sure of it. A name you type stays, and a pin that moves takes the address of its new spot.
+
+On a phone the map fills the screen. The search box floats over the top of it, and the trip is a panel that comes up from the bottom.
+
+A trip takes 10 stops, or 9 when it returns to the start, so that every stop goes into the Google Maps link. With that many, the search box says "Max stops reached".
+
+Once the route is planned, the list of stops takes the order to be driven, and undo brings back the order it had. A "+" between two stops opens a search of its own for that part of the drive: by name, or by the kind of place, such as petrol, food, toilets or a beach, for when you have no name in mind. It lists first the places that add the least time, and a switch widens it to the whole route. The place picked is a stop-over: it goes between the two stops, and the other stops keep their order. Planned again later, it stays between those two and the others are arranged around them. The link button beside it lets it go.
+
+With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest" is picked: more for every kilometre in town than on the open road, and its hills when heights are on and the vehicle's weight is known. On straight lines the fuel goes with the distance, the answer is the shortest order, and the screen says why.
+
+On real roads, picking "Fastest" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so.
+
+With a vehicle saved, on real roads, the plan says in one line what the other choice comes to: "Fastest: 4 min quicker, 0.3 L more" beside the least fuel, or "Same as Fastest" when the two come out the same. Under a minute apart is about the same time.
+
 ## Roadmap
 
 - [x] 1. REST API that returns the efficient stop order, using straight-line distances
 - [x] 2. Address search and saved places, in PostgreSQL
 - [x] 3. Real driving distances from GraphHopper
 - [x] 4. Map screen, first release
-- [ ] 5. Vehicle information: engine, size and load
+- [ ] 5. Vehicle information: engine, size and load. Begun: petrol cars, by engine or by size
 - [x] 6. Fuel-efficient route option, using that vehicle information
 
 ## Later

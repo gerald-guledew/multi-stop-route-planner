@@ -133,9 +133,9 @@ flowchart TD
 
 ## Saved places
 
-A third flow, and the first one that writes. A place is saved under a name, listed, and removed.
+A fourth flow, and the first one that writes. A place is saved under a name, listed, and removed.
 
-**JPA here, SQL in search.** Search reads two tables that share no class, so it is one SQL statement. A saved place is one table, written and read a row at a time. That is what JPA is for, so `SavedPlace` is an entity and its repository is an interface with no code behind it.
+**JPA here, SQL in search.** Search reads three tables that share no class, so it is one SQL statement. A saved place is one table, written and read a row at a time. That is what JPA is for, so `SavedPlace` is an entity and its repository is an interface with no code behind it.
 
 **The table keeps names apart, not the code.** A name can be saved once, whatever the capitals, because a unique index on the lower-cased name says so. The service does not look first and save second: two requests arriving together would both find the name free. It saves, and turns the database's refusal into an error that says which name.
 
@@ -215,5 +215,5 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | 2 | **Done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. Saved places are a JPA entity behind three endpoints. The planning flow above was untouched by both |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length, and with heights switched on how much it climbs and descends. The order is chosen for distance unless the request asks otherwise |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
-| 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use and its weight arrive with the request. They do not reach the matrix provider yet, because nothing there reads them |
+| 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use and its weight arrive with the request, and step 6 works out the litres from them. The matrix provider needs neither: it gives the roads, and the service turns them into fuel. Left to build: engine types other than petrol, and what a van carries |
 | 6 | **Done.** Two more ways to fill the cost matrix: driving time, when the request asks for the fastest order, and litres, when it asks for the least fuel. The fuel each leg takes is worked out after the order is chosen, by `FuelEstimate`: by `FuelUse`, the vehicle's town figure for the leg's kilometres in town and its open-road figure for the rest, and what each climb costs and each descent gives back, once the roads have heights and the weight is known. Asked for one, the answer gives the other beside it, with what each comes to |

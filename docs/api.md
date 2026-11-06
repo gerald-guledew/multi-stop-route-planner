@@ -15,7 +15,7 @@ routeplanner:
     # provider: graphhopper # real driving distances, needs the map extract
 ```
 
-`graphhopper` needs the New Zealand extract, 385 MB, at `backend/data/new-zealand-latest.osm.pbf`:
+`graphhopper` needs the New Zealand extract, about 400 MB, at `backend/data/new-zealand-latest.osm.pbf`:
 
 ```bash
 curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
