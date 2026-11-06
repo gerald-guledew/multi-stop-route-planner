@@ -27,7 +27,7 @@ The migrations switch on the `postgis`, `pg_trgm` and `unaccent` extensions wher
 That runs on straight-line distances. For real driving distances, download the map extract, about 400 MB, which stays out of git, and switch the provider in `application.yaml`:
 
 ```bash
-curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
+curl --create-dirs -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
 ```
 
 The road tests skip themselves when that file is absent, so a clean checkout stays green.

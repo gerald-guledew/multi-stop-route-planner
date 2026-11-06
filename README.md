@@ -4,9 +4,9 @@
 
 Works out the efficient order to drive to several places, then hands the route to Google Maps.
 
-**Status: working, for one driver and one trip.** It plans up to 10 stops on real roads, for the least fuel or the fastest drive. Several drivers and delivery time windows come later.
+**Status: working, for one driver and one trip.** It plans up to 10 stops, 9 on a round trip, on real roads, for the least fuel or the fastest drive. Several drivers and delivery time windows come later.
 
-Built and tested in Auckland NZ. The routing works anywhere OpenStreetMap has road data. Address search and the list of cars use New Zealand's registers.
+Built and tested in Auckland NZ. The routing reads any OpenStreetMap extract, set by `routeplanner.routing.osm-file`, though only New Zealand's has been tried. Address search and the list of cars use New Zealand's registers.
 
 ## The problem
 
@@ -21,7 +21,7 @@ With five stops there are 120 possible orders. With ten stops there are more tha
 
 ## What it does
 
-Give it a starting point and a list of places. It works out the order that makes the trip efficient, then hands the route to Google Maps for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time.
+Give it a starting point and a list of places. It works out the order that makes the trip efficient, then hands the route to Google Maps for the actual driving. Choosing a good order is where most of the saving comes from, because it cuts distance, fuel use and driving time at the same time. On 400 round trips around Auckland, the order with the least fuel took less than the shortest in 265. See [Measured](#measured).
 
 - Efficient stop order for a list of addresses
 - A stop that has to keep its turn, such as the one that must come first, stays there while the rest are arranged around it
@@ -39,11 +39,11 @@ Give it a starting point and a list of places. It works out the order that makes
 
 ## Measured
 
-On 400 round trips around Auckland, 85 km at the middle, in a medium car, the order that takes the least fuel was another order than the shortest in 265. Where it changed, it saved 0.09 L at the middle, 1.4%, and 0.58 L at most, 8.3%. Over all 400 it took 1.2% less fuel than the shortest orders. It was also 111 s quicker at the middle, and none was a minute or more slower. [docs/api.md](docs/api.md#the-least-fuel) has the details, and the same test in Wellington.
+On 400 round trips around Auckland, 85 km at the middle, in a medium car, 1,270 kg at 7.5 L/100 km, the order that takes the least fuel was another order than the shortest in 265. Where it changed, it saved 0.09 L at the middle, 1.4%, and 0.58 L at most, 8.3%. Over all 400 it took 1.2% less fuel than the shortest orders. It was also 111 s quicker at the middle, and none was a minute or more slower. [docs/api.md](docs/api.md#the-least-fuel) has the details, and the same test in Wellington.
 
 ## How it works
 
-The API asks for the travel figures between every pair of places: straight lines with no setup, or real roads from GraphHopper. It turns them into a table of costs, in kilometres, seconds or litres, and checks every possible order for the cheapest. The map screen is a React app that calls it.
+The API asks for the travel figures between every pair of places: straight lines with no setup, or real roads from GraphHopper. It turns them into a table of costs, in kilometres, seconds or litres, and checks every possible order for the cheapest. That is why a trip takes 10 stops at most: ten stops already make 3.6 million orders. The map screen is a React app that calls it.
 
 - [docs/architecture.md](docs/architecture.md): how the pieces fit together, and why each was built that way
 - [docs/api.md](docs/api.md): every endpoint, with examples, and how each figure is worked out
@@ -86,7 +86,7 @@ Open http://localhost:5173, click your start, then each stop, and plan the route
 That uses straight-line distances, which need no setup. For real driving distances, download the New Zealand map extract once, about 400 MB, and start the API with the routing provider switched on:
 
 ```bash
-curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
+curl --create-dirs -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
 ```
 
 ```bash
