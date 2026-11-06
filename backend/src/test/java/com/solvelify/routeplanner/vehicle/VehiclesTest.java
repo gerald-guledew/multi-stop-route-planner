@@ -54,7 +54,7 @@ class VehiclesTest {
 
     @Test
     void keepsWhatWasSaved() {
-        vehicles.save(7.5, VehicleSize.MEDIUM);
+        vehicles.save(7.5, VehicleSize.MEDIUM, 0);
 
         Vehicle saved = vehicles.current().orElseThrow();
         assertThat(saved.getLitresPer100Km()).isEqualTo(7.5);
@@ -63,8 +63,8 @@ class VehiclesTest {
 
     @Test
     void replacesTheVehicleThereWasRatherThanAddingASecond() {
-        vehicles.save(7.5, VehicleSize.MEDIUM);
-        vehicles.save(11.2, VehicleSize.LARGE);
+        vehicles.save(7.5, VehicleSize.MEDIUM, 0);
+        vehicles.save(11.2, VehicleSize.LARGE, 0);
 
         assertThat(repository.count()).isEqualTo(1);
         assertThat(vehicles.current().orElseThrow().getLitresPer100Km()).isEqualTo(11.2);
@@ -73,7 +73,7 @@ class VehiclesTest {
 
     @Test
     void keepsACarFoundInTheRegisterWithTheRegistersFigure() {
-        vehicles.saveFromRegister(SWIFT, null);
+        vehicles.saveFromRegister(SWIFT, null, 0);
 
         Vehicle saved = vehicles.current().orElseThrow();
         assertThat(saved.getCar()).contains(SWIFT);
@@ -84,7 +84,7 @@ class VehiclesTest {
 
     @Test
     void keepsTheDashboardsFigureForACarFoundInTheRegister() {
-        vehicles.saveFromRegister(SWIFT, 5.6);
+        vehicles.saveFromRegister(SWIFT, 5.6, 0);
 
         Vehicle saved = vehicles.current().orElseThrow();
         assertThat(saved.getLitresPer100Km()).isEqualTo(5.6);
@@ -93,10 +93,10 @@ class VehiclesTest {
 
     @Test
     void refusesACarTheRegisterDoesNotListAndKeepsTheVehicleThereWas() {
-        vehicles.save(7.5, VehicleSize.MEDIUM);
+        vehicles.save(7.5, VehicleSize.MEDIUM, 0);
         Car swiftSport = new Car("SUZUKI", "SWIFT", 2018, new BigDecimal("1.4"));
 
-        assertThatThrownBy(() -> vehicles.saveFromRegister(swiftSport, null))
+        assertThatThrownBy(() -> vehicles.saveFromRegister(swiftSport, null, 0))
                 .isInstanceOf(CarNotInRegisterException.class)
                 .hasMessage("NZTA's register has no 2018 SUZUKI SWIFT 1.4 L.");
         assertThat(vehicles.current().orElseThrow().getSize()).isEqualTo(VehicleSize.MEDIUM);
@@ -104,9 +104,9 @@ class VehiclesTest {
 
     @Test
     void forgetsTheCarWhenAVehicleIsEnteredByHandInItsPlace() {
-        vehicles.saveFromRegister(SWIFT, null);
+        vehicles.saveFromRegister(SWIFT, null, 0);
 
-        vehicles.save(7.5, VehicleSize.MEDIUM);
+        vehicles.save(7.5, VehicleSize.MEDIUM, 0);
 
         Vehicle saved = vehicles.current().orElseThrow();
         assertThat(saved.getCar()).isEmpty();
@@ -115,18 +115,18 @@ class VehiclesTest {
 
     @Test
     void weighsAVehicleEnteredByHandAsCarsOfItsSizeWeigh() {
-        assertThat(vehicles.weightOf(vehicles.save(7.5, VehicleSize.MEDIUM))).hasValue(1270);
+        assertThat(vehicles.weightOf(vehicles.save(7.5, VehicleSize.MEDIUM, 0))).hasValue(1270);
     }
 
     @Test
     void weighsACarFoundInTheRegisterAsTheRegisterDoes() {
         // Japan's 1,165 kg for a used import, less 55 kg for each of its five seats.
-        assertThat(vehicles.weightOf(vehicles.saveFromRegister(SWIFT, null))).hasValue(890);
+        assertThat(vehicles.weightOf(vehicles.saveFromRegister(SWIFT, null, 0))).hasValue(890);
     }
 
     @Test
     void removesTheVehicle() {
-        vehicles.save(7.5, VehicleSize.MEDIUM);
+        vehicles.save(7.5, VehicleSize.MEDIUM, 0);
 
         vehicles.remove();
 
@@ -166,6 +166,30 @@ class VehiclesTest {
         // A size is entered by hand, and only the dashboard gives a figure then.
         assertThatThrownBy(() -> jdbc.sql(
                 "INSERT INTO vehicle (litres_per_100_km, size, figure_from) VALUES (7.5, 'SMALL', 'REGISTER')").update())
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void keepsTheLoadSaved() {
+        vehicles.save(7.5, VehicleSize.MEDIUM, 200);
+
+        assertThat(vehicles.current().orElseThrow().getLoadKilograms()).isEqualTo(200);
+    }
+
+    @Test
+    void keepsTheLoadOfACarFoundInTheRegister() {
+        vehicles.saveFromRegister(SWIFT, null, 80);
+
+        assertThat(vehicles.current().orElseThrow().getLoadKilograms()).isEqualTo(80);
+    }
+
+    @Test
+    void theTableRefusesALoadBeyondWhatAVanCarries() {
+        vehicles.save(7.5, VehicleSize.MEDIUM, 0);
+
+        assertThatThrownBy(() -> jdbc.sql("UPDATE vehicle SET load_kilograms = 1501").update())
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.sql("UPDATE vehicle SET load_kilograms = -1").update())
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 }

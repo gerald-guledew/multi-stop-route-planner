@@ -56,8 +56,11 @@ public class VehicleController {
     @PutMapping
     public VehicleResponse save(@Valid @RequestBody VehicleRequest request) {
         Vehicle saved = request.car() == null
-                ? vehicles.save(request.litresPer100Km(), VehicleSize.valueOf(request.size().toUpperCase(Locale.ROOT)))
-                : vehicles.saveFromRegister(request.car().toCar(), request.litresPer100Km());
+                ? vehicles.save(
+                        request.litresPer100Km(),
+                        VehicleSize.valueOf(request.size().toUpperCase(Locale.ROOT)),
+                        request.loadOrNothing())
+                : vehicles.saveFromRegister(request.car().toCar(), request.litresPer100Km(), request.loadOrNothing());
         return responseFor(saved);
     }
 
@@ -84,6 +87,7 @@ public class VehicleController {
      * @param litresPer100Km what the dashboard shows, from 2 to 30
      * @param size           small, medium or large, for a vehicle entered by hand
      * @param car            the car found in the register
+     * @param loadKilograms  what it carries besides the driver, from 0 to 1,500. Left out, nothing
      */
     public record VehicleRequest(
 
@@ -95,7 +99,15 @@ public class VehicleController {
             String size,
 
             @Valid
-            CarRequest car) {
+            CarRequest car,
+
+            @Min(value = 0, message = "must be between 0 and 1500")
+            @Max(value = Vehicle.MOST_LOAD_KILOGRAMS, message = "must be between 0 and 1500")
+            Integer loadKilograms) {
+
+        int loadOrNothing() {
+            return loadKilograms == null ? 0 : loadKilograms;
+        }
 
         /** Reported as the field "sizeOrCar". */
         @AssertTrue(message = "must be a size or a car, one of the two")
@@ -136,6 +148,7 @@ public class VehicleController {
      * @param kilograms              what it weighs empty, to the nearest 10 kg: the register's
      *                               weight or the size's. Null when the register no longer lists
      *                               the car
+     * @param loadKilograms          what it carries besides the driver, nought for nothing
      */
     public record VehicleResponse(
             double litresPer100Km,
@@ -144,7 +157,8 @@ public class VehicleController {
             double openRoadLitresPer100Km,
             String size,
             Car car,
-            Integer kilograms) {
+            Integer kilograms,
+            int loadKilograms) {
 
         static VehicleResponse from(Vehicle vehicle, FuelUse fuel, OptionalDouble kilograms) {
             return new VehicleResponse(
@@ -154,7 +168,8 @@ public class VehicleController {
                     toATenth(fuel.openRoadLitresPer100Km()),
                     vehicle.getSize() == null ? null : vehicle.getSize().name().toLowerCase(Locale.ROOT),
                     vehicle.getCar().orElse(null),
-                    kilograms.isPresent() ? (int) Math.round(kilograms.getAsDouble() / 10) * 10 : null);
+                    kilograms.isPresent() ? (int) Math.round(kilograms.getAsDouble() / 10) * 10 : null,
+                    vehicle.getLoadKilograms());
         }
 
         private static double toATenth(double litresPer100Km) {

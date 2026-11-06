@@ -51,6 +51,8 @@ public record OptimizeRouteRequest(
      * @param openRoadLitresPer100Km what the open road takes, from 2 to 40
      * @param kilograms              what the vehicle weighs empty, from 400 to 4,000. Left out,
      *                               the fuel does not count the hills
+     * @param loadKilograms          what it carries besides the driver, from 0 to 1,500. Left
+     *                               out, nothing
      */
     public record VehicleRequest(
 
@@ -69,7 +71,11 @@ public record OptimizeRouteRequest(
 
             @DecimalMin(value = "400", message = "must be between 400 and 4000")
             @DecimalMax(value = "4000", message = "must be between 400 and 4000")
-            Double kilograms) {
+            Double kilograms,
+
+            @DecimalMin(value = "0", message = "must be between 0 and 1500")
+            @DecimalMax(value = "" + Vehicle.MOST_LOAD_KILOGRAMS, message = "must be between 0 and 1500")
+            Double loadKilograms) {
 
         /** Reported as the field "townAndOpenRoad". One without the other says half of it. */
         @AssertTrue(message = "must send townLitresPer100Km and openRoadLitresPer100Km together, or neither")
@@ -79,9 +85,10 @@ public record OptimizeRouteRequest(
 
         FuelUse fuelUse() {
             OptionalDouble weight = kilograms == null ? OptionalDouble.empty() : OptionalDouble.of(kilograms);
-            return townLitresPer100Km == null
+            FuelUse empty = townLitresPer100Km == null
                     ? new FuelUse(litresPer100Km, weight)
                     : new FuelUse(litresPer100Km, townLitresPer100Km, openRoadLitresPer100Km, weight);
+            return empty.carrying(loadKilograms == null ? 0 : loadKilograms);
         }
     }
 

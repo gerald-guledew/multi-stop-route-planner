@@ -195,4 +195,65 @@ class FuelUseTest {
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
+
+    // A load besides the driver.
+
+    @Test
+    void changesNothingWhenItCarriesNothing() {
+        FuelUse carryingNothing = MEDIUM_CAR.carrying(0);
+        Optional<ClimbAndDescent> hills = Optional.of(new ClimbAndDescent(120, 120, List.of(new Descent(120, 1000))));
+
+        assertThat(carryingNothing).isEqualTo(MEDIUM_CAR);
+        assertThat(carryingNothing.litresFor(10, OptionalDouble.of(4), hills))
+                .isEqualTo(MEDIUM_CAR.litresFor(10, OptionalDouble.of(4), hills));
+        assertThat(carryingNothing.litresUsedUpFor(10, OptionalDouble.of(4), hills))
+                .isEqualTo(MEDIUM_CAR.litresUsedUpFor(10, OptionalDouble.of(4), hills));
+    }
+
+    @Test
+    void takesForEveryHundredKilogramsAQuarterOfALitreInTownAndATenthOnTheOpenRoad() {
+        // Over 100 km. Rolling it along takes 0.099 L, and in town getting it going again after
+        // every stop another 0.144 L.
+        FuelUse loaded = MEDIUM_CAR.carrying(100);
+
+        assertThat(loaded.litresOnTheLevel(100, OptionalDouble.of(100)) - MEDIUM_CAR.litresOnTheLevel(100, OptionalDouble.of(100)))
+                .isCloseTo(0.243, within(0.001));
+        assertThat(loaded.litresOnTheLevel(100, OptionalDouble.of(0)) - MEDIUM_CAR.litresOnTheLevel(100, OptionalDouble.of(0)))
+                .isCloseTo(0.099, within(0.001));
+    }
+
+    @Test
+    void takesAboutWhatIsPublishedForALoadOverTheApprovalTest() {
+        // About 1% for every 100 lb, says the US Department of Energy, which is 2.2% for 100 kg,
+        // and up to 0.3 L/100 km for 100 kg, says the German automobile club.
+        double more = MEDIUM_CAR.carrying(100).litresFor(100) - MEDIUM_CAR.litresFor(100);
+
+        assertThat(more).isCloseTo(0.152, within(0.001)).isLessThan(0.3);
+        assertThat(more / MEDIUM_CAR.litresFor(100)).isCloseTo(0.02, within(0.001));
+    }
+
+    @Test
+    void liftsTheLoadWithTheCarAndTheDriver() {
+        // 1,300 kg with the driver, and 130 kg more: a tenth more for every metre up.
+        FuelUse loaded = MEDIUM_CAR.carrying(130);
+
+        assertThat(loaded.litresFor(10, Optional.of(new ClimbAndDescent(100, 0))) - loaded.litresFor(10, Optional.empty()))
+                .isCloseTo(HUNDRED_METRES_UP * 1.1, within(1e-9));
+    }
+
+    @Test
+    void countsALoadOnTheLevelWhenTheWeightIsNotKnown() {
+        FuelUse weightUnknown = new FuelUse(7.5).carrying(100);
+
+        assertThat(weightUnknown.countsHills()).isFalse();
+        assertThat(weightUnknown.litresFor(100, Optional.of(new ClimbAndDescent(300, 0))))
+                .isCloseTo(7.5 + 0.152, within(0.001));
+    }
+
+    @Test
+    void refusesALoadThatIsNotOne() {
+        for (double notALoad : new double[] {-1, Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertThatThrownBy(() -> MEDIUM_CAR.carrying(notALoad)).isInstanceOf(IllegalArgumentException.class);
+        }
+    }
 }

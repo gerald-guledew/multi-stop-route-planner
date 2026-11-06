@@ -66,4 +66,23 @@ class VehicleTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("between 2.0 and 30.0");
     }
+
+    @Test
+    void carriesNothingUntilItIsSaid() {
+        assertThat(new Vehicle(7.5, VehicleSize.MEDIUM).getLoadKilograms()).isZero();
+    }
+
+    @Test
+    void carriesWhatItIsGiven() {
+        assertThat(new Vehicle(7.5, VehicleSize.MEDIUM).carrying(1500).getLoadKilograms()).isEqualTo(1500);
+        assertThat(new Vehicle(SWIFT_FOUND, null).carrying(80).getLoadKilograms()).isEqualTo(80);
+    }
+
+    @Test
+    void refusesALoadBelowNoughtOrBeyondWhatAVanCarries() {
+        for (int notALoad : new int[] {-1, 1501}) {
+            assertThatThrownBy(() -> new Vehicle(7.5, VehicleSize.MEDIUM).carrying(notALoad))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
 }

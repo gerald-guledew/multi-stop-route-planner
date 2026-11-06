@@ -94,15 +94,18 @@ export interface Vehicle {
   car: Car | null
   /** What it weighs empty, to the nearest 10 kg. Null when the register no longer lists the car. */
   kilograms: number | null
+  /** What it carries besides the driver, in kg. Nought for nothing. */
+  loadKilograms: number
 }
 
 /**
  * A vehicle as it is sent to be saved. Entered by hand, with the dashboard's figure, or found
- * in the register, with the dashboard's figure only if the driver knows it.
+ * in the register, with the dashboard's figure only if the driver knows it. Either way with
+ * what it carries besides the driver.
  */
 export type VehicleToSave =
-  | { size: VehicleSize; litresPer100Km: number }
-  | { car: Car; litresPer100Km: number | null }
+  | { size: VehicleSize; litresPer100Km: number; loadKilograms: number }
+  | { car: Car; litresPer100Km: number | null; loadKilograms: number }
 
 export interface Leg {
   from: string
