@@ -39,7 +39,7 @@ import java.util.OptionalDouble;
  * fuel into work as on a climb. For 100 kg that is 0.24 L/100 km in town and 0.10 on the open
  * road, 2% more over the test for a medium car at 7.5 L/100 km. Checked against what is published:
  * about 1% for every 100 lb, the US Department of Energy's figure, which is 2.2% for 100 kg, and
- * up to 0.3 L/100 km for 100 kg, the German automobile club's. On a hill the load is lifted with
+ * up to 0.3 L/100 km for 100 kg, as the German automobile club is quoted. On a hill the load is lifted with
  * the car.
  *
  * @param litresPer100Km         the one figure, the dashboard's or the register's. It is what a

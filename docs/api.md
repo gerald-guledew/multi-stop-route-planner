@@ -542,10 +542,10 @@ On roads read with their heights, and with `kilograms`, the fuel counts the hill
 Send `loadKilograms` with the vehicle, passengers or cargo besides the driver, and every leg counts it. The vehicle's own figures do not hold it.
 
 - **On the level it takes what rolling it along takes**, 1% of its weight against the tyres, and in town what getting it going again after each stop takes, as often as the town part of the approval test stops. The engine turns 30% of that fuel into work, as on a climb. For 100 kg that is 0.24 L/100 km in town and 0.10 on the open road, 2% more over the test for a medium car at 7.5 L/100 km.
-- **Checked against what is published.** The US Department of Energy says about 1% for every 100 lb, which is 2.2% for 100 kg. Germany's automobile club says up to 0.3 L/100 km for 100 kg. Other rules of thumb go up to 4%, so this is at the low end of what is published.
+- **Checked against what is published.** The US Department of Energy says about 1% for every 100 lb, which is 2.2% for 100 kg. Germany's automobile club is quoted at up to 0.3 L/100 km for 100 kg.
 - **On a hill it is lifted with the car**, and gives that back coming down, as the car does.
 - **It needs no weight.** Without `kilograms` the hills are not counted, and the load still is, on the level.
-- **It rides the whole trip**, so it adds to every order. Two orders can differ for it only in how much of each is in town and how it climbs.
+- **It rides the whole trip**, so it adds to every order. Two orders differ for it in how long each is, how much of it is in town and how it climbs.
 
 The rest:
 

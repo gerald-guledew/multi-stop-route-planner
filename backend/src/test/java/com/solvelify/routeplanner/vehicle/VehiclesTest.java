@@ -192,4 +192,12 @@ class VehiclesTest {
         assertThatThrownBy(() -> jdbc.sql("UPDATE vehicle SET load_kilograms = -1").update())
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
+
+    @Test
+    void readsAVehicleSavedBeforeTheLoadWasAskedAsCarryingNothing() {
+        // As a row saved before the column was added: without it, the table's default.
+        jdbc.sql("INSERT INTO vehicle (id, litres_per_100_km, size) VALUES (1, 7.5, 'MEDIUM')").update();
+
+        assertThat(vehicles.current().orElseThrow().getLoadKilograms()).isZero();
+    }
 }
