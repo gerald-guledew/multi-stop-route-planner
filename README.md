@@ -189,6 +189,8 @@ A trip takes 10 stops, or 9 when it returns to the start, so that every stop goe
 
 Once the route is planned, the list of stops takes the order to be driven, and undo brings back the order it had. A "+" between two stops opens a search of its own for that part of the drive: by name, or by the kind of place, such as petrol, food, toilets or a beach, for when you have no name in mind. It lists first the places that add the least time, and a switch widens it to the whole route. The place picked is a stop-over: it goes between the two stops, and the other stops keep their order. Planned again later, it stays between those two and the others are arranged around them. The link button beside it lets it go.
 
+When you want to stop somewhere and do not mind where it fits, the end of a second search bar shows at the right of the search box once the route is planned. Its arrow pulls it across: "Search along the planned route", by name or by the kind of place. The place picked goes on the leg it adds the least time to, and the other stops keep their order. The search box itself adds a stop, and the whole order is worked out again.
+
 With a vehicle saved, the order is chosen for the fuel it takes, unless "Fastest" is picked: more for every kilometre in town than on the open road, and its hills when heights are on and the vehicle's weight is known. A load saved with the vehicle, passengers or cargo, takes more on every kilometre, most in town. On straight lines the fuel goes with the distance, the answer is the shortest order, and the screen says why.
 
 On real roads, picking "Fastest" has the order chosen for driving time instead. On straight lines there is no time to choose by, and the screen says so.

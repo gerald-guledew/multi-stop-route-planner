@@ -41,6 +41,22 @@ export function DownIcon() {
   )
 }
 
+export function ChevronLeftIcon() {
+  return (
+    <Icon>
+      <path d="M12 4l-6 6 6 6" />
+    </Icon>
+  )
+}
+
+export function ChevronRightIcon() {
+  return (
+    <Icon>
+      <path d="M8 4l6 6-6 6" />
+    </Icon>
+  )
+}
+
 export function PlusIcon() {
   return (
     <Icon>

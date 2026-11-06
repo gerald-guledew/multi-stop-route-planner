@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import PlaceSearchBox from './PlaceSearchBox'
+import SearchAlongTheRoute from './SearchAlongTheRoute'
 import StopOverDialog from './StopOverDialog'
 import {
   BookmarkIcon,
+  ChevronLeftIcon,
   CrossIcon,
   DownIcon,
   LinkIcon,
@@ -21,7 +23,7 @@ import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly, sitsOn } from '../foundStart'
 import { googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
-import { betweenSaid, canAddOnTheWay, legAfter } from '../onTheWay'
+import { betweenSaid, canAddOnTheWay, legAfter, searchAlongOpen } from '../onTheWay'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
@@ -110,8 +112,8 @@ function HowItWorks() {
   return (
     <>
       <p className="lede">
-        Search an address or a business to drop a pin on it, or click the map for anywhere
-        else. Drag a pin to move it. On a phone, hold it until it lifts first. The box beside
+        Search a place to drop a pin on it, or click the map for anywhere
+        else. Once a route is planned, the arrow at the end of the search box searches along it. Drag a pin to move it. On a phone, hold it until it lifts first. The box beside
         each pin is a label you can rename. It does not move anything.
       </p>
       <p className="lede">
@@ -226,6 +228,9 @@ export default function RoutePanel(props: Props) {
   // The "+" whose dialog is open, by the leg it sits on. It holds for the plan it was pressed on and
   // no other, whose legs are not these.
   const [stoppingOn, setStoppingOn] = useState<{ plan: RoutePlan; leg: number } | null>(null)
+  // The plan the search along the route was opened on. It holds for that plan and no other.
+  const [searchingAlongOn, setSearchingAlongOn] = useState<RoutePlan | null>(null)
+  const alongOpen = searchAlongOpen(searchingAlongOn, plan, addsOnTheWay)
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -273,13 +278,37 @@ export default function RoutePanel(props: Props) {
       </header>
 
       <div className="top-bar">
-        <PlaceSearchBox
-          onPick={props.onPickPlace}
-          devicePosition={props.devicePosition}
-          places={places}
-          mapCentre={props.mapCentre}
-          full={full}
-        />
+        {/* Hidden rather than taken away while the other bar is over it, so what was typed stays. */}
+        <div className="search-row" hidden={alongOpen}>
+          <PlaceSearchBox
+            onPick={props.onPickPlace}
+            devicePosition={props.devicePosition}
+            places={places}
+            mapCentre={props.mapCentre}
+            full={full}
+          />
+          {addsOnTheWay && plan && (
+            <button
+              className="along-edge along-peek"
+              title="Search along the planned route"
+              aria-label="Search along the planned route"
+              onClick={() => setSearchingAlongOn(plan)}
+            >
+              <ChevronLeftIcon />
+            </button>
+          )}
+        </div>
+        {alongOpen && plan && (
+          <SearchAlongTheRoute
+            plan={plan}
+            places={places}
+            onPick={(found) => {
+              setSearchingAlongOn(null)
+              props.onAddOnTheWay(found)
+            }}
+            onBack={() => setSearchingAlongOn(null)}
+          />
+        )}
       </div>
 
       <div className={`sheet ${panelUp ? 'sheet-up' : ''}`}>

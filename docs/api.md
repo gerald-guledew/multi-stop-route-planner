@@ -158,7 +158,7 @@ Results are empty until the data is imported: LINZ addresses for `address`, Over
 
 ## POST /api/v1/places/along
 
-Finds a place to stop at on the way, by what you type or by the kind of place, along a planned route: the places that add the least time come first, each with what it adds. The map screen asks it from the dialog of the "+" between two stops, for that leg or for the whole route.
+Finds a place to stop at on the way, by what you type or by the kind of place, along a planned route: the places that add the least time come first, each with what it adds. The map screen asks it from the dialog of the "+" between two stops, for that leg or for the whole route, and from the search along the planned route beside the search box, for the whole route.
 
 A POST, so the exact spots of the trip travel in the body rather than in a URL, which is what logs keep.
 
@@ -220,7 +220,7 @@ A POST, so the exact spots of the trip travel in the body rather than in a URL, 
 2. The first 12 it ranks, or as many as `limit` when that is more, are each driven to from the start of their leg and on to its end. What a place adds is those two drives less the leg as planned, never below nought. A place on the road the leg follows anyway adds nothing.
 3. They come back in the order of the time they add, and of the distance they add on straight lines.
 
-Looking along the whole route, each place is a stop on the leg whose road passes nearest to it, in a straight line.
+Looking along the whole route, each place is driven to on the two legs whose roads pass nearest to it, in a straight line, and is a stop on the one it adds less to. Near in a straight line is not always cheaper: a place by the corner where two legs meet, or across water from the nearer road, can add less to the other leg. On a round trip of five places around Auckland, 5 of 32 places found went on the other leg, each adding less there, up to 54 s less. Trying the second leg added 5 to 11 ms to a search on real roads.
 
 Measured on real roads: between Sylvia Park and the Sky Tower, New World Newmarket adds 123 s and 0.89 km. A plan with every stop kept at its turn, Sylvia Park, New World Newmarket, then the Sky Tower, takes 123 s and 0.89 km more than one straight to the Sky Tower. Places at the Sky Tower itself add 0 s.
 

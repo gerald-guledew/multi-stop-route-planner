@@ -9,6 +9,7 @@ import {
   legAfter,
   namedAs,
   pinLabel,
+  searchAlongOpen,
   withStopOn,
 } from './onTheWay'
 import type { Leg, Place, PlaceAlong, RoutePlan } from './types'
@@ -358,5 +359,26 @@ describe('whether a stop can be added on the way', () => {
     expect(canAddOnTheWay(trip(10), false, plan, false)).toBe(false)
     expect(canAddOnTheWay(trip(8), true, plan, false)).toBe(true)
     expect(canAddOnTheWay(trip(9), true, plan, false)).toBe(false)
+  })
+})
+
+describe('the search along the planned route', () => {
+  const plan = planOf(start, museum, tower)
+
+  it('is open on the plan it was opened on', () => {
+    expect(searchAlongOpen(plan, plan, true)).toBe(true)
+  })
+
+  it('is closed until it is opened', () => {
+    expect(searchAlongOpen(null, plan, true)).toBe(false)
+  })
+
+  it('closes when the plan is another or there is none', () => {
+    expect(searchAlongOpen(plan, planOf(start, tower, museum), true)).toBe(false)
+    expect(searchAlongOpen(plan, null, false)).toBe(false)
+  })
+
+  it('closes when no stop can be added on the way', () => {
+    expect(searchAlongOpen(plan, plan, false)).toBe(false)
   })
 })

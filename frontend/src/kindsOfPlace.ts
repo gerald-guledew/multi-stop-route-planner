@@ -35,3 +35,11 @@ export const KINDS_OF_PLACE: KindOfPlace[] = [
   { name: 'zoo', label: 'Zoo' },
   { name: 'mall', label: 'Mall' },
 ]
+
+/**
+ * Whether the kinds of place are offered: nothing typed and no kind picked, so there is nothing
+ * to list yet. Typing takes them away, since a name says more.
+ */
+export function offersKinds(query: string, kind: KindOfPlace | null): boolean {
+  return kind === null && query.trim() === ''
+}
