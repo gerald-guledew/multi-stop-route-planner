@@ -73,7 +73,7 @@ flowchart TD
     SearchController --> PlaceSearch["PlaceSearch (interface)"]
     PlaceSearch --> Postgres[PostgresPlaceSearch]
     Postgres --> Address[("address: 2.4 million LINZ addresses")]
-    Postgres --> Poi[("poi: 200,000 Overture places")]
+    Postgres --> Poi[("poi: 218,000 places from Overture and the map")]
     Postgres --> Area[("area: 6,400 suburbs and towns")]
     Linz["LINZ export"] -.->|AddressImporter| Address
     Overture["Overture export"] -.->|PoiImporter| Poi
@@ -85,7 +85,7 @@ flowchart TD
 
 Dotted lines happen at import time, not on a search.
 
-**Two datasets, each used for what it is the authority on.** LINZ publishes every New Zealand address but no names. Overture Maps publishes named places but is no address register. They meet in two places: one query searches both tables, and each place borrows its suburb from the nearest LINZ address, because Overture usually gives only the city.
+**Two datasets, each used for what it is the authority on.** LINZ publishes every New Zealand address but no names. Overture Maps publishes named places but is no address register. They meet in two places: one query searches both their tables, and each place borrows its suburb from the nearest LINZ address, because Overture usually gives only the city.
 
 **A suburb is a place too.** Neither lists the suburbs themselves, so "remuera" found the businesses named for Remuera and never Remuera. The map does: a point where each suburb, town and village is known to be, and for some an outline. `AreaImporter` loads them into a table of their own, keeping one of an area drawn twice, and each takes the city of the nearest address, which tells Hillcrest in Auckland from Hillcrest in Hamilton. The map names most of LINZ's suburbs: 2,660 of 3,187 by exactly the same name, where 95.6% of addresses are, and more written another way, as Saint Johns for St Johns. The same query searches the three tables. An area whose whole name was typed, with or without its city, comes first, the nearest first, on a key of its own rather than a higher score: a score is worth less the farther away a place is, and a business next door named for the suburb would otherwise come first. Along a road it does not, since there what counts is how near the road a place is, and a Hillcrest in another city would take the place of a stop on the way.
 
@@ -133,9 +133,9 @@ flowchart TD
 
 ## Saved places
 
-A third flow, and the first one that writes. A place is saved under a name, listed, and removed.
+A fourth flow, and the first one that writes. A place is saved under a name, listed, and removed.
 
-**JPA here, SQL in search.** Search reads two tables that share no class, so it is one SQL statement. A saved place is one table, written and read a row at a time. That is what JPA is for, so `SavedPlace` is an entity and its repository is an interface with no code behind it.
+**JPA here, SQL in search.** Search reads three tables that share no class, so it is one SQL statement. A saved place is one table, written and read a row at a time. That is what JPA is for, so `SavedPlace` is an entity and its repository is an interface with no code behind it.
 
 **The table keeps names apart, not the code.** A name can be saved once, whatever the capitals, because a unique index on the lower-cased name says so. The service does not look first and save second: two requests arriving together would both find the name free. It saves, and turns the database's refusal into an error that says which name.
 
@@ -215,5 +215,5 @@ Traffic data, because OpenStreetMap has none and live traffic costs money. Sever
 | 2 | **Done.** LINZ addresses and Overture places in PostgreSQL behind a `PlaceSearch` interface, mirroring how distances work, with an endpoint the map screen calls. Saved places are a JPA entity behind three endpoints. The planning flow above was untouched by both |
 | 3 | **Done.** A second `TravelMatrixProvider` backed by GraphHopper, chosen by configuration. The service, the solver and the controller were not touched, which is what the seam was for. It gives the time of each drive as well as its length, and with heights switched on how much it climbs and descends. The order is chosen for distance unless the request asks otherwise |
 | 4 | **Done.** A React app in `frontend/`, calling the same endpoint. The backend did not change. In development Vite proxies `/api` to port 8080, so there is no CORS setup. To use it, the screen is built into the jar and the API serves both |
-| 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use and its weight arrive with the request. They do not reach the matrix provider yet, because nothing there reads them |
+| 5 | **Begun.** The vehicle is saved in the planner: entered by hand with what its dashboard shows and its size, or found in NZTA's register by make, model, year and engine. Its fuel use and its weight arrive with the request, and step 6 works out the litres from them. The matrix provider needs neither: it gives the roads, and the service turns them into fuel. Left to build: engine types other than petrol, and what a van carries |
 | 6 | **Done.** Two more ways to fill the cost matrix: driving time, when the request asks for the fastest order, and litres, when it asks for the least fuel. The fuel each leg takes is worked out after the order is chosen, by `FuelEstimate`: by `FuelUse`, the vehicle's town figure for the leg's kilometres in town and its open-road figure for the rest, and what each climb costs and each descent gives back, once the roads have heights and the weight is known. Asked for one, the answer gives the other beside it, with what each comes to |

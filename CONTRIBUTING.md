@@ -4,7 +4,7 @@ Contributions are welcome. Open an issue before starting anything large, so two 
 
 ## Ways to help
 
-- Test it in your own city once the first release is out, and report what breaks
+- Try it in your own city, and report what breaks
 - Improve the fuel model, vehicle settings or routing setup
 - Tests, documentation, worked examples
 
@@ -24,10 +24,10 @@ cd backend && ./mvnw verify
 
 The migrations switch on the `postgis`, `pg_trgm` and `unaccent` extensions where they are not on yet, which takes a role allowed to do that. The connection defaults suit Postgres.app on a Mac, where the role is your own username with no password. Anywhere else, set `DB_USERNAME` and `DB_PASSWORD`.
 
-That runs on straight-line distances. For real driving distances, download the 385 MB map extract, which stays out of git, and switch the provider in `application.yaml`:
+That runs on straight-line distances. For real driving distances, download the map extract, about 400 MB, which stays out of git, and switch the provider in `application.yaml`:
 
 ```bash
-curl -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
+curl --create-dirs -o backend/data/new-zealand-latest.osm.pbf https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf
 ```
 
 The road tests skip themselves when that file is absent, so a clean checkout stays green.
