@@ -659,19 +659,24 @@ button:disabled {
   min-width: 0;
 }
 
-/* It slides in from the right, where its edge was. */
-.along-bar {
-  animation: along-slides-in 0.25s ease-out;
+/* It comes in from the right, where its edge was: shown from its right end leftwards, in place.
+   Moved in from beyond its place instead, it would make the panel around it scroll sideways. */
+.along-bar > .search-row {
+  animation: along-comes-in 0.25s ease-out;
 }
 
-@keyframes along-slides-in {
+@keyframes along-comes-in {
   from {
-    transform: translateX(100%);
+    clip-path: inset(0 0 0 100%);
+  }
+
+  to {
+    clip-path: inset(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .along-bar {
+  .along-bar > .search-row {
     animation: none;
   }
 }

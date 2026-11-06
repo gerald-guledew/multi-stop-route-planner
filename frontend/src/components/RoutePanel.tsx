@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
+import { flushSync } from 'react-dom'
 import PlaceSearchBox from './PlaceSearchBox'
 import SearchAlongTheRoute from './SearchAlongTheRoute'
 import StopOverDialog from './StopOverDialog'
@@ -23,7 +24,7 @@ import { howLong, legSaid } from '../duration'
 import { isRoughGuess, roughly, sitsOn } from '../foundStart'
 import { googleMapsLink } from '../googleMaps'
 import { leastFuelSaid } from '../leastFuel'
-import { betweenSaid, canAddOnTheWay, legAfter, searchAlongOpen } from '../onTheWay'
+import { betweenSaid, canAddOnTheWay, legAfter, searchAlongOpenedOn } from '../onTheWay'
 import { canBeSaved, savedAt } from '../savedPlaces'
 import { savingSaid } from '../saving'
 import { useNarrowScreen } from '../screen'
@@ -228,9 +229,17 @@ export default function RoutePanel(props: Props) {
   // The "+" whose dialog is open, by the leg it sits on. It holds for the plan it was pressed on and
   // no other, whose legs are not these.
   const [stoppingOn, setStoppingOn] = useState<{ plan: RoutePlan; leg: number } | null>(null)
-  // The plan the search along the route was opened on. It holds for that plan and no other.
+  // The plan the search along the route was opened on. It holds for that plan and no other, and
+  // once closed, whatever closed it, it is forgotten. Set during the render, as React allows for a
+  // state that follows others, so the bar never shows for a plan it no longer belongs to.
   const [searchingAlongOn, setSearchingAlongOn] = useState<RoutePlan | null>(null)
-  const alongOpen = searchAlongOpen(searchingAlongOn, plan, addsOnTheWay)
+  const stillOpenOn = searchAlongOpenedOn(searchingAlongOn, plan, addsOnTheWay)
+  if (stillOpenOn !== searchingAlongOn) {
+    setSearchingAlongOn(stillOpenOn)
+  }
+  const alongOpen = stillOpenOn !== null
+  // Where the keyboard goes back to when the search along the route closes.
+  const alongEdge = useRef<HTMLButtonElement>(null)
 
   const here = props.devicePosition
   const startIsARoughGuess = isRoughGuess(places[0], here)
@@ -289,6 +298,7 @@ export default function RoutePanel(props: Props) {
           />
           {addsOnTheWay && plan && (
             <button
+              ref={alongEdge}
               className="along-edge along-peek"
               title="Search along the planned route"
               aria-label="Search along the planned route"
@@ -306,7 +316,10 @@ export default function RoutePanel(props: Props) {
               setSearchingAlongOn(null)
               props.onAddOnTheWay(found)
             }}
-            onBack={() => setSearchingAlongOn(null)}
+            onBack={() => {
+              flushSync(() => setSearchingAlongOn(null))
+              alongEdge.current?.focus()
+            }}
           />
         )}
       </div>

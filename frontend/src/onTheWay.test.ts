@@ -10,6 +10,7 @@ import {
   namedAs,
   pinLabel,
   searchAlongOpen,
+  searchAlongOpenedOn,
   withStopOn,
 } from './onTheWay'
 import type { Leg, Place, PlaceAlong, RoutePlan } from './types'
@@ -380,5 +381,25 @@ describe('the search along the planned route', () => {
 
   it('closes when no stop can be added on the way', () => {
     expect(searchAlongOpen(plan, plan, false)).toBe(false)
+  })
+})
+
+describe('the plan the search along the route stays open on', () => {
+  const plan = planOf(start, museum, tower)
+
+  it('is the plan it was opened on while it is open', () => {
+    expect(searchAlongOpenedOn(plan, plan, true)).toBe(plan)
+  })
+
+  it('is forgotten once it closes', () => {
+    expect(searchAlongOpenedOn(plan, null, false)).toBeNull()
+    expect(searchAlongOpenedOn(plan, planOf(start, tower, museum), true)).toBeNull()
+  })
+
+  it('stays forgotten when the same plan comes back', () => {
+    // Planning starts, so no stop can be added, and it fails, which leaves the plan as it was.
+    const whilePlanning = searchAlongOpenedOn(plan, plan, false)
+    expect(whilePlanning).toBeNull()
+    expect(searchAlongOpenedOn(whilePlanning, plan, true)).toBeNull()
   })
 })

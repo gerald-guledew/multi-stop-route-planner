@@ -179,3 +179,16 @@ export function searchAlongOpen(
 ): boolean {
   return addsOnTheWay && openedOn !== null && openedOn === plan
 }
+
+/**
+ * The plan the search along the route stays open on: the one it was opened on while it is open,
+ * and none once it closes, whatever closed it. Forgotten, so that the same plan coming back, after
+ * a plan that failed or an undo and a redo, does not open it again by itself.
+ */
+export function searchAlongOpenedOn(
+  openedOn: RoutePlan | null,
+  plan: RoutePlan | null,
+  addsOnTheWay: boolean,
+): RoutePlan | null {
+  return searchAlongOpen(openedOn, plan, addsOnTheWay) ? openedOn : null
+}

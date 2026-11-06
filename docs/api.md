@@ -217,7 +217,7 @@ A POST, so the exact spots of the trip travel in the body rather than in a URL, 
 ### How the places are found and ordered
 
 1. The search above finds the places that match what was typed, and ranks them by how near they are to the road of the leg, or of every leg, in a straight line, rather than to a point. With `placeKind`, the places of that kind nearest the road are taken instead. An area called just what was typed is not put first here, as it is in the search above.
-2. The first 12 it ranks, or as many as `limit` when that is more, are each driven to from the start of their leg and on to its end. What a place adds is those two drives less the leg as planned, never below nought. A place on the road the leg follows anyway adds nothing.
+2. The first 12 it ranks, or as many as `limit` when that is more, are each driven to from the start of their leg and on to its end: the leg looked along, or along the whole route each of the two legs whose roads pass nearest. Each leg tried costs two drives. What a place adds is those two drives less the leg as planned, never below nought. A place on the road the leg follows anyway adds nothing.
 3. They come back in the order of the time they add, and of the distance they add on straight lines.
 
 Looking along the whole route, each place is driven to on the two legs whose roads pass nearest to it, in a straight line, and is a stop on the one it adds less to. Near in a straight line is not always cheaper: a place by the corner where two legs meet, or across water from the nearer road, can add less to the other leg. On a round trip of five places around Auckland, 5 of 32 places found went on the other leg, each adding less there, up to 54 s less. Trying the second leg added 5 to 11 ms to a search on real roads.

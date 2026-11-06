@@ -25,6 +25,7 @@ interface Props {
  */
 export default function SearchAlongTheRoute({ plan, places, onPick, onBack }: Props) {
   const box = useRef<HTMLInputElement>(null)
+  const back = useRef<HTMLButtonElement>(null)
   const [query, setQuery] = useState('')
   // The kind of place picked. Typing leaves it, since a name says more.
   const [kind, setKind] = useState<KindOfPlace | null>(null)
@@ -34,17 +35,29 @@ export default function SearchAlongTheRoute({ plan, places, onPick, onBack }: Pr
     offeringKinds || kind !== null || searching || failed !== null || nothingFound || results.length > 0
 
   // The cursor goes in the box only where there is a real keyboard. A phone's would come up over
-  // the kinds of place, which are one tap away.
+  // the kinds of place, which are one tap away, so there the arrow back takes the focus, and the
+  // focus is never left on the page.
   useLayoutEffect(() => {
     if (window.matchMedia('(hover: hover)').matches) {
       box.current?.focus()
+    } else {
+      back.current?.focus()
     }
   }, [])
 
   return (
-    <div className="search along-bar">
+    <div
+      className="search along-bar"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          onBack()
+        }
+      }}
+    >
       <div className="search-row">
         <button
+          ref={back}
           className="along-edge along-back"
           title="Back to the search for a place"
           aria-label="Back to the search for a place"
