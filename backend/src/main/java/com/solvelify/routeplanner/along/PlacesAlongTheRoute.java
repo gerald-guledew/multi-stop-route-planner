@@ -47,6 +47,14 @@ public class PlacesAlongTheRoute {
      */
     static final double THINNED_TO_METRES = 100;
 
+    /**
+     * How many legs a place is tried on when the whole route is looked along: those whose roads
+     * pass nearest to it. Near is a straight line, and a place near where two legs meet, or across
+     * water from the nearer road, can add less to the leg a little further off. Each leg tried costs
+     * two drives.
+     */
+    static final int LEGS_TRIED = 2;
+
     private final PlaceSearch placeSearch;
     private final TravelMatrixProvider travelMatrixProvider;
 
@@ -59,7 +67,8 @@ public class PlacesAlongTheRoute {
      * @param route the places of a planned trip in the order they are driven to: the start first,
      *              and the start again last on a round trip
      * @param leg   the one leg to look along, counting from 0. Empty to look along them all. Each
-     *              place is then a stop on the leg whose road passes nearest to it
+     *              place is then a stop on the leg it adds least to, of the two whose roads pass
+     *              nearest to it
      * @return the places in the order of what they add, the least first
      */
     public List<PlaceAlong> find(String typed, List<Location> route, OptionalInt leg, int limit) {
@@ -107,19 +116,16 @@ public class PlacesAlongTheRoute {
         Map<Integer, Drive> legsAsPlanned = new HashMap<>();
         List<PlaceAlong> along = new ArrayList<>(found.size());
         for (FoundPlace place : found) {
-            int on = nearestLeg(place, roads);
-            Location from = route.get(on);
-            Location to = route.get(on + 1);
-            Drive asPlanned = legsAsPlanned.computeIfAbsent(on, any -> travelMatrixProvider.driveBetween(from, to));
             Location stop = new Location(place.name(), place.latitude(), place.longitude());
             try {
-                Drive there = travelMatrixProvider.driveBetween(from, stop);
-                Drive onwards = travelMatrixProvider.driveBetween(stop, to);
-                along.add(new PlaceAlong(
-                        place,
-                        on,
-                        added(there.distanceKm() + onwards.distanceKm(), asPlanned.distanceKm()),
-                        secondsAdded(there, onwards, asPlanned)));
+                PlaceAlong best = null;
+                for (int on : nearestLegs(place, roads)) {
+                    PlaceAlong onThisLeg = stopOn(on, place, stop, route, legsAsPlanned);
+                    if (best == null || addsLess(onThisLeg, best)) {
+                        best = onThisLeg;
+                    }
+                }
+                along.add(best);
             } catch (UnroutablePlaceException noRoadNearIt) {
                 // Nobody can stop at a place with no road near it. The search knows nothing of roads.
             }
@@ -157,19 +163,40 @@ public class PlacesAlongTheRoute {
         return kept;
     }
 
-    /** The leg whose road passes nearest to the place, of those looked along. */
-    private static int nearestLeg(FoundPlace place, Map<Integer, List<GeoPoint>> roads) {
+    /**
+     * The legs whose roads pass nearest to the place, the nearest first, of those looked along. A
+     * stable sort, so of two legs as near, the earlier one comes first.
+     */
+    private static List<Integer> nearestLegs(FoundPlace place, Map<Integer, List<GeoPoint>> roads) {
         GeoPoint at = new GeoPoint(place.latitude(), place.longitude());
-        int nearest = -1;
-        double nearestMetres = Double.MAX_VALUE;
-        for (Map.Entry<Integer, List<GeoPoint>> road : roads.entrySet()) {
-            double metres = Flat.metresFromLine(at, road.getValue());
-            if (metres < nearestMetres) {
-                nearest = road.getKey();
-                nearestMetres = metres;
-            }
-        }
-        return nearest;
+        return roads.entrySet().stream()
+                .sorted(Comparator.comparingDouble(
+                        (Map.Entry<Integer, List<GeoPoint>> road) -> Flat.metresFromLine(at, road.getValue())))
+                .limit(LEGS_TRIED)
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    /** What stopping at the place adds to one leg: a drive there, one on, and the leg as planned. */
+    private PlaceAlong stopOn(
+            int on, FoundPlace place, Location stop, List<Location> route, Map<Integer, Drive> legsAsPlanned) {
+        Location from = route.get(on);
+        Location to = route.get(on + 1);
+        Drive asPlanned = legsAsPlanned.computeIfAbsent(on, any -> travelMatrixProvider.driveBetween(from, to));
+        Drive there = travelMatrixProvider.driveBetween(from, stop);
+        Drive onwards = travelMatrixProvider.driveBetween(stop, to);
+        return new PlaceAlong(
+                place,
+                on,
+                added(there.distanceKm() + onwards.distanceKm(), asPlanned.distanceKm()),
+                secondsAdded(there, onwards, asPlanned));
+    }
+
+    /** By time where both have one, as the list is ordered, and by distance otherwise. */
+    private static boolean addsLess(PlaceAlong one, PlaceAlong other) {
+        return one.secondsAdded().isPresent() && other.secondsAdded().isPresent()
+                ? one.secondsAdded().getAsDouble() < other.secondsAdded().getAsDouble()
+                : one.kmAdded() < other.kmAdded();
     }
 
     /**

@@ -1,13 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { CrossIcon, DownIcon, KindIcon } from './icons'
-import { findAlong, NotAnswering } from '../api'
-import { KINDS_OF_PLACE, type KindOfPlace } from '../kindsOfPlace'
+import { useSearchAlong } from './useSearchAlong'
+import { KINDS_OF_PLACE, offersKinds, type KindOfPlace } from '../kindsOfPlace'
 import { addedSaid, betweenSaid, hasOtherLegs } from '../onTheWay'
 import { isInTrip } from '../savedPlaces'
 import type { Place, PlaceAlong, RoutePlan } from '../types'
-
-const MINIMUM_CHARACTERS = 3
-const DEBOUNCE_MS = 250
 
 interface Props {
   plan: RoutePlan
@@ -35,11 +32,7 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
   const [query, setQuery] = useState('')
   // The kind of place picked. Typing leaves it, since a name says more.
   const [kind, setKind] = useState<KindOfPlace | null>(null)
-  const [results, setResults] = useState<PlaceAlong[]>([])
-  const [searching, setSearching] = useState(false)
-  const [failed, setFailed] = useState<string | null>(null)
-  const [nothingFound, setNothingFound] = useState(false)
-  const inFlight = useRef<AbortController | null>(null)
+  const { results, searching, failed, nothingFound } = useSearchAlong(plan, lookingAlong, query, kind)
 
   // Opened as soon as it is drawn. It is closed by being taken off the page, which says nothing,
   // so closing it never comes back here as an answer. The cursor goes in the box only where there
@@ -54,52 +47,8 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
     }
   }, [])
 
-  useEffect(() => {
-    const term = query.trim()
-    // Whatever the last search said, it was about something else.
-    setNothingFound(false)
-    setResults([])
-    setSearching(false)
-    setFailed(null)
-    if (kind === null && term.length < MINIMUM_CHARACTERS) {
-      return
-    }
-
-    // Wait for a pause in typing, so one search runs instead of one per keystroke.
-    const timer = setTimeout(async () => {
-      const controller = new AbortController()
-      inFlight.current = controller
-
-      setSearching(true)
-      try {
-        const found = await findAlong(
-          kind ? { placeKind: kind.name } : { q: term },
-          plan.route,
-          lookingAlong,
-          controller.signal,
-        )
-        setResults(found)
-        setNothingFound(found.length === 0)
-      } catch (caught) {
-        if (!controller.signal.aborted) {
-          setFailed(caught instanceof NotAnswering ? caught.message : 'Search is unavailable. Try again.')
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setSearching(false)
-        }
-      }
-    }, kind ? 0 : DEBOUNCE_MS)
-
-    // A search on its way has nobody to answer once what it was for has changed, or the dialog gone.
-    return () => {
-      clearTimeout(timer)
-      inFlight.current?.abort()
-    }
-  }, [query, kind, plan, lookingAlong])
-
   // Nothing typed and nothing picked, so nothing to list yet.
-  const offeringKinds = kind === null && query.trim() === ''
+  const offeringKinds = offersKinds(query, kind)
 
   return (
     <dialog
@@ -145,8 +94,8 @@ export default function StopOverDialog({ plan, leg, places, onPick, onClose }: P
             ref={box}
             type="search"
             value={query}
-            placeholder="Search an address or a business"
-            aria-label="Search for an address or a business to stop at"
+            placeholder="Search a place"
+            aria-label="Search for a place to stop at"
             onChange={(event) => {
               setQuery(event.target.value)
               setKind(null)
