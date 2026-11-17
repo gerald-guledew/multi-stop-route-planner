@@ -1,5 +1,5 @@
 import type { Position } from './location'
-import type { Place, RoutePlan } from './types'
+import type { Place, PlaceAlong, RoutePlan } from './types'
 
 /**
  * The rules about where the map goes by itself. Plain functions with no React in them, so each
@@ -35,4 +35,43 @@ export function everywhereTheTripGoes(
     ...places.map((place): [number, number] => [place.latitude, place.longitude]),
     ...(plan?.legs.flatMap((leg) => leg.path) ?? []),
   ]
+}
+
+/**
+ * Every point a search along the planned route has to show: the route, and each place it found.
+ * A place found off the end of the route still shows, and so does the far end of the route.
+ */
+export function everywhereTheFindsAre(plan: RoutePlan, found: PlaceAlong[]): [number, number][] {
+  return [
+    ...everywhereTheTripGoes(plan.route, plan),
+    ...found.map((place): [number, number] => [place.latitude, place.longitude]),
+  ]
+}
+
+/**
+ * Whether two lists of places found are the same places, in the same order. A search asked again
+ * can bring back the very same places, and the map need not move for them.
+ */
+export function sameFinds(one: PlaceAlong[], other: PlaceAlong[]): boolean {
+  return (
+    one.length === other.length &&
+    one.every(
+      (place, index) =>
+        place.name === other[index].name &&
+        place.latitude === other[index].latitude &&
+        place.longitude === other[index].longitude,
+    )
+  )
+}
+
+/** On a phone, the list of places found is folded to one line under the search box when they arrive. */
+export const FOLDED_LIST_COVERS = 52
+
+/**
+ * How far down from the top of the map the places found and the route are framed: clear of the
+ * search box, and on a phone, where it covers the map, of the folded list under it. New places
+ * always fold the list, so it is never open when they are framed.
+ */
+export function topPaddingForFinds(coveredAtTheTop: number): number {
+  return 40 + coveredAtTheTop + (coveredAtTheTop > 0 ? FOLDED_LIST_COVERS : 0)
 }

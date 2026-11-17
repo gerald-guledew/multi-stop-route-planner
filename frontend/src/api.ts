@@ -155,6 +155,7 @@ export async function findAlong(
   route: Place[],
   leg: number | null,
   signal: AbortSignal,
+  limit?: number,
 ): Promise<PlaceAlong[]> {
   const response = await ask('/api/v1/places/along', A_QUICK_ANSWER_MS, {
     method: 'POST',
@@ -163,6 +164,7 @@ export async function findAlong(
       ...lookingFor,
       route: route.map(({ name, latitude, longitude }) => ({ name, latitude, longitude })),
       ...(leg === null ? {} : { leg }),
+      ...(limit === undefined ? {} : { limit }),
     }),
     signal,
   })

@@ -71,6 +71,10 @@ interface Props {
   onPickPlace: (place: Place) => void
   /** A place picked to stop at on the way, found between two stops or anywhere along the plan. */
   onAddOnTheWay: (found: PlaceAlong) => void
+  /** What the search along the planned route found near it, for the map to show. */
+  onFoundAlong: (found: PlaceAlong[]) => void
+  /** One of those picked from its list, by its turn in it, for the map to show. */
+  onShowAlong: (index: number) => void
   devicePosition: DevicePosition | null
   mapCentre: Position | null
   locating: boolean
@@ -312,10 +316,8 @@ export default function RoutePanel(props: Props) {
           <SearchAlongTheRoute
             plan={plan}
             places={places}
-            onPick={(found) => {
-              setSearchingAlongOn(null)
-              props.onAddOnTheWay(found)
-            }}
+            onFound={props.onFoundAlong}
+            onShow={props.onShowAlong}
             onBack={() => {
               flushSync(() => setSearchingAlongOn(null))
               alongEdge.current?.focus()

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { closeEnoughToCheck, everywhereTheTripGoes, STREET_ZOOM } from './framing'
-import type { Leg, Place, RoutePlan } from './types'
+import {
+  closeEnoughToCheck,
+  everywhereTheFindsAre,
+  everywhereTheTripGoes,
+  FOLDED_LIST_COVERS,
+  sameFinds,
+  STREET_ZOOM,
+  topPaddingForFinds,
+} from './framing'
+import type { Leg, Place, PlaceAlong, RoutePlan } from './types'
 
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const museum: Place = { name: 'Auckland Museum', latitude: -36.8604, longitude: 174.7778 }
@@ -72,5 +80,72 @@ describe('everywhere the trip goes', () => {
 
   it('is nothing for an empty trip', () => {
     expect(everywhereTheTripGoes([], null)).toEqual([])
+  })
+})
+
+describe('everywhere the places found along the route are', () => {
+  const road: [number, number] = [-36.89, 174.81]
+  const offTheEnd: PlaceAlong = {
+    name: 'Z Grafton',
+    latitude: -36.862,
+    longitude: 174.765,
+    kind: 'poi',
+    detail: 'Grafton',
+    leg: 1,
+    kmAdded: 2.1,
+    secondsAdded: 300,
+  }
+
+  it('takes in the route and each place found, so that how far each is from the route shows', () => {
+    const points = everywhereTheFindsAre(planWith([legAlong([road]), legAlong([])]), [offTheEnd])
+
+    expect(points).toContainEqual([mall.latitude, mall.longitude])
+    expect(points).toContainEqual([museum.latitude, museum.longitude])
+    expect(points).toContainEqual(road)
+    expect(points).toContainEqual([offTheEnd.latitude, offTheEnd.longitude])
+  })
+
+  it('is the route alone when nothing was found', () => {
+    const plan = planWith([legAlong([road]), legAlong([])])
+
+    expect(everywhereTheFindsAre(plan, [])).toEqual(everywhereTheTripGoes(plan.route, plan))
+  })
+})
+
+describe('whether the map moves for the places found', () => {
+  const cafe: PlaceAlong = {
+    name: 'Corner Cafe',
+    latitude: -36.88,
+    longitude: 174.8,
+    kind: 'poi',
+    detail: 'Ellerslie',
+    leg: 0,
+    kmAdded: 0.4,
+    secondsAdded: 60,
+  }
+  const fuel: PlaceAlong = { ...cafe, name: 'Z Ellerslie', latitude: -36.899, longitude: 174.813 }
+
+  it('stays for the same places asked for again', () => {
+    expect(sameFinds([cafe, fuel], [{ ...cafe }, { ...fuel, secondsAdded: 90 }])).toBe(true)
+  })
+
+  it('moves for other places, more or fewer, or the same in another order', () => {
+    expect(sameFinds([cafe], [fuel])).toBe(false)
+    expect(sameFinds([cafe], [cafe, fuel])).toBe(false)
+    expect(sameFinds([cafe, fuel], [fuel, cafe])).toBe(false)
+  })
+
+  it('moves for a place of the same name somewhere else', () => {
+    expect(sameFinds([cafe], [{ ...cafe, latitude: -36.9 }])).toBe(false)
+  })
+})
+
+describe('how far down the places found are framed', () => {
+  it('leaves room for the search box and the folded list on a phone', () => {
+    expect(topPaddingForFinds(56)).toBe(40 + 56 + FOLDED_LIST_COVERS)
+  })
+
+  it('leaves the usual margin where nothing covers the map', () => {
+    expect(topPaddingForFinds(0)).toBe(40)
   })
 })

@@ -113,7 +113,7 @@ Dotted lines happen at import time, not on a search.
 
 ## Stops on the way
 
-Once a trip is planned, the "+" between two stops in the list opens a dialog that finds a place to stop at on that leg, or anywhere along the route, by its name or by the kind of place. The search along the planned route, beside the search box, does the same for the whole route, for a stop-over whose leg the driver does not know or mind. A third flow, built on the two above.
+Once a trip is planned, the "+" between two stops in the list opens a dialog that finds a place to stop at on that leg, or anywhere along the route, by its name or by the kind of place. The search along the planned route, beside the search box, does the same for the whole route, for a stop-over whose leg the driver does not know or mind. It asks for 10 places and keeps those that add 10 minutes or less, or 10 km on straight lines. The bar hands them up to `App`, and the map draws them as numbered pins with a card each to add one from. A third flow, built on the two above.
 
 ```mermaid
 flowchart TD
