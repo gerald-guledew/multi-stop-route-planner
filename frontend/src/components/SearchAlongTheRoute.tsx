@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRightIcon, DownIcon, KindIcon } from './icons'
-import { useSearchAlong } from './useSearchAlong'
+import { MINIMUM_CHARACTERS, useSearchAlong } from './useSearchAlong'
 import { KINDS_OF_PLACE, offersKinds, type KindOfPlace } from '../kindsOfPlace'
 import { addedSaid, betweenSaid, nearTheRoute } from '../onTheWay'
 import { isInTrip } from '../savedPlaces'
@@ -49,12 +49,22 @@ export default function SearchAlongTheRoute({ plan, places, onFound, onShow, onB
   const [listOpenFor, setListOpenFor] = useState<PlaceAlong[] | null>(null)
   const listShown = !narrow || listOpenFor === near
 
-  // The map shows what the list holds, and nothing once the bar is gone.
+  // A search is asked for, and its answer is not in yet. Until it is, the map keeps the pins it
+  // has, so that typing one more letter or picking another kind does not empty it in between.
+  const asked = kind !== null || query.trim().length >= MINIMUM_CHARACTERS
+  const waiting = asked && (searching || (results.length === 0 && !nothingFound && failed === null))
+
+  // The map shows what the list holds.
   const found = useEffectEvent(onFound)
   useEffect(() => {
-    found(near)
-    return () => found([])
-  }, [near])
+    if (!waiting) {
+      found(near)
+    }
+  }, [near, waiting])
+
+  // And nothing once the bar is gone. The prop as it was when the bar opened is called, not an
+  // Effect Event, which is for the body of an effect. What it calls in App only sets state.
+  useEffect(() => () => onFound([]), [])
   const listing =
     offeringKinds || kind !== null || searching || failed !== null || nothingFound || results.length > 0
 

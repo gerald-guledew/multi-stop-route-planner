@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import {
   Circle,
   CircleMarker,
@@ -15,7 +15,14 @@ import { heightAt } from '../api'
 import { sitsOn } from '../foundStart'
 import { addedSaid, betweenSaid, pinLabel } from '../onTheWay'
 import { isInTrip } from '../savedPlaces'
-import { closeEnoughToCheck, everywhereTheFindsAre, everywhereTheTripGoes, type Picked } from '../framing'
+import {
+  closeEnoughToCheck,
+  everywhereTheFindsAre,
+  everywhereTheTripGoes,
+  sameFinds,
+  topPaddingForFinds,
+  type Picked,
+} from '../framing'
 import { heightSaid, spotOf } from '../height'
 import type { DevicePosition, Position } from '../location'
 import {
@@ -495,9 +502,6 @@ function alongIcon(index: number): L.DivIcon {
   })
 }
 
-/** On a phone the list of places found folds to one line under the search box, over the map. */
-const FOLDED_LIST_COVERS = 52
-
 /**
  * The places the search along the planned route found, as numbered pins, each with a card to add
  * it from. They are framed with the route when they arrive, so that how far each is from it shows.
@@ -518,30 +522,29 @@ function PlacesFoundAlong({
 }) {
   const map = useMap()
   const pins = useRef<(L.Marker | null)[]>([])
+  // The places the map was last framed for.
+  const framedFor = useRef<PlaceAlong[]>([])
 
   useEffect(() => {
-    if (!plan || found.length === 0) {
+    if (!plan || found.length === 0 || sameFinds(found, framedFor.current)) {
+      framedFor.current = found
       return
     }
+    framedFor.current = found
     map.closePopup()
     map.flyToBounds(L.latLngBounds(everywhereTheFindsAre(plan, found)), {
-      paddingTopLeft: [40, 40 + coveredAtTheTopOfTheMap() + (coveredAtTheTopOfTheMap() > 0 ? FOLDED_LIST_COVERS : 0)],
+      paddingTopLeft: [40, topPaddingForFinds(coveredAtTheTopOfTheMap())],
       paddingBottomRight: [40, 40],
       maxZoom: 15,
     })
-    // Only new places move the map. The plan they were found along comes with them.
+    // Only other places move the map. The plan they were found along comes with them.
   }, [found, map])
 
   useEffect(() => {
-    if (!shown) {
-      return
+    if (shown) {
+      pins.current[shown.index]?.openPopup()
     }
-    pins.current[shown.index]?.openPopup()
-    // For a keyboard, which picked it from the list, the way on is the card's button.
-    requestAnimationFrame(() =>
-      map.getContainer().querySelector<HTMLButtonElement>('.leaflet-popup .along-add')?.focus({ preventScroll: true }),
-    )
-  }, [shown, map])
+  }, [shown])
 
   if (!plan) {
     return null
@@ -556,6 +559,7 @@ function PlacesFoundAlong({
       index={index}
       between={betweenSaid(plan, place.leg)}
       inTrip={isInTrip(places, place)}
+      picked={shown?.index === index ? shown.times : null}
       onAdd={onAdd}
     />
   ))
@@ -568,6 +572,7 @@ function PlaceFoundAlong({
   index,
   between,
   inTrip,
+  picked,
   onAdd,
 }: {
   ref: (pin: L.Marker | null) => void
@@ -575,10 +580,22 @@ function PlaceFoundAlong({
   index: number
   between: string
   inTrip: boolean
+  /** Counted each time it is picked from the list. Null while it is not the one picked. */
+  picked: number | null
   onAdd: Props['onAddAlong']
 }) {
   const position = useMemo<[number, number]>(() => [place.latitude, place.longitude], [place])
   const icon = useMemo(() => alongIcon(index), [index])
+  // Picked from the list, by a keyboard as like as not, so the way on is the card's button. It is
+  // focused as the card's content comes in, whenever that is, and again on each picking.
+  const focusWhenPicked = useCallback(
+    (button: HTMLButtonElement | null) => {
+      if (button && picked !== null) {
+        button.focus({ preventScroll: true })
+      }
+    },
+    [picked],
+  )
 
   return (
     // Under the pins of the trip, which are what is planned, and the first on top of the rest.
@@ -592,6 +609,7 @@ function PlaceFoundAlong({
             {!inTrip && <span className="result-between"> · {between}</span>}
           </span>
           <button
+            ref={focusWhenPicked}
             className="along-add"
             disabled={inTrip}
             onClick={(event) => {

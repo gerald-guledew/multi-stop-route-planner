@@ -47,3 +47,31 @@ export function everywhereTheFindsAre(plan: RoutePlan, found: PlaceAlong[]): [nu
     ...found.map((place): [number, number] => [place.latitude, place.longitude]),
   ]
 }
+
+/**
+ * Whether two lists of places found are the same places, in the same order. A search asked again
+ * can bring back the very same places, and the map need not move for them.
+ */
+export function sameFinds(one: PlaceAlong[], other: PlaceAlong[]): boolean {
+  return (
+    one.length === other.length &&
+    one.every(
+      (place, index) =>
+        place.name === other[index].name &&
+        place.latitude === other[index].latitude &&
+        place.longitude === other[index].longitude,
+    )
+  )
+}
+
+/** On a phone, the list of places found is folded to one line under the search box when they arrive. */
+export const FOLDED_LIST_COVERS = 52
+
+/**
+ * How far down from the top of the map the places found and the route are framed: clear of the
+ * search box, and on a phone, where it covers the map, of the folded list under it. New places
+ * always fold the list, so it is never open when they are framed.
+ */
+export function topPaddingForFinds(coveredAtTheTop: number): number {
+  return 40 + coveredAtTheTop + (coveredAtTheTop > 0 ? FOLDED_LIST_COVERS : 0)
+}

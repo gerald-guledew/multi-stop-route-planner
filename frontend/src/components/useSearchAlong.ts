@@ -3,7 +3,7 @@ import { findAlong, NotAnswering } from '../api'
 import type { KindOfPlace } from '../kindsOfPlace'
 import type { PlaceAlong, RoutePlan } from '../types'
 
-const MINIMUM_CHARACTERS = 3
+export const MINIMUM_CHARACTERS = 3
 const DEBOUNCE_MS = 250
 
 /**
