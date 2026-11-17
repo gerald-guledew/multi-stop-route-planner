@@ -7,6 +7,7 @@
   --bad: #b3261e;
   --panel: #ffffff;
   --page: #f4f6fa;
+  --found: #c2410c;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--ink);
 }
@@ -217,6 +218,67 @@ body {
 /* The pin where it was, while it is carried somewhere else. */
 .pin-picked-up {
   opacity: 0.35;
+}
+
+/* A place found along the route: a pin with a point at the bottom, where the place is, and its
+   number in the list. Pointed, unlike the round pins of the trip, and another colour. */
+.along-pin {
+  align-items: center;
+  background: var(--found);
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  color: #fff;
+  display: flex;
+  font-size: 12px;
+  font-weight: 600;
+  height: 28px;
+  justify-content: center;
+  transform: rotate(-45deg);
+  width: 28px;
+}
+
+.along-pin > span {
+  transform: rotate(45deg);
+}
+
+.leaflet-marker-pane .along-pin {
+  cursor: pointer;
+}
+
+/* The same pin beside its place in the list, a little smaller. */
+.along-pin-list {
+  flex: none;
+  font-size: 11px;
+  height: 22px;
+  margin: 2px 4px 0;
+  width: 22px;
+}
+
+/* A place found along the route, on the map: what it is, what it adds, and the way to add it. */
+.along-card {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  min-width: 190px;
+}
+
+.along-add {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  margin-top: 10px;
+  padding: 9px 12px;
+}
+
+.along-add:disabled {
+  background: var(--line);
+  color: var(--muted);
+  cursor: default;
 }
 
 /* A pin being carried: larger, held up on a stem, over a dot on the spot where it will land. */
@@ -703,16 +765,45 @@ button:disabled {
 }
 
 .along-results button {
+  align-items: flex-start;
   background: none;
   border: none;
   border-radius: 6px;
   color: var(--ink);
-  display: block;
+  display: flex;
+  gap: 8px;
   font: inherit;
   font-size: 13px;
   padding: 8px 10px;
   text-align: left;
   width: 100%;
+}
+
+.along-result-text {
+  min-width: 0;
+}
+
+/* On a phone, the list folded to one line, which opens it again. */
+.along-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 15px;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 6px 4px;
+  text-align: left;
+  width: 100%;
+}
+
+.along-toggle-action {
+  color: var(--accent);
+  flex: none;
+  font-weight: 600;
 }
 
 .along-results button:hover:not(:disabled) {

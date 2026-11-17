@@ -158,6 +158,22 @@ export function addedSaid(found: PlaceAlong): string {
   return found.kmAdded < A_FEW_STEPS_KM ? 'On the way' : `+${found.kmAdded.toFixed(1)} km`
 }
 
+/**
+ * How far out of the way a place can be and still count as near the route: what it adds, there
+ * and back, in time, or on straight lines, where there is no time, in distance. The search hands
+ * back the nearest it finds wherever they are, and in the country the tenth petrol station can be
+ * half an hour away.
+ */
+export const NEAR_ENOUGH_SECONDS = 10 * 60
+export const NEAR_ENOUGH_KM = 10
+
+/** The places found that are near the route, in the order they came: the least out of the way first. */
+export function nearTheRoute(found: PlaceAlong[]): PlaceAlong[] {
+  return found.filter((place) =>
+    place.secondsAdded !== null ? place.secondsAdded <= NEAR_ENOUGH_SECONDS : place.kmAdded <= NEAR_ENOUGH_KM,
+  )
+}
+
 /** Which two places a leg runs between, by the names the plan gives them: "between A and B". */
 export function betweenSaid(plan: RoutePlan, leg: number): string {
   return `between ${nameInASentence(plan.route[leg].name)} and ${nameInASentence(plan.route[leg + 1].name)}`

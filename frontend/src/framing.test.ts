@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { closeEnoughToCheck, everywhereTheTripGoes, STREET_ZOOM } from './framing'
-import type { Leg, Place, RoutePlan } from './types'
+import { closeEnoughToCheck, everywhereTheFindsAre, everywhereTheTripGoes, STREET_ZOOM } from './framing'
+import type { Leg, Place, PlaceAlong, RoutePlan } from './types'
 
 const mall: Place = { name: 'Sylvia Park', latitude: -36.917, longitude: 174.8414 }
 const museum: Place = { name: 'Auckland Museum', latitude: -36.8604, longitude: 174.7778 }
@@ -72,5 +72,34 @@ describe('everywhere the trip goes', () => {
 
   it('is nothing for an empty trip', () => {
     expect(everywhereTheTripGoes([], null)).toEqual([])
+  })
+})
+
+describe('everywhere the places found along the route are', () => {
+  const road: [number, number] = [-36.89, 174.81]
+  const offTheEnd: PlaceAlong = {
+    name: 'Z Grafton',
+    latitude: -36.862,
+    longitude: 174.765,
+    kind: 'poi',
+    detail: 'Grafton',
+    leg: 1,
+    kmAdded: 2.1,
+    secondsAdded: 300,
+  }
+
+  it('takes in the route and each place found, so that how far each is from the route shows', () => {
+    const points = everywhereTheFindsAre(planWith([legAlong([road]), legAlong([])]), [offTheEnd])
+
+    expect(points).toContainEqual([mall.latitude, mall.longitude])
+    expect(points).toContainEqual([museum.latitude, museum.longitude])
+    expect(points).toContainEqual(road)
+    expect(points).toContainEqual([offTheEnd.latitude, offTheEnd.longitude])
+  })
+
+  it('is the route alone when nothing was found', () => {
+    const plan = planWith([legAlong([road]), legAlong([])])
+
+    expect(everywhereTheFindsAre(plan, [])).toEqual(everywhereTheTripGoes(plan.route, plan))
   })
 })

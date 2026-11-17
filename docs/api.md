@@ -158,7 +158,7 @@ Results are empty until the data is imported: LINZ addresses for `address`, Over
 
 ## POST /api/v1/places/along
 
-Finds a place to stop at on the way, by what you type or by the kind of place, along a planned route: the places that add the least time come first, each with what it adds. The map screen asks it from the dialog of the "+" between two stops, for that leg or for the whole route, and from the search along the planned route beside the search box, for the whole route.
+Finds a place to stop at on the way, by what you type or by the kind of place, along a planned route: the places that add the least time come first, each with what it adds. The map screen asks it from the dialog of the "+" between two stops, for that leg or for the whole route, and from the search along the planned route beside the search box, for the whole route, with a `limit` of 10.
 
 A POST, so the exact spots of the trip travel in the body rather than in a URL, which is what logs keep.
 

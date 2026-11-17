@@ -1,5 +1,5 @@
 import type { Position } from './location'
-import type { Place, RoutePlan } from './types'
+import type { Place, PlaceAlong, RoutePlan } from './types'
 
 /**
  * The rules about where the map goes by itself. Plain functions with no React in them, so each
@@ -34,5 +34,16 @@ export function everywhereTheTripGoes(
   return [
     ...places.map((place): [number, number] => [place.latitude, place.longitude]),
     ...(plan?.legs.flatMap((leg) => leg.path) ?? []),
+  ]
+}
+
+/**
+ * Every point a search along the planned route has to show: the route, and each place it found.
+ * A place found off the end of the route still shows, and so does the far end of the route.
+ */
+export function everywhereTheFindsAre(plan: RoutePlan, found: PlaceAlong[]): [number, number][] {
+  return [
+    ...everywhereTheTripGoes(plan.route, plan),
+    ...found.map((place): [number, number] => [place.latitude, place.longitude]),
   ]
 }

@@ -1,16 +1,23 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRightIcon, DownIcon, KindIcon } from './icons'
 import { useSearchAlong } from './useSearchAlong'
 import { KINDS_OF_PLACE, offersKinds, type KindOfPlace } from '../kindsOfPlace'
-import { addedSaid, betweenSaid } from '../onTheWay'
+import { addedSaid, betweenSaid, nearTheRoute } from '../onTheWay'
 import { isInTrip } from '../savedPlaces'
+import { useNarrowScreen } from '../screen'
 import type { Place, PlaceAlong, RoutePlan } from '../types'
+
+/** As many places as the map shows pins for, when that many are near the route. */
+export const PLACES_SHOWN = 10
 
 interface Props {
   plan: RoutePlan
   /** The trip as it stands, to tell the places it already goes to. */
   places: Place[]
-  onPick: (found: PlaceAlong) => void
+  /** The places found near the route, the least out of the way first, each time they change. */
+  onFound: (found: PlaceAlong[]) => void
+  /** One of them picked from the list, by its turn in it, to be shown on the map. */
+  onShow: (index: number) => void
   /** Back to the search for a place. */
   onBack: () => void
 }
@@ -21,16 +28,33 @@ interface Props {
  * their planned order, where the search box adds a stop and the order is worked out again.
  *
  * It slides in over the search box from the right, from the edge the search box shows of it. The
- * arrow on its left slides it back, and so does picking a place.
+ * arrow on its left slides it back, and so does adding a place.
+ *
+ * What it finds goes on the map as numbered pins, and a place is added from its pin. The list says
+ * the same with the addresses, and picking a place in it shows its pin. On a phone the list would
+ * cover the pins, so once places are found it folds away to one line, and opens again from there.
  */
-export default function SearchAlongTheRoute({ plan, places, onPick, onBack }: Props) {
+export default function SearchAlongTheRoute({ plan, places, onFound, onShow, onBack }: Props) {
   const box = useRef<HTMLInputElement>(null)
   const back = useRef<HTMLButtonElement>(null)
   const [query, setQuery] = useState('')
   // The kind of place picked. Typing leaves it, since a name says more.
   const [kind, setKind] = useState<KindOfPlace | null>(null)
-  const { results, searching, failed, nothingFound } = useSearchAlong(plan, null, query, kind)
+  const { results, searching, failed, nothingFound } = useSearchAlong(plan, null, query, kind, PLACES_SHOWN)
+  const near = useMemo(() => nearTheRoute(results), [results])
+  const noneNear = results.length > 0 && near.length === 0
   const offeringKinds = offersKinds(query, kind)
+  const narrow = useNarrowScreen()
+  // The places the list was opened for on a phone. New places fold it away again.
+  const [listOpenFor, setListOpenFor] = useState<PlaceAlong[] | null>(null)
+  const listShown = !narrow || listOpenFor === near
+
+  // The map shows what the list holds, and nothing once the bar is gone.
+  const found = useEffectEvent(onFound)
+  useEffect(() => {
+    found(near)
+    return () => found([])
+  }, [near])
   const listing =
     offeringKinds || kind !== null || searching || failed !== null || nothingFound || results.length > 0
 
@@ -109,19 +133,42 @@ export default function SearchAlongTheRoute({ plan, places, onPick, onBack }: Pr
 
           {nothingFound && !searching && <p className="searching">Nothing found along the route. Try fewer words.</p>}
 
-          {results.length > 0 && (
+          {noneNear && !searching && <p className="searching">Nothing found within 10 minutes of the route.</p>}
+
+          {near.length > 0 && narrow && (
+            <button className="along-toggle" onClick={() => setListOpenFor(listShown ? null : near)}>
+              <span>
+                {near.length} near the route, on the map
+              </span>
+              <span className="along-toggle-action">{listShown ? 'Hide the list' : 'Show the list'}</span>
+            </button>
+          )}
+
+          {near.length > 0 && listShown && (
             <ul className="along-results">
-              <li className="results-note">Least out of your way first</li>
-              {results.map((found) => {
-                const inTrip = isInTrip(places, found)
+              <li className="results-note">Least out of your way first. Pick one to see it on the map</li>
+              {near.map((place, index) => {
+                const inTrip = isInTrip(places, place)
                 return (
-                  <li key={`${found.kind}|${found.name}|${found.latitude},${found.longitude}`}>
-                    <button disabled={inTrip} onClick={() => onPick(found)}>
-                      <span className="result-name">{found.name}</span>
-                      {found.detail && <span className="result-detail">{found.detail}</span>}
-                      <span className="result-added">
-                        {inTrip ? 'Already in this trip' : addedSaid(found)}
-                        {!inTrip && <span className="result-between"> · {betweenSaid(plan, found.leg)}</span>}
+                  <li key={`${place.kind}|${place.name}|${place.latitude},${place.longitude}`}>
+                    <button
+                      onClick={() => {
+                        if (narrow) {
+                          setListOpenFor(null)
+                        }
+                        onShow(index)
+                      }}
+                    >
+                      <span className="along-pin along-pin-list" aria-hidden="true">
+                        <span>{index + 1}</span>
+                      </span>
+                      <span className="along-result-text">
+                        <span className="result-name">{place.name}</span>
+                        {place.detail && <span className="result-detail">{place.detail}</span>}
+                        <span className="result-added">
+                          {inTrip ? 'Already in this trip' : addedSaid(place)}
+                          {!inTrip && <span className="result-between"> · {betweenSaid(plan, place.leg)}</span>}
+                        </span>
                       </span>
                     </button>
                   </li>

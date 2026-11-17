@@ -90,6 +90,10 @@ export default function App() {
   const [changingVehicle, setChangingVehicle] = useState(false)
   // The place picked last from the search or the saved places. The map goes to it.
   const [picked, setPicked] = useState<Picked | null>(null)
+  // What the search along the planned route found near it, and the one last picked from its list.
+  // Counted, so that picking the same one twice shows it twice.
+  const [foundAlong, setFoundAlong] = useState<PlaceAlong[]>([])
+  const [shownAlong, setShownAlong] = useState<{ index: number; times: number } | null>(null)
   // Counted up each time a plan is asked for and the answer is in. The map then shows the whole
   // trip.
   const [plannedTimes, setPlannedTimes] = useState(0)
@@ -521,6 +525,11 @@ export default function App() {
         onClear={clearAll}
         onPickPlace={addSearchedPlace}
         onAddOnTheWay={addOnTheWay}
+        onFoundAlong={(found) => {
+          setFoundAlong(found)
+          setShownAlong(null)
+        }}
+        onShowAlong={(index) => setShownAlong((last) => ({ index, times: (last?.times ?? 0) + 1 }))}
         devicePosition={devicePosition}
         mapCentre={mapCentre}
         locating={locating}
@@ -567,6 +576,9 @@ export default function App() {
         askedTimes={asking.times}
         picked={picked}
         plannedTimes={plannedTimes}
+        foundAlong={foundAlong}
+        shownAlong={shownAlong}
+        onAddAlong={addOnTheWay}
         onMapClick={addPlace}
         onMovePlace={movePlace}
         onCentreChange={setMapCentre}

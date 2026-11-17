@@ -9,9 +9,16 @@ const DEBOUNCE_MS = 250
 /**
  * The places along a planned route that the words typed, or the kind of place picked, find: those
  * that add the least first. Along one leg, or along all of them when the leg is null. Used by the
- * dialog of a "+" and by the search along the planned route.
+ * dialog of a "+" and by the search along the planned route. As many as the limit, or as many as
+ * the API gives when it says none.
  */
-export function useSearchAlong(plan: RoutePlan, leg: number | null, query: string, kind: KindOfPlace | null) {
+export function useSearchAlong(
+  plan: RoutePlan,
+  leg: number | null,
+  query: string,
+  kind: KindOfPlace | null,
+  limit?: number,
+) {
   const [results, setResults] = useState<PlaceAlong[]>([])
   const [searching, setSearching] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
@@ -36,7 +43,7 @@ export function useSearchAlong(plan: RoutePlan, leg: number | null, query: strin
 
       setSearching(true)
       try {
-        const found = await findAlong(kind ? { placeKind: kind.name } : { q: term }, plan.route, leg, controller.signal)
+        const found = await findAlong(kind ? { placeKind: kind.name } : { q: term }, plan.route, leg, controller.signal, limit)
         setResults(found)
         setNothingFound(found.length === 0)
       } catch (caught) {
@@ -55,7 +62,7 @@ export function useSearchAlong(plan: RoutePlan, leg: number | null, query: strin
       clearTimeout(timer)
       inFlight.current?.abort()
     }
-  }, [query, kind, plan, leg])
+  }, [query, kind, plan, leg, limit])
 
   return { results, searching, failed, nothingFound }
 }

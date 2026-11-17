@@ -13,8 +13,9 @@ import {
 } from 'react-leaflet'
 import { heightAt } from '../api'
 import { sitsOn } from '../foundStart'
-import { pinLabel } from '../onTheWay'
-import { closeEnoughToCheck, everywhereTheTripGoes, type Picked } from '../framing'
+import { addedSaid, betweenSaid, pinLabel } from '../onTheWay'
+import { isInTrip } from '../savedPlaces'
+import { closeEnoughToCheck, everywhereTheFindsAre, everywhereTheTripGoes, type Picked } from '../framing'
 import { heightSaid, spotOf } from '../height'
 import type { DevicePosition, Position } from '../location'
 import {
@@ -28,7 +29,7 @@ import {
   type Point,
 } from '../pinDrag'
 import { coveredAtTheTopOfTheMap } from '../screen'
-import type { Place, RoutePlan } from '../types'
+import type { Place, PlaceAlong, RoutePlan } from '../types'
 
 // Auckland, because that is where this was built and tested.
 const DEFAULT_CENTRE: [number, number] = [-36.8485, 174.7621]
@@ -45,6 +46,11 @@ interface Props {
   picked: Picked | null
   /** How many times a plan has been asked for and the answer is in. */
   plannedTimes: number
+  /** What the search along the planned route found near it, the least out of the way first. */
+  foundAlong: PlaceAlong[]
+  /** The one of those last picked from the list, by its turn in it. Counted, as picked is. */
+  shownAlong: { index: number; times: number } | null
+  onAddAlong: (found: PlaceAlong) => void
   onMapClick: (latitude: number, longitude: number) => void
   onMovePlace: (index: number, latitude: number, longitude: number) => void
   onCentreChange: (centre: Position) => void
@@ -475,6 +481,135 @@ function ShowTheWholeTrip({
   return null
 }
 
+/** How far the tip of a pin of a place found is below the middle of its round head. */
+const ALONG_TIP = 34
+
+/** A place found along the route: a pin with a point, unlike the round pins of the trip, and its number. */
+function alongIcon(index: number): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `<span class="along-pin"><span>${index + 1}</span></span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, ALONG_TIP],
+    popupAnchor: [0, -ALONG_TIP],
+  })
+}
+
+/** On a phone the list of places found folds to one line under the search box, over the map. */
+const FOLDED_LIST_COVERS = 52
+
+/**
+ * The places the search along the planned route found, as numbered pins, each with a card to add
+ * it from. They are framed with the route when they arrive, so that how far each is from it shows.
+ * A place picked from the list has its card opened.
+ */
+function PlacesFoundAlong({
+  plan,
+  places,
+  found,
+  shown,
+  onAdd,
+}: {
+  plan: RoutePlan | null
+  places: Place[]
+  found: PlaceAlong[]
+  shown: Props['shownAlong']
+  onAdd: Props['onAddAlong']
+}) {
+  const map = useMap()
+  const pins = useRef<(L.Marker | null)[]>([])
+
+  useEffect(() => {
+    if (!plan || found.length === 0) {
+      return
+    }
+    map.closePopup()
+    map.flyToBounds(L.latLngBounds(everywhereTheFindsAre(plan, found)), {
+      paddingTopLeft: [40, 40 + coveredAtTheTopOfTheMap() + (coveredAtTheTopOfTheMap() > 0 ? FOLDED_LIST_COVERS : 0)],
+      paddingBottomRight: [40, 40],
+      maxZoom: 15,
+    })
+    // Only new places move the map. The plan they were found along comes with them.
+  }, [found, map])
+
+  useEffect(() => {
+    if (!shown) {
+      return
+    }
+    pins.current[shown.index]?.openPopup()
+    // For a keyboard, which picked it from the list, the way on is the card's button.
+    requestAnimationFrame(() =>
+      map.getContainer().querySelector<HTMLButtonElement>('.leaflet-popup .along-add')?.focus({ preventScroll: true }),
+    )
+  }, [shown, map])
+
+  if (!plan) {
+    return null
+  }
+  return found.map((place, index) => (
+    <PlaceFoundAlong
+      key={`${place.kind}|${place.name}|${place.latitude},${place.longitude}`}
+      ref={(pin) => {
+        pins.current[index] = pin
+      }}
+      place={place}
+      index={index}
+      between={betweenSaid(plan, place.leg)}
+      inTrip={isInTrip(places, place)}
+      onAdd={onAdd}
+    />
+  ))
+}
+
+/** One place found along the route. Made again only when what it shows changes, as Pin is. */
+function PlaceFoundAlong({
+  ref,
+  place,
+  index,
+  between,
+  inTrip,
+  onAdd,
+}: {
+  ref: (pin: L.Marker | null) => void
+  place: PlaceAlong
+  index: number
+  between: string
+  inTrip: boolean
+  onAdd: Props['onAddAlong']
+}) {
+  const position = useMemo<[number, number]>(() => [place.latitude, place.longitude], [place])
+  const icon = useMemo(() => alongIcon(index), [index])
+
+  return (
+    // Under the pins of the trip, which are what is planned, and the first on top of the rest.
+    <Marker ref={ref} position={position} icon={icon} title={place.name} zIndexOffset={-1000 * (index + 1)}>
+      <Popup autoPanPaddingTopLeft={[5, 5 + coveredAtTheTopOfTheMap()]}>
+        <div className="along-card">
+          <strong>{place.name}</strong>
+          {place.detail && <span className="result-detail">{place.detail}</span>}
+          <span className="result-added">
+            {inTrip ? 'Already in this trip' : addedSaid(place)}
+            {!inTrip && <span className="result-between"> · {between}</span>}
+          </span>
+          <button
+            className="along-add"
+            disabled={inTrip}
+            onClick={(event) => {
+              // React answers inside the card, before the map hears the tap. Adding the place takes
+              // the card away, and the map would then take the tap for one on the map, and add a
+              // stop where it landed. Stopped here, the map never hears it.
+              event.stopPropagation()
+              onAdd(place)
+            }}
+          >
+            Add to the trip
+          </button>
+        </div>
+      </Popup>
+    </Marker>
+  )
+}
+
 export default function RouteMap({
   places,
   plan,
@@ -483,6 +618,9 @@ export default function RouteMap({
   askedTimes,
   picked,
   plannedTimes,
+  foundAlong,
+  shownAlong,
+  onAddAlong,
   onMapClick,
   onMovePlace,
   onCentreChange,
@@ -519,6 +657,8 @@ export default function RouteMap({
       <ShowTheStartFoundForYou places={places} at={devicePosition} askedTimes={askedTimes} />
 
       {devicePosition && <YouAreHere at={devicePosition} />}
+
+      <PlacesFoundAlong plan={plan} places={places} found={foundAlong} shown={shownAlong} onAdd={onAddAlong} />
 
       {places.map((place, index) => (
         <Pin
