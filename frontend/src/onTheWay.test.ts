@@ -8,6 +8,9 @@ import {
   inPlannedOrder,
   legAfter,
   namedAs,
+  NEAR_ENOUGH_KM,
+  NEAR_ENOUGH_SECONDS,
+  nearTheRoute,
   pinLabel,
   searchAlongOpen,
   searchAlongOpenedOn,
@@ -381,6 +384,34 @@ describe('the search along the planned route', () => {
 
   it('closes when no stop can be added on the way', () => {
     expect(searchAlongOpen(plan, plan, false)).toBe(false)
+  })
+})
+
+describe('the places found near the route', () => {
+  it('keeps those that add 10 minutes or less', () => {
+    const near = [found({ secondsAdded: 0 }), found({ secondsAdded: 330 }), found({ secondsAdded: NEAR_ENOUGH_SECONDS })]
+
+    expect(nearTheRoute(near)).toEqual(near)
+  })
+
+  it('leaves out those that add more, however few that leaves', () => {
+    const near = found({ secondsAdded: 72 })
+
+    expect(nearTheRoute([near, found({ secondsAdded: NEAR_ENOUGH_SECONDS + 1 }), found({ secondsAdded: 1356 })])).toEqual([near])
+    expect(nearTheRoute([found({ secondsAdded: 1356 })])).toEqual([])
+  })
+
+  it('goes by distance on straight lines, where there is no time', () => {
+    const near = found({ secondsAdded: null, kmAdded: NEAR_ENOUGH_KM })
+
+    expect(nearTheRoute([near, found({ secondsAdded: null, kmAdded: 10.1 })])).toEqual([near])
+  })
+
+  it('keeps the order they came in, the least out of the way first', () => {
+    const first = found({ name: 'First', secondsAdded: 60 })
+    const second = found({ name: 'Second', secondsAdded: 120 })
+
+    expect(nearTheRoute([first, second]).map((place) => place.name)).toEqual(['First', 'Second'])
   })
 })
 

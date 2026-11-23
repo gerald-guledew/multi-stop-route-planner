@@ -183,6 +183,16 @@ describe('finding a stop on the way', () => {
     expect(body.q).toBeUndefined()
   })
 
+  it('asks for as many places as it is told, and leaves the number to the API otherwise', async () => {
+    const fetched = apiThatAnswers(200, [])
+
+    await findAlong({ q: 'fuel' }, route, null, notCancelled, 10)
+    await findAlong({ q: 'fuel' }, route, null, notCancelled)
+
+    expect(JSON.parse(String(fetched.mock.calls[0][1]?.body)).limit).toBe(10)
+    expect(JSON.parse(String(fetched.mock.calls[1][1]?.body))).not.toHaveProperty('limit')
+  })
+
   it('says which leg to look along when there is one', async () => {
     const fetched = apiThatAnswers(200, [])
 
